@@ -1,0 +1,28 @@
+[package]
+name = "git-dashboard-tui"
+version = "0.1.0"
+edition = "2024"
+description = "Fast, multi-repository Git dashboard with interactive TUI, commit graphs, Worktree support, diff views, and contributor analytics"
+authors = ["orapli"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/orapli/git-dashboard-tui"
+homepage = "https://github.com/orapli/git-dashboard-tui"
+keywords = ["git", "tui", "dashboard", "developer-tools", "terminal"]
+categories = ["command-line-utilities", "development-tools::version-control"]
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.10"
+directories = "5.0"
+rust-i18n = "3"
+unicode-width = "0.2"
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1

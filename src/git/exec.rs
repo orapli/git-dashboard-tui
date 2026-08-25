@@ -1,0 +1,391 @@
+use std::path::Path;
+use std::process::Command;
+
+pub fn check_safe_ref(r: &str) -> Result<(), String> {
+    if r.starts_with('-') {
+        return Err(format!("Git ref cannot start with '-': {}", r));
+    }
+    // A ref carrying a newline would forge an extra line in any batched remote
+    // script, and control characters cannot appear in a legitimate refname.
+    if r.chars().any(|c| c.is_control()) {
+        return Err("Git ref contains a control character".to_string());
+    }
+    Ok(())
+}
+
+pub fn check_safe_ref_opt(r: Option<&str>) -> Result<(), String> {
+    if let Some(s) = r {
+        check_safe_ref(s)?;
+    }
+    Ok(())
+}
+
+/// Create a Command that never flashes a console window on Windows.
+/// GUI-subsystem apps otherwise spawn a visible console for every child
+/// process, which makes the screen flicker on each git invocation.
+pub fn quiet_command(program: &str) -> Command {
+    #[allow(unused_mut)]
+    let mut cmd = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
+/// A destination is passed to `ssh` as a bare positional argument, and OpenSSH
+/// has no `--` terminator: anything starting with `-` would be read as an
+/// option, so `ssh://-oProxyCommand=.../x` would execute an arbitrary command.
+/// Only the characters a real destination can contain are accepted.
+fn is_safe_ssh_host(host: &str) -> bool {
+    !host.is_empty()
+        && !host.starts_with('-')
+        && host.chars().all(|c| {
+            c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '@' | ':' | '[' | ']')
+        })
+}
+
+pub fn parse_ssh_repo(repo_path: &Path) -> Option<(String, String)> {
+    let s = repo_path.to_str()?;
+    let rest = s.strip_prefix("ssh://")?;
+    let (host, path) = rest.split_once('/')?;
+    if path.is_empty() || !is_safe_ssh_host(host) {
+        return None;
+    }
+    // The path is shell-quoted before it reaches the remote shell, but a
+    // newline in it would still forge a line in the batch script below.
+    if path.chars().any(|c| c.is_control()) {
+        return None;
+    }
+    Some((host.to_string(), format!("/{path}")))
+}
+
+/// Quote a string for the remote POSIX shell (ssh joins argv with spaces and
+/// hands the result to a shell, so pretty-format strings etc. must be quoted).
+pub fn shell_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+/// Config overrides applied to every git invocation. Besides the display
+/// settings, these neutralise the config keys that let a *repository* run code
+/// on the machine analysing it: `.git/config` of any repo added to the
+/// dashboard is honoured by git, and `safe.directory` only guards repos owned
+/// by another user — a repo cloned into the user's own home is fully trusted.
+/// `-c` beats the repository's own config, so an empty value disables the hook.
+pub const GIT_CONFIG_ARGS: &[&str] = &[
+    "color.ui=never",
+    "core.quotepath=false",
+    "diff.color=never",
+    "log.showSignature=false",
+    // Executable hooks reachable from read-only commands:
+    "core.fsmonitor=",             // spawned by `git status`
+    "core.sshCommand=ssh",         // spawned by any remote operation
+    "uploadpack.packObjectsHook=", // spawned while serving a fetch
+    "protocol.ext.allow=never",    // `ext::<command>` submodule/remote URLs
+];
+
+/// `diff.external` and the `textconv`/`diff` gitattributes drivers also run
+/// repository-controlled commands, but unlike the keys above they cannot be
+/// disabled with an empty `-c` value — git would try to execute the empty
+/// string. They are suppressed with the per-subcommand flags instead, which is
+/// why these have to be injected after the subcommand name rather than before.
+fn diff_safety_flags(subcommand: &str) -> &'static [&'static str] {
+    match subcommand {
+        "diff" | "diff-tree" | "diff-index" | "diff-files" | "log" | "show" | "whatchanged" => {
+            &["--no-ext-diff", "--no-textconv"]
+        }
+        "blame" => &["--no-textconv"],
+        _ => &[],
+    }
+}
+
+/// Insert the flags from [`diff_safety_flags`] right after the subcommand.
+pub fn with_diff_safety_flags(args: &[&str]) -> Vec<String> {
+    let Some((sub, rest)) = args.split_first() else {
+        return Vec::new();
+    };
+    let mut out = Vec::with_capacity(args.len() + 2);
+    out.push((*sub).to_string());
+    out.extend(diff_safety_flags(sub).iter().map(|f| (*f).to_string()));
+    out.extend(rest.iter().map(|a| (*a).to_string()));
+    out
+}
+
+fn apply_git_config(cmd: &mut Command) {
+    for c in GIT_CONFIG_ARGS {
+        cmd.arg("-c").arg(c);
+    }
+}
+
+/// Build the git invocation for a repository: plain `git` with current_dir for
+/// local paths, or `ssh <host> git -C <path> ...` for `ssh://` locators.
+pub fn git_command_for(repo_path: &Path, args: &[&str]) -> Command {
+    if let Some((host, remote_path)) = parse_ssh_repo(repo_path) {
+        let mut cmd = quiet_command("ssh");
+        cmd.arg("-o")
+            .arg("BatchMode=yes") // never prompt for passwords (key auth only)
+            .arg("-o")
+            .arg("ConnectTimeout=8")
+            .arg(host)
+            .arg("git");
+        for c in GIT_CONFIG_ARGS {
+            cmd.arg("-c").arg(shell_quote(c));
+        }
+        cmd.arg("--no-pager")
+            .arg("-C")
+            .arg(shell_quote(&remote_path));
+        for a in with_diff_safety_flags(args) {
+            cmd.arg(shell_quote(&a));
+        }
+        cmd
+    } else {
+        let mut cmd = quiet_command("git");
+        apply_git_config(&mut cmd);
+        cmd.arg("--no-pager")
+            .args(with_diff_safety_flags(args))
+            .current_dir(repo_path)
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("GIT_OPTIONAL_LOCKS", "0")
+            // Never let a credential helper pop an interactive dialog from a
+            // worker thread (Git Credential Manager on Windows ignores
+            // GIT_TERMINAL_PROMPT); failing fast beats hanging forever
+            .env("GCM_INTERACTIVE", "never")
+            .env("GIT_ASKPASS", "echo")
+            .env("GIT_PAGER", "cat")
+            .env("PAGER", "cat");
+        cmd
+    }
+}
+
+/// Hard timeout for analysis git invocations. ssh has ConnectTimeout, but an
+/// established-yet-stalled session, a credential helper, or a hung network
+/// filesystem would otherwise block a worker thread forever — a few of those
+pub const GIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+pub const GIT_NETWORK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// Upper bound on how much of a command's output is retained. Git output is
+/// attacker-influenced in size (a generated 4 GiB diff is a valid repository),
+/// and the whole thing is buffered in memory before parsing.
+pub const MAX_GIT_OUTPUT: usize = 64 * 1024 * 1024;
+
+/// How long to wait for a drain thread's buffer once the child has exited.
+/// Normally instantaneous; the bound only matters when a *grandchild* inherited
+/// the pipe and keeps its write end open (see `run_with_timeout`).
+const DRAIN_GRACE: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Read up to `cap` bytes, then discard the rest so the writer never blocks on
+/// a full pipe.
+fn drain_capped(mut r: impl std::io::Read, cap: usize) -> Vec<u8> {
+    use std::io::Read;
+    let mut buf = Vec::new();
+    let _ = r.by_ref().take(cap as u64).read_to_end(&mut buf);
+    if buf.len() >= cap {
+        let _ = std::io::copy(&mut r, &mut std::io::sink());
+    }
+    buf
+}
+
+/// Run a command with a hard timeout, killing the process on expiry.
+/// stdout/stderr are drained on dedicated threads — waiting for exit before
+/// reading would deadlock once a pipe buffer (64 KiB) fills on large output.
+///
+/// Those threads are **never joined unboundedly**: `read_to_end` returns only
+/// once every holder of the pipe's write end closes it, and killing the child
+/// does not close the copies a grandchild inherited (`git pull` →
+/// `git-remote-https`, an fsmonitor daemon, …). Joining would therefore make
+/// the "hard" timeout unbounded and wedge the worker thread forever, so the
+/// buffers are collected over a channel with a grace period and the threads are
+/// left detached to exit on their own.
+pub fn run_with_timeout(
+    mut cmd: Command,
+    timeout: std::time::Duration,
+) -> Result<std::process::Output, String> {
+    use std::process::Stdio;
+    use std::sync::mpsc;
+
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("コマンドの起動に失敗しました: {e}"))?;
+
+    let stdout_pipe = child.stdout.take();
+    let stderr_pipe = child.stderr.take();
+    let (out_tx, out_rx) = mpsc::channel();
+    let (err_tx, err_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let buf = stdout_pipe.map_or_else(Vec::new, |s| drain_capped(s, MAX_GIT_OUTPUT));
+        let _ = out_tx.send(buf);
+    });
+    std::thread::spawn(move || {
+        let buf = stderr_pipe.map_or_else(Vec::new, |s| drain_capped(s, MAX_GIT_OUTPUT));
+        let _ = err_tx.send(buf);
+    });
+
+    let start = std::time::Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {
+                if start.elapsed() > timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(format!(
+                        "コマンドが{}秒でタイムアウトしました（リモートまたはファイルシステムが応答していません）",
+                        timeout.as_secs()
+                    ));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(25));
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("child process wait failed: {e}"));
+            }
+        }
+    };
+
+    let stdout = out_rx.recv_timeout(DRAIN_GRACE).unwrap_or_default();
+    let stderr = err_rx.recv_timeout(DRAIN_GRACE).unwrap_or_default();
+    Ok(std::process::Output {
+        status,
+        stdout,
+        stderr,
+    })
+}
+
+// Helper to run git commands
+pub fn run_git_cmd(repo_path: &Path, args: &[&str]) -> Result<String, String> {
+    let output = run_with_timeout(git_command_for(repo_path, args), GIT_TIMEOUT)?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+/// Build the sentinel delimiting per-command output when several git commands
+/// share one SSH connection. It must be **unpredictable**: batched commands
+/// print repository-controlled text (author names, file names), so a fixed
+/// literal could be forged by a commit author named after it, shifting every
+/// subsequent result by one and silently attributing one command's output to
+/// another. A per-call nonce makes the sentinel unguessable by repo content.
+fn batch_sentinel() -> String {
+    use std::collections::hash_map::RandomState;
+    use std::hash::{BuildHasher, Hasher};
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let mut h = RandomState::new().build_hasher();
+    h.write_u64(n);
+    format!("___GITDASH_END_{:016x}_{:x}___", h.finish(), n)
+}
+
+/// Run several git commands against a repository, returning one result per
+/// command in order. For **SSH** repositories all commands share a single ssh
+/// connection: each `ssh` invocation is a full TCP + crypto handshake, and one
+/// repository analysis otherwise opens a dozen of them (the dominant cost on
+/// remote repos, and the only multiplexing option that works on Windows where
+/// OpenSSH ControlMaster is unsupported). Local repositories have no handshake
+/// cost, so they simply run sequentially.
+///
+/// A per-command non-zero exit maps to `Err(output)`, mirroring `run_git_cmd`.
+pub fn run_git_batch(repo_path: &Path, commands: &[&[&str]]) -> Vec<Result<String, String>> {
+    let Some((host, remote_path)) = parse_ssh_repo(repo_path) else {
+        // Local: no connection to amortize; behave exactly like N run_git_cmd
+        return commands.iter().map(|c| run_git_cmd(repo_path, c)).collect();
+    };
+
+    // Remote shell script: each command's merged stdout+stderr, then a sentinel
+    // line carrying its exit code. printf's `\n` guarantees the sentinel starts
+    // on its own line even when a command's output has no trailing newline.
+    let qpath = shell_quote(&remote_path);
+    let sep = batch_sentinel();
+    let mut script = String::new();
+    for cmd in commands {
+        script.push_str("LC_ALL=C git");
+        for c in GIT_CONFIG_ARGS {
+            script.push_str(" -c ");
+            script.push_str(&shell_quote(c));
+        }
+        script.push_str(" --no-pager -C ");
+        script.push_str(&qpath);
+        for a in with_diff_safety_flags(cmd) {
+            script.push(' ');
+            script.push_str(&shell_quote(&a));
+        }
+        script.push_str(" 2>&1; printf '\\n%s%d\\n' '");
+        script.push_str(&sep);
+        script.push_str("' \"$?\"\n");
+    }
+
+    let mut ssh = quiet_command("ssh");
+    ssh.arg("-o")
+        .arg("BatchMode=yes")
+        .arg("-o")
+        .arg("ConnectTimeout=8")
+        .arg(&host)
+        .arg(&script);
+
+    let timeout = (GIT_TIMEOUT * commands.len().max(1) as u32).min(GIT_NETWORK_TIMEOUT);
+    match run_with_timeout(ssh, timeout) {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            split_batch_output(&stdout, &sep, commands.len(), stderr.trim())
+        }
+        Err(e) => commands.iter().map(|_| Err(e.clone())).collect(),
+    }
+}
+
+/// Split sentinel-delimited batch stdout into per-command results. Each command
+/// emitted its output followed by a line `<sep><exit-code>`. Segments missing
+/// their sentinel (e.g. the connection dropped mid-stream) become `Err`.
+pub fn split_batch_output(
+    stdout: &str,
+    sep: &str,
+    expected: usize,
+    conn_err: &str,
+) -> Vec<Result<String, String>> {
+    let mut results = Vec::with_capacity(expected);
+    let mut buf = String::new();
+    for line in stdout.lines() {
+        if let Some(code_str) = line.strip_prefix(sep) {
+            let code: i32 = code_str.trim().parse().unwrap_or(-1);
+            // Drop the trailing newline(s) printf/line-joining introduced;
+            // callers trim or split, so exact trailing whitespace is moot.
+            let content = buf.trim_end_matches('\n').to_string();
+            buf.clear();
+            if code == 0 {
+                results.push(Ok(content));
+            } else {
+                results.push(Err(content));
+            }
+        } else {
+            buf.push_str(line);
+            buf.push('\n');
+        }
+    }
+    // More boundaries than commands means the stream is not what we sent —
+    // truncating would silently pair each command with another one's output,
+    // so the whole batch is reported as failed instead.
+    if results.len() > expected {
+        return (0..expected)
+            .map(|_| Err("バッチ出力の区切りが一致しません".to_string()))
+            .collect();
+    }
+    while results.len() < expected {
+        results.push(Err(if conn_err.is_empty() {
+            "SSH接続に失敗しました".to_string()
+        } else {
+            conn_err.to_string()
+        }));
+    }
+    results
+}
