@@ -19,6 +19,15 @@ jobs:
             os: ubuntu-latest
             artifact_name: git-dashboard-tui
             asset_name: git-dashboard-tui-x86_64-unknown-linux-gnu.tar.gz
+          # Built natively on an arm64 runner rather than cross-compiled, so
+          # no cross linker is needed. These runners are free for public
+          # repositories but are rejected in private ones — if this repo ever
+          # goes private, switch this entry to a cross-compile from
+          # ubuntu-latest with gcc-aarch64-linux-gnu.
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            artifact_name: git-dashboard-tui
+            asset_name: git-dashboard-tui-aarch64-unknown-linux-gnu.tar.gz
           - target: x86_64-apple-darwin
             os: macos-latest
             artifact_name: git-dashboard-tui

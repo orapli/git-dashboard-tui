@@ -12,7 +12,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # ubuntu-24.04-arm covers the aarch64-unknown-linux-gnu release
+        # target, so that binary is tested rather than only built. macOS
+        # runners are already arm64, so Apple Silicon is covered by
+        # macos-latest.
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

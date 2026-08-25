@@ -140,7 +140,7 @@ cargo install --path .
 
 ### Pre-built binaries
 
-Download a standalone binary for **Linux (x86_64)**, **macOS (Apple Silicon & Intel)**, or
+Download a standalone binary for **Linux (x86_64 & ARM64)**, **macOS (Apple Silicon & Intel)**, or
 **Windows (x64)** from the [Releases](https://github.com/orapli/git-dashboard-tui/releases) page.
 
 ### Requirements

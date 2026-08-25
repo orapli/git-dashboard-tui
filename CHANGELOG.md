@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-26
+
+First release. Everything below shipped in it — the repository had no tagged
+release before this, so the hardening and fixes listed here were applied
+before any version was published rather than in response to a shipped bug.
+
 ### Added
+
+- Pre-built binaries for **Linux (x86_64, ARM64)**, **macOS (Apple Silicon,
+  Intel)**, and **Windows (x64)**. The arm64 Linux binary is built natively on
+  an arm64 runner, and CI runs the full test suite on arm64 Linux too, so that
+  target is tested rather than only built.
 
 - **Cross-repository commit search** (`S` from Home). Searches commit messages across every
   registered repository at once — case-insensitive literal substring, not a regex — and
@@ -98,11 +109,7 @@ externally; no released version was affected, as none of this had shipped.
 - Added a generated [OpenWiki](openwiki/index.md) engineering index, refreshed by a
   manual-only GitHub Actions workflow.
 
-## [0.1.0] - 2026-08-21
-
-Initial feature set.
-
-### Added
+### Added (initial feature set)
 
 - Multi-repository Home dashboard: branch, ahead/behind, dirty count, last commit, and
   repository groups with filtering and bulk pull/fetch.

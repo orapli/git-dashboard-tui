@@ -138,7 +138,7 @@ cargo install --path .
 
 ### ビルド済みバイナリ
 
-**Linux (x86_64)**、**macOS (Apple Silicon / Intel)**、**Windows (x64)** 向けの単体バイナリを
+**Linux (x86_64 / ARM64)**、**macOS (Apple Silicon / Intel)**、**Windows (x64)** 向けの単体バイナリを
 [Releases](https://github.com/orapli/git-dashboard-tui/releases) から入手できます。
 
 ### 動作要件
