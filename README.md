@@ -19,9 +19,13 @@ which have a failing CI run, and which someone left mid-rebase. Then jump into a
 a diff, or a commit — and do the actual work with whatever tool you already use.
 
 ```bash
-cargo install --path .
-git-dashboard-tui
+# Grab the binary for your platform (Linux x86_64 shown) and run it
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-x86_64-unknown-linux-gnu.tar.gz | tar xz
+./git-dashboard-tui
 ```
+
+No Rust toolchain required — see [Installation](#installation) for other platforms,
+or `cargo install --git https://github.com/orapli/git-dashboard-tui --locked` if you prefer.
 
 Press `a` to add a repository, or `A` to scan a folder and import every Git repo under it.
 
@@ -131,17 +135,55 @@ hunk 1/1  n/p hunk  tab pane  [/] file  w ignore ws  f full file  b blame  t she
 
 ## Installation
 
-### From source
+### Pre-built binary (no Rust toolchain needed)
+
+One self-contained binary, nothing else to install. Pick your platform:
+
+```bash
+# Linux x86_64
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-x86_64-unknown-linux-gnu.tar.gz | tar xz
+
+# Linux ARM64
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-aarch64-unknown-linux-gnu.tar.gz | tar xz
+
+# macOS (Apple Silicon)
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-aarch64-apple-darwin.tar.gz | tar xz
+
+# macOS (Intel)
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-x86_64-apple-darwin.tar.gz | tar xz
+```
+
+Then move it somewhere on your `PATH`:
+
+```bash
+chmod +x git-dashboard-tui
+sudo mv git-dashboard-tui /usr/local/bin/    # or ~/.local/bin, or anywhere on PATH
+```
+
+**Windows (x64)**: download
+[`git-dashboard-tui-x86_64-pc-windows-msvc.zip`](https://github.com/orapli/git-dashboard-tui/releases/latest)
+and extract `git-dashboard-tui.exe`.
+
+> On macOS, Gatekeeper may block an unsigned binary on first run. Allow it under
+> **System Settings → Privacy & Security**, or run
+> `xattr -d com.apple.quarantine git-dashboard-tui`.
+
+All binaries are on the [Releases](https://github.com/orapli/git-dashboard-tui/releases) page.
+
+### With cargo (builds from source, no clone needed)
 
 ```bash
 # Requires Rust 1.85+ (2024 edition)
-cargo install --path .
+cargo install --git https://github.com/orapli/git-dashboard-tui --locked
 ```
 
-### Pre-built binaries
+### From a clone (for development)
 
-Download a standalone binary for **Linux (x86_64 & ARM64)**, **macOS (Apple Silicon & Intel)**, or
-**Windows (x64)** from the [Releases](https://github.com/orapli/git-dashboard-tui/releases) page.
+```bash
+git clone https://github.com/orapli/git-dashboard-tui
+cd git-dashboard-tui
+cargo install --path . --locked
+```
 
 ### Requirements
 

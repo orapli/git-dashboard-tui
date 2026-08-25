@@ -19,9 +19,13 @@ git-dashboard-tui は、ターミナル向けの**読み取り専用マルチリ
 飛んで、実際の作業は普段お使いのツールで行ってください。
 
 ```bash
-cargo install --path .
-git-dashboard-tui
+# お使いのプラットフォーム向けバイナリを取得して実行（例: Linux x86_64）
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-x86_64-unknown-linux-gnu.tar.gz | tar xz
+./git-dashboard-tui
 ```
+
+Rust ツールチェーンは不要です。他のプラットフォームは[インストール](#インストール)を参照するか、
+お好みで `cargo install --git https://github.com/orapli/git-dashboard-tui --locked` も使えます。
 
 `a` でリポジトリを追加、`A` でフォルダを走査して配下の Git リポジトリを一括取り込みします。
 
@@ -129,17 +133,54 @@ hunk 1/1  n/p hunk  tab pane  [/] file  w ignore ws  f full file  b blame  t she
 
 ## インストール
 
-### ソースから
+### ビルド済みバイナリ（Rust ツールチェーン不要）
+
+単体で動くバイナリ 1 つだけです。お使いのプラットフォームを選んでください:
+
+```bash
+# Linux x86_64
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-x86_64-unknown-linux-gnu.tar.gz | tar xz
+
+# Linux ARM64
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-aarch64-unknown-linux-gnu.tar.gz | tar xz
+
+# macOS (Apple Silicon)
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-aarch64-apple-darwin.tar.gz | tar xz
+
+# macOS (Intel)
+curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-x86_64-apple-darwin.tar.gz | tar xz
+```
+
+そのあと `PATH` の通った場所へ移動します:
+
+```bash
+chmod +x git-dashboard-tui
+sudo mv git-dashboard-tui /usr/local/bin/    # ~/.local/bin など PATH 上ならどこでも可
+```
+
+**Windows (x64)**: [Releases](https://github.com/orapli/git-dashboard-tui/releases/latest) から
+`git-dashboard-tui-x86_64-pc-windows-msvc.zip` をダウンロードし、`git-dashboard-tui.exe` を展開してください。
+
+> macOS では、署名されていないバイナリの初回起動が Gatekeeper にブロックされることがあります。
+> **システム設定 → プライバシーとセキュリティ** から許可するか、
+> `xattr -d com.apple.quarantine git-dashboard-tui` を実行してください。
+
+全バイナリは [Releases](https://github.com/orapli/git-dashboard-tui/releases) ページにあります。
+
+### cargo で入れる（ソースからビルド、クローン不要）
 
 ```bash
 # Rust 1.85+ (2024 edition) が必要です
-cargo install --path .
+cargo install --git https://github.com/orapli/git-dashboard-tui --locked
 ```
 
-### ビルド済みバイナリ
+### クローンから（開発用）
 
-**Linux (x86_64 / ARM64)**、**macOS (Apple Silicon / Intel)**、**Windows (x64)** 向けの単体バイナリを
-[Releases](https://github.com/orapli/git-dashboard-tui/releases) から入手できます。
+```bash
+git clone https://github.com/orapli/git-dashboard-tui
+cd git-dashboard-tui
+cargo install --path . --locked
+```
 
 ### 動作要件
 
