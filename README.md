@@ -242,7 +242,7 @@ Then:
 | `j` / `k` (or `↓` / `↑`) | Move selection |
 | `g` / `G` | Jump to top / bottom of list |
 | `t` | Open `$SHELL` in the current repository<br>(except the Contributors tab, where `t` toggles member status) |
-| **Mouse wheel** | Scroll lists, commit logs, and diff views |
+| **Mouse wheel** | Scroll lists, commit logs, diff views, and the help screen |
 | **Mouse click** | Switch tabs or select items directly |
 | **Click a column header** | Sort the Home list by that column; click again to reverse |
 | **Click a list row** | Select it; click the selected row again to open it |

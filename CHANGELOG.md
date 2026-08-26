@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The footer hint bar wraps onto a second row** when the hints don't fit one.
+  Home's hints need 154 columns in English and 141 in Japanese, and the bar was a
+  single hard-truncated row — so on any ordinary terminal the last third of them
+  simply did not appear. This is why `o` (sort) read as a removed feature: putting it
+  back in the hints was not enough, because the tail of the bar was off-screen.
+  Two rows cover Home down to a 71-column terminal; below that the bar ends in
+  `… ?` rather than quietly dropping the remainder.
+- **The help screen scrolls** (`j`/`k`, PageUp/PageDown, `g`/`G`, mouse wheel) and its
+  title shows the visible range. It is 59 lines rendered into whatever height the
+  terminal had: on 30 rows, 33 of them could not be reached by any means.
 - **Pick comparison targets in Commits and Tags by clicking the `[ ]` marker**, not only
   with `space`. Clicking a marked row again clears it, so a mis-picked base is fixable
   by mouse. Clicking a row anywhere else selects it, and clicking the already-selected
@@ -16,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The help screen was almost entirely English** under a Japanese UI — only the four
+  section headings went through translation. Every line does now.
+- **Two section headings rendered as raw translation keys** (`global_members`,
+  `repo_detail`) in both languages: the keys were referenced but never defined in
+  `locales/`, and the i18n layer falls back to printing the key itself.
 - **The Commits and Tags comparison headers were English-only**, even with the UI set to
   Japanese: `base=abc1234  (space to pick target)` never went through translation. They
   are now bilingual, and say that the `[ ]` marker is clickable — "space to mark" gave no

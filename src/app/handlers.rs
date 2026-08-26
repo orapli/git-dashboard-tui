@@ -100,7 +100,9 @@ impl App {
                     }
                 }
             }
-            Screen::Help => {}
+            Screen::Help => {
+                self.scroll_help_by(delta.signum() * 3);
+            }
         }
     }
 
@@ -213,6 +215,7 @@ impl App {
             Screen::Help => {
                 // Click anywhere on help screen returns
                 self.screen = self.help_return.take().unwrap_or(Screen::Home);
+                self.help_scroll.set(0);
             }
             _ => {}
         }

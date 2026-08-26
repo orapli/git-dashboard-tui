@@ -64,6 +64,9 @@ pub struct App {
     /// click carries screen coordinates, and only the renderer knows what row
     /// they landed on.
     pub list_viewport: std::cell::Cell<ListViewport>,
+    /// First visible help line. Clamped by the renderer, which is the only
+    /// place that knows how tall the help box ended up.
+    pub help_scroll: std::cell::Cell<usize>,
     pub home_rows: HashMap<usize, HomeRow>,
     pub repo_tab: RepoTab,
     pub repo_index: Option<usize>,
@@ -170,6 +173,7 @@ impl App {
             home_offset: std::cell::Cell::new(0),
             home_col_bounds: std::cell::RefCell::new(Vec::new()),
             list_viewport: std::cell::Cell::new(ListViewport::default()),
+            help_scroll: std::cell::Cell::new(0),
             home_rows: HashMap::new(),
             repo_tab: RepoTab::Commits,
             repo_index: None,
@@ -736,11 +740,22 @@ impl App {
             return;
         }
         if self.screen == Screen::Help {
-            if matches!(
-                key.code,
-                KeyCode::Esc | KeyCode::Char('?') | KeyCode::Backspace | KeyCode::Char('q')
-            ) {
-                self.screen = self.help_return.take().unwrap_or(Screen::Home);
+            match key.code {
+                KeyCode::Esc | KeyCode::Char('?') | KeyCode::Backspace | KeyCode::Char('q') => {
+                    self.screen = self.help_return.take().unwrap_or(Screen::Home);
+                    // Start from the top next time rather than wherever the
+                    // last visit ended.
+                    self.help_scroll.set(0);
+                }
+                KeyCode::Down | KeyCode::Char('j') => self.scroll_help_by(1),
+                KeyCode::Up | KeyCode::Char('k') => self.scroll_help_by(-1),
+                KeyCode::PageDown | KeyCode::Char(' ') => self.scroll_help_by(10),
+                KeyCode::PageUp => self.scroll_help_by(-10),
+                KeyCode::Char('g') => self.help_scroll.set(0),
+                // The renderer clamps to the real content height, so asking
+                // for more than exists is safe and lands on the last page.
+                KeyCode::Char('G') => self.help_scroll.set(usize::MAX),
+                _ => {}
             }
             return;
         }
@@ -2117,6 +2132,19 @@ impl App {
     /// Shared by tags and commits so the two can't drift: the rule that an
     /// already-marked entry clears rather than re-marking is what makes a
     /// second press (or click) undo a mistake instead of doing nothing.
+    /// Move the help viewport. Saturating rather than wrapping: the renderer
+    /// clamps the upper end against the real content height, which is the only
+    /// place that knows it.
+    pub(crate) fn scroll_help_by(&self, delta: isize) {
+        let cur = self.help_scroll.get();
+        let next = if delta < 0 {
+            cur.saturating_sub(delta.unsigned_abs())
+        } else {
+            cur.saturating_add(delta as usize)
+        };
+        self.help_scroll.set(next);
+    }
+
     fn toggle_marker(base: &mut Option<String>, target: &mut Option<String>, name: String) {
         if base.as_deref() == Some(name.as_str()) {
             *base = None;
@@ -3189,6 +3217,11 @@ impl App {
             path: repo.path.clone(),
             stash_ref,
         });
+    }
+
+    #[cfg(test)]
+    pub fn set_language_for_test(&mut self, lang: config::Language) {
+        self.prefs.language = lang;
     }
 
     fn toggle_language(&mut self) {

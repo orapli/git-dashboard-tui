@@ -25,12 +25,18 @@ pub fn draw(frame: &mut Frame, app: &App) {
         area,
     );
 
+    // The hint bar takes a second row only when the hints don't fit on one.
+    // A fixed one-row footer silently cut the tail off every screen — Home's
+    // hints need 154 columns in English, so on a normal terminal the last
+    // third of them, `o sort` and `q quit` among them, simply did not exist as
+    // far as the user could tell.
+    let hint_rows = footer_hint_rows(app, area.width);
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),
             Constraint::Min(1),
-            Constraint::Length(2),
+            Constraint::Length(hint_rows + 1),
         ])
         .split(area);
 
@@ -93,16 +99,101 @@ fn draw_title(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     frame.render_widget(bar, area);
 }
 
+/// How many rows the hint bar needs: one, or two when the hints overflow.
+///
+/// Capped at two — past that the footer would eat the screen. Anything still
+/// not fitting is marked with an ellipsis so the user knows to look in `?`.
+fn footer_hint_rows(app: &App, width: u16) -> u16 {
+    wrap_hints(&app.footer_hints(), width, MAX_HINT_ROWS).len() as u16
+}
+
+/// Greedily pack `key desc` hints into at most `max_rows` rows of `width`
+/// columns, measuring display width so CJK labels are not counted as half
+/// their size.
+///
+/// Packed twice when hints don't all fit: the first pass finds out that some
+/// were dropped, the second re-packs with room held back on the final row for
+/// the `… ?` marker. Otherwise the marker is itself truncated away, which is
+/// precisely the failure it exists to prevent.
+fn wrap_hints(hints: &[(String, String)], width: u16, max_rows: usize) -> Vec<Vec<usize>> {
+    let rows = pack_hints(hints, width, max_rows, 0);
+    let shown: usize = rows.iter().map(|r| r.len()).sum();
+    if shown == hints.len() {
+        return rows;
+    }
+    pack_hints(hints, width, max_rows, MARKER_WIDTH)
+}
+
+/// Columns held back on the last row for `  … ?`.
+const MARKER_WIDTH: usize = 5;
+
+fn pack_hints(
+    hints: &[(String, String)],
+    width: u16,
+    max_rows: usize,
+    last_row_reserve: usize,
+) -> Vec<Vec<usize>> {
+    use unicode_width::UnicodeWidthStr;
+    let width = width as usize;
+    let mut rows: Vec<Vec<usize>> = vec![Vec::new()];
+    let mut used = 0usize;
+    for (i, (key, desc)) in hints.iter().enumerate() {
+        let item = if desc.is_empty() {
+            key.width()
+        } else {
+            key.width() + 1 + desc.width()
+        };
+        let empty = rows.last().is_some_and(|r| r.is_empty());
+        let sep = if empty { 0 } else { 2 };
+        let reserve = if rows.len() == max_rows {
+            last_row_reserve
+        } else {
+            0
+        };
+        if used + sep + item + reserve > width && !empty {
+            if rows.len() == max_rows {
+                break;
+            }
+            rows.push(Vec::new());
+            used = 0;
+        }
+        let sep = if rows.last().is_some_and(|r| r.is_empty()) {
+            0
+        } else {
+            2
+        };
+        used += sep + item;
+        rows.last_mut().expect("always at least one row").push(i);
+    }
+    rows
+}
+
+/// Two rows fit Home's hints down to a 71-column terminal in Japanese and 77
+/// in English; below that the ellipsis takes over rather than the footer
+/// growing without bound.
+const MAX_HINT_ROWS: usize = 2;
+
 fn draw_footer(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    let hints = app.footer_hints();
+    let wrapped = wrap_hints(&hints, area.width, MAX_HINT_ROWS);
+    let shown: usize = wrapped.iter().map(|r| r.len()).sum();
+    let mut constraints = vec![Constraint::Length(1); wrapped.len()];
+    constraints.push(Constraint::Length(1));
     let rows = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Length(1)])
+        .constraints(constraints)
         .split(area);
-    frame.render_widget(
-        Paragraph::new(shortcut_line(&app.footer_hints(), pal))
-            .style(Style::default().bg(pal.surface)),
-        rows[0],
-    );
+    for (n, row) in wrapped.iter().enumerate() {
+        let items: Vec<(String, String)> = row.iter().map(|&i| hints[i].clone()).collect();
+        // Only the last row can be short, so that is where the "there is more,
+        // press ?" marker belongs.
+        let elided = n + 1 == wrapped.len() && shown < hints.len();
+        frame.render_widget(
+            Paragraph::new(shortcut_line(&items, pal, elided))
+                .style(Style::default().bg(pal.surface)),
+            rows[n],
+        );
+    }
     let (msg, color) = if let Some(e) = app.error.as_deref() {
         (e, pal.red)
     } else if !app.status.is_empty() {
@@ -114,7 +205,7 @@ fn draw_footer(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     };
     frame.render_widget(
         Paragraph::new(msg).style(Style::default().fg(color).bg(pal.surface)),
-        rows[1],
+        rows[wrapped.len()],
     );
 }
 
@@ -1984,96 +2075,340 @@ fn draw_repo_finder(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
 }
 
 fn draw_help(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    let head = |s: String| {
+        Line::from(Span::styled(
+            s,
+            Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
+        ))
+    };
+    // One key column for every row, so the descriptions still line up
+    // once they are twice as wide in Japanese.
+    let row = |key: &str, text: String| Line::from(format!("  {key:<14} {text}"));
     let lines = vec![
-        Line::from(Span::styled(
-            app.tt("Global", "全体"),
-            Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
-        )),
-        Line::from("  q / Ctrl+C     quit"),
-        Line::from("  Esc / h        back one screen"),
-        Line::from("  ?              toggle this help (returns here)"),
-        Line::from("  /              filter current list"),
-        Line::from("  g / G          first / last"),
-        Line::from("  t / T          open terminal in repo directory"),
-        Line::from(""),
-        Line::from(Span::styled(
-            app.t("repositories"),
-            Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
-        )),
-        Line::from("  j k            move    enter open    a/d add/delete"),
-        Line::from("  A              scan folder and bulk import git repositories"),
-        Line::from("  [ / ]          switch repository group filter"),
-        Line::from("  P / F          bulk pull / bulk fetch all filtered repos"),
-        Line::from("  p / f          pull / fetch single repo"),
-        Line::from("  t              open terminal in repository"),
-        Line::from("  M              open Global Members view (cross-repo)"),
-        Line::from("  S              search commit messages across all repositories"),
-        Line::from("  n              toggle: only repos needing attention (failing CI,"),
-        Line::from("                 unresolved conflict, or a mid-operation merge/rebase)"),
-        Line::from("  o / e          sort repos / rename alias"),
-        Line::from("  r / s          reload / settings"),
-        Line::from(""),
-        Line::from(Span::styled(
-            app.tt("Global Members View", "全リポジトリ横断メンバー画面"),
-            Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
-        )),
-        Line::from("  Tab / h / l    switch pane between members and repo list"),
-        Line::from("  Enter          jump directly into selected repository"),
-        Line::from("  space / t      toggle member active / inactive"),
-        Line::from("  m              filter active members only"),
-        Line::from("  /              search members or repositories"),
-        Line::from(""),
-        Line::from(Span::styled(
+        head(app.tt("Global", "全体")),
+        row("q / Ctrl+C", app.tt("quit", "終了")),
+        row("Esc / h", app.tt("back one screen", "1つ前の画面へ戻る")),
+        row(
+            "?",
             app.tt(
-                "Repository & Contributors",
-                "リポジトリ & コントリビューター",
+                "toggle this help (returns here)",
+                "このヘルプの表示切替（元の画面に戻る）",
             ),
-            Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
-        )),
-        Line::from(
+        ),
+        row("/", app.tt("filter current list", "現在の一覧を絞り込む")),
+        row("g / G", app.tt("first / last", "先頭 / 末尾へ移動")),
+        row(
+            "t / T",
+            app.tt(
+                "open terminal in repo directory",
+                "リポジトリのディレクトリでターミナルを開く",
+            ),
+        ),
+        Line::from(""),
+        head(app.t("repositories")),
+        row(
+            "j k",
+            app.tt(
+                "move    enter open    a/d add/delete",
+                "移動    enter 開く    a/d 追加/削除",
+            ),
+        ),
+        row(
+            "A",
+            app.tt(
+                "scan folder and bulk import git repositories",
+                "フォルダを走査して git リポジトリを一括登録",
+            ),
+        ),
+        row(
+            "[ / ]",
+            app.tt(
+                "switch repository group filter",
+                "リポジトリのグループフィルタを切り替え",
+            ),
+        ),
+        row(
+            "P / F",
+            app.tt(
+                "bulk pull / bulk fetch all filtered repos",
+                "絞り込み中の全リポジトリへ一括 pull / fetch",
+            ),
+        ),
+        row(
+            "p / f",
+            app.tt(
+                "pull / fetch single repo",
+                "選択中のリポジトリを pull / fetch",
+            ),
+        ),
+        row(
+            "t",
+            app.tt(
+                "open terminal in repository",
+                "リポジトリでターミナルを開く",
+            ),
+        ),
+        row(
+            "M",
+            app.tt(
+                "open Global Members view (cross-repo)",
+                "全リポジトリ横断のメンバー画面を開く",
+            ),
+        ),
+        row(
+            "S",
+            app.tt(
+                "search commit messages across all repositories",
+                "全リポジトリのコミットメッセージを検索",
+            ),
+        ),
+        row(
+            "n",
+            app.tt(
+                "toggle: only repos needing attention (failing CI,",
+                "要対応のみ表示（CI 失敗・未解決のコンフリクト・",
+            ),
+        ),
+        row(
+            "",
+            app.tt(
+                "unresolved conflict, or a mid-operation merge/rebase)",
+                "中断中の merge/rebase）の切替",
+            ),
+        ),
+        row(
+            "o / e",
+            app.tt("sort repos / rename alias", "並び替え / 表示名の変更"),
+        ),
+        row(
+            "click header",
+            app.tt(
+                "sort by that column; click again to reverse",
+                "その列で並び替え。再クリックで昇降反転",
+            ),
+        ),
+        row(
+            "r / s",
+            app.tt("reload / settings", "再読み込み / 設定画面"),
+        ),
+        Line::from(""),
+        head(app.t("global_members")),
+        row(
+            "Tab / h / l",
+            app.tt(
+                "switch pane between members and repo list",
+                "メンバー一覧とリポジトリ一覧のペインを切替",
+            ),
+        ),
+        row(
+            "Enter",
+            app.tt(
+                "jump directly into selected repository",
+                "選択したリポジトリへ直接移動",
+            ),
+        ),
+        row(
+            "space / t",
+            app.tt(
+                "toggle member active / inactive",
+                "メンバーの在籍/非在籍を切替",
+            ),
+        ),
+        row(
+            "m",
+            app.tt("filter active members only", "在籍メンバーのみ表示"),
+        ),
+        row(
+            "/",
+            app.tt(
+                "search members or repositories",
+                "メンバー / リポジトリを検索",
+            ),
+        ),
+        Line::from(""),
+        head(app.t("repo_detail")),
+        Line::from(app.tt(
             "  1 Status  2 Commits  3 Branches  4 Tags  5 Stash  6 Contributors  7 Worktrees",
-        ),
-        Line::from("  enter          commit/file/stash diff, branch log, or shell in Worktree"),
-        Line::from("  p / f          pull / fetch this repository"),
-        Line::from(
-            "  space          mark commit/tag base+target, or toggle active in Contributors",
-        ),
-        Line::from("  click [ ]      same as space: pick the compare base, then the target"),
-        Line::from("  click a row    select it; click the selected row again to open it"),
-        Line::from("  w              cycle time span filter (All / 1w / 1m / 3m)"),
-        Line::from("  m              filter active members only (in Contributors tab)"),
-        Line::from("  i              always open builtin TUI diff"),
-        Line::from("  c              set external diff (empty = builtin, e.g. hunk)"),
-        Line::from("  r              reload without leaving the tab"),
-        Line::from(""),
-        Line::from(Span::styled(
-            app.tt("Settings", "設定画面"),
-            Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
+            "  1 状態  2 コミット  3 ブランチ  4 タグ  5 Stash  6 貢献者  7 ワークツリー",
         )),
-        Line::from("  Tab / 1 / 2    switch between Repositories and Members tabs"),
-        Line::from("  g              edit repository group"),
-        Line::from("  space / t      toggle member active / inactive"),
-        Line::from("  a / e / d      add / edit aliases / delete member or repo"),
-        Line::from("  l / c          toggle language / change diff tool"),
-        Line::from("  i              cycle Home auto-refresh interval (off/30s/1m/5m)"),
-        Line::from("  T              toggle theme (Catppuccin Mocha / Latte)"),
+        row(
+            "enter",
+            app.tt(
+                "commit/file/stash diff, branch log, or shell in Worktree",
+                "コミット/ファイル/stash の差分、ブランチのログ、Worktree でシェル",
+            ),
+        ),
+        row(
+            "p / f",
+            app.tt(
+                "pull / fetch this repository",
+                "このリポジトリを pull / fetch",
+            ),
+        ),
+        row(
+            "space",
+            app.tt(
+                "mark commit/tag base+target, or toggle active in Contributors",
+                "コミット/タグの比較の基準・対象を選択、貢献者タブでは在籍切替",
+            ),
+        ),
+        row(
+            "click [ ]",
+            app.tt(
+                "same as space: pick the compare base, then the target",
+                "space と同じ。比較の基準→対象を選択（再クリックで解除）",
+            ),
+        ),
+        row(
+            "click a row",
+            app.tt(
+                "select it; click the selected row again to open it",
+                "選択。選択済みの行をもう一度クリックすると開く",
+            ),
+        ),
+        row(
+            "w",
+            app.tt(
+                "cycle time span filter (All / 1w / 1m / 3m)",
+                "集計期間を切替（全期間 / 1週 / 1月 / 3月）",
+            ),
+        ),
+        row(
+            "m",
+            app.tt(
+                "filter active members only (in Contributors tab)",
+                "在籍メンバーのみ表示（貢献者タブ）",
+            ),
+        ),
+        row(
+            "i",
+            app.tt(
+                "always open builtin TUI diff",
+                "常に内蔵の TUI 差分ビューアで開く",
+            ),
+        ),
+        row(
+            "c",
+            app.tt(
+                "set external diff (empty = builtin, e.g. hunk)",
+                "外部 diff ツールを設定（空欄で内蔵、例: hunk）",
+            ),
+        ),
+        row(
+            "r",
+            app.tt(
+                "reload without leaving the tab",
+                "タブを移動せずに再読み込み",
+            ),
+        ),
         Line::from(""),
-        Line::from(Span::styled(
-            app.t("diff"),
-            Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
-        )),
-        Line::from("  Tab / h l      files ↔ hunks ↔ diff"),
-        Line::from("  n / p          next/prev hunk (wraps; highlights current)"),
-        Line::from("  [ / ]          previous/next changed file"),
-        Line::from("  w              toggle ignore-whitespace"),
-        Line::from("  f              toggle full-file context"),
-        Line::from("  b              toggle blame gutter (hash + author per line)"),
+        head(app.tt("Settings", "設定画面")),
+        row(
+            "Tab / 1 / 2",
+            app.tt(
+                "switch between Repositories and Members tabs",
+                "リポジトリ / メンバー管理タブを切替",
+            ),
+        ),
+        row(
+            "g",
+            app.tt("edit repository group", "リポジトリのグループを編集"),
+        ),
+        row(
+            "space / t",
+            app.tt(
+                "toggle member active / inactive",
+                "メンバーの在籍/非在籍を切替",
+            ),
+        ),
+        row(
+            "a / e / d",
+            app.tt(
+                "add / edit aliases / delete member or repo",
+                "追加 / 別名の編集 / メンバー・リポジトリの削除",
+            ),
+        ),
+        row(
+            "l / c",
+            app.tt(
+                "toggle language / change diff tool",
+                "表示言語の切替 / diff ツールの変更",
+            ),
+        ),
+        row(
+            "i",
+            app.tt(
+                "cycle Home auto-refresh interval (off/30s/1m/5m)",
+                "Home の自動更新間隔を切替（オフ/30秒/1分/5分）",
+            ),
+        ),
+        row(
+            "T",
+            app.tt(
+                "toggle theme (Catppuccin Mocha / Latte)",
+                "テーマを切替（Catppuccin Mocha / Latte）",
+            ),
+        ),
+        Line::from(""),
+        head(app.t("diff")),
+        row(
+            "Tab / h l",
+            app.tt("files ↔ hunks ↔ diff", "ファイル ↔ ハンク ↔ 差分 の移動"),
+        ),
+        row(
+            "n / p",
+            app.tt(
+                "next/prev hunk (wraps; highlights current)",
+                "次/前のハンク（末尾で先頭へ、現在位置を強調）",
+            ),
+        ),
+        row(
+            "[ / ]",
+            app.tt("previous/next changed file", "前/次の変更ファイル"),
+        ),
+        row(
+            "w",
+            app.tt("toggle ignore-whitespace", "空白差分を無視する切替"),
+        ),
+        row(
+            "f",
+            app.tt("toggle full-file context", "ファイル全体を表示する切替"),
+        ),
+        row(
+            "b",
+            app.tt(
+                "toggle blame gutter (hash + author per line)",
+                "blame 表示の切替（行ごとのハッシュと作者）",
+            ),
+        ),
     ];
+
+    // The help is the discoverability backstop, and it was 58 lines rendered
+    // into whatever height the terminal had — on 30 rows, 33 of them could not
+    // be reached by any means. Scroll it, and say so in the title.
+    let inner_h = area.height.saturating_sub(2) as usize;
+    let max_scroll = lines.len().saturating_sub(inner_h);
+    let scroll = app.help_scroll.get().min(max_scroll);
+    app.help_scroll.set(scroll);
+    let title = if max_scroll == 0 {
+        app.tt("Help", "ヘルプ")
+    } else {
+        format!(
+            "{} ({}-{}/{})  {}",
+            app.tt("Help", "ヘルプ"),
+            scroll + 1,
+            (scroll + inner_h).min(lines.len()),
+            lines.len(),
+            app.tt("j/k or wheel to scroll", "j/k・ホイールでスクロール")
+        )
+    };
     frame.render_widget(
-        Paragraph::new(lines).block(
+        Paragraph::new(lines).scroll((scroll as u16, 0)).block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(pal.border)),
+                .border_style(Style::default().fg(pal.border))
+                .title(title)
+                .title_style(Style::default().fg(pal.accent)),
         ),
         area,
     );
@@ -2230,7 +2565,10 @@ fn status_style(status: &str, pal: Palette) -> Style {
     }
 }
 
-fn shortcut_line<'a>(hints: &[(String, String)], pal: Palette) -> Line<'a> {
+/// `elided` marks that hints were dropped for want of room. Silently cutting
+/// them is what made `o sort` look like a removed feature rather than an
+/// off-screen one, so say so and point at the help screen.
+fn shortcut_line<'a>(hints: &[(String, String)], pal: Palette, elided: bool) -> Line<'a> {
     let mut spans = Vec::new();
     for (i, (key, desc)) in hints.iter().enumerate() {
         if i > 0 {
@@ -2244,6 +2582,12 @@ fn shortcut_line<'a>(hints: &[(String, String)], pal: Palette) -> Line<'a> {
             spans.push(Span::raw(" "));
             spans.push(Span::styled(desc.clone(), Style::default().fg(pal.subtext)));
         }
+    }
+    if elided {
+        spans.push(Span::styled(
+            "  … ?",
+            Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
+        ));
     }
     Line::from(spans)
 }
@@ -3077,5 +3421,235 @@ mod commit_click_tests {
         render_to_text(&app, 120, 20);
         app.handle_mouse_click(30, 1);
         assert_eq!(app.repo_tab, RepoTab::Branches);
+    }
+}
+
+#[cfg(test)]
+mod footer_and_help_tests {
+    use super::commit_click_tests::column_of;
+    use super::tests::render_to_text;
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent};
+
+    /// Does the rendered frame contain this text?
+    ///
+    /// A double-width glyph occupies two cells, and the frame dump emits a
+    /// blank for the second — so `"戻る"` appears as `"戻 る"` and a plain
+    /// `contains` never matches. Comparing with whitespace removed sidesteps
+    /// that without having to model cell widths.
+    fn frame_contains(rendered: &str, needle: &str) -> bool {
+        let strip = |s: &str| s.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+        strip(rendered).contains(&strip(needle))
+    }
+
+    fn home_app() -> App {
+        let mut app = App::new();
+        app.repos = vec![crate::config::Repository {
+            name: "alpha".to_string(),
+            path: std::path::PathBuf::from("/tmp/repo"),
+            group: None,
+        }];
+        app.screen = Screen::Home;
+        app
+    }
+
+    /// The whole point of wrapping: `q quit` used to fall off the end of the
+    /// one-row footer on any terminal narrower than 154 columns, which is to
+    /// say all of them.
+    #[test]
+    fn hints_that_do_not_fit_one_row_wrap_onto_a_second() {
+        let app = home_app();
+        let hints = app.footer_hints();
+        let rows = wrap_hints(&hints, 100, MAX_HINT_ROWS);
+        assert_eq!(rows.len(), 2, "expected a second row at 100 columns");
+        let shown: usize = rows.iter().map(|r| r.len()).sum();
+        assert_eq!(
+            shown,
+            hints.len(),
+            "every hint should be visible at 100 cols"
+        );
+
+        let text = render_to_text(&app, 100, 24);
+        for key in ["o", "q", "s"] {
+            let hint = hints.iter().find(|(k, _)| k == key).unwrap();
+            assert!(
+                text.contains(&hint.1),
+                "hint {key:?} ({}) missing from a 100-column frame",
+                hint.1
+            );
+        }
+    }
+
+    #[test]
+    fn a_wide_terminal_still_uses_a_single_row() {
+        let app = home_app();
+        let rows = wrap_hints(&app.footer_hints(), 200, MAX_HINT_ROWS);
+        assert_eq!(rows.len(), 1);
+    }
+
+    /// Two rows is the cap. Below the width where even that fits, the user has
+    /// to be told hints are missing rather than being shown a clean lie.
+    #[test]
+    fn a_very_narrow_terminal_marks_the_hints_it_could_not_show() {
+        let app = home_app();
+        let hints = app.footer_hints();
+        let rows = wrap_hints(&hints, 30, MAX_HINT_ROWS);
+        assert_eq!(rows.len(), MAX_HINT_ROWS);
+        let shown: usize = rows.iter().map(|r| r.len()).sum();
+        assert!(shown < hints.len(), "30 columns should not fit every hint");
+
+        let text = render_to_text(&app, 30, 24);
+        assert!(text.contains("… ?"), "no overflow marker in:\n{text}");
+    }
+
+    /// Wrapping must measure display columns; counting chars would let a row of
+    /// Japanese hints occupy twice its budget and overflow anyway.
+    #[test]
+    fn wrapping_measures_display_width_not_character_count() {
+        use unicode_width::UnicodeWidthStr;
+        let hints: Vec<(String, String)> = vec![
+            ("a".to_string(), "日本語テスト".to_string()),
+            ("b".to_string(), "日本語テスト".to_string()),
+        ];
+        // Each item is 1 + 1 + 12 = 14 columns; two plus a separator is 30.
+        assert_eq!(hints[0].1.width(), 12);
+        assert_eq!(wrap_hints(&hints, 30, 2).len(), 1);
+        assert_eq!(wrap_hints(&hints, 29, 2).len(), 2);
+    }
+
+    fn help_app() -> App {
+        let mut app = home_app();
+        app.screen = Screen::Help;
+        app
+    }
+
+    /// The help is longer than any ordinary terminal. Before it scrolled, the
+    /// lines past the fold could not be reached at all.
+    #[test]
+    fn the_help_scrolls_to_lines_a_short_terminal_cannot_show() {
+        let mut app = help_app();
+        let first = render_to_text(&app, 100, 24);
+        assert!(first.contains("Global"), "expected the top section first");
+        assert!(
+            !first.contains("blame gutter"),
+            "the last section should be below the fold at 24 rows"
+        );
+
+        app.handle_key(KeyEvent::from(KeyCode::Char('G')));
+        let last = render_to_text(&app, 100, 24);
+        assert!(
+            last.contains("blame gutter"),
+            "G should reach the last line:\n{last}"
+        );
+
+        app.handle_key(KeyEvent::from(KeyCode::Char('g')));
+        let back = render_to_text(&app, 100, 24);
+        assert!(back.contains("Global"), "g should return to the top");
+    }
+
+    #[test]
+    fn the_help_title_reports_the_visible_range_only_when_it_scrolls() {
+        let app = help_app();
+        let short = render_to_text(&app, 100, 24);
+        assert!(
+            short.contains("(1-"),
+            "expected an x-y/total counter:\n{short}"
+        );
+        // Tall enough for every line plus borders, title bar and footer.
+        let tall = render_to_text(&app, 100, 70);
+        assert!(
+            !tall.contains("(1-"),
+            "no counter when nothing is hidden:\n{tall}"
+        );
+    }
+
+    #[test]
+    fn scrolling_stops_at_the_end_instead_of_running_off() {
+        let mut app = help_app();
+        for _ in 0..500 {
+            app.handle_key(KeyEvent::from(KeyCode::Char('j')));
+        }
+        let text = render_to_text(&app, 100, 24);
+        assert!(
+            text.contains("blame gutter"),
+            "over-scrolling should rest on the last page:\n{text}"
+        );
+    }
+
+    #[test]
+    fn leaving_the_help_resets_it_to_the_top() {
+        // Enter the help the way a user does, so help_return is set.
+        let mut app = home_app();
+        app.handle_key(KeyEvent::from(KeyCode::Char('?')));
+        assert_eq!(app.screen, Screen::Help);
+        app.handle_key(KeyEvent::from(KeyCode::Char('G')));
+        app.handle_key(KeyEvent::from(KeyCode::Esc));
+        assert_eq!(app.screen, Screen::Home);
+        assert_eq!(app.help_scroll.get(), 0);
+    }
+
+    /// Every body line goes through `tt`, so a Japanese UI must not leave
+    /// English prose in the help — it was 54 of 58 lines before.
+    #[test]
+    fn the_help_body_is_translated() {
+        let mut app = help_app();
+        app.handle_key(KeyEvent::from(KeyCode::Char('l'))); // no-op on Help
+        let en = render_to_text(&app, 120, 70);
+        assert!(en.contains("back one screen"));
+
+        let mut app = help_app();
+        app.set_language_for_test(crate::config::Language::Japanese);
+        let ja = render_to_text(&app, 120, 70);
+        assert!(
+            !ja.contains("back one screen"),
+            "English prose left in the Japanese help:\n{ja}"
+        );
+        for expected in [
+            "1つ前の画面へ戻る",
+            "blame表示の切替",
+            "全リポジトリ横断メンバー",
+            "リポジトリ詳細",
+        ] {
+            assert!(
+                frame_contains(&ja, expected),
+                "{expected:?} missing from the Japanese help:\n{ja}"
+            );
+        }
+    }
+
+    /// The key column is padded so descriptions line up. In Japanese the
+    /// descriptions are twice as wide, and an unpadded key column would let
+    /// each row start wherever its key happened to end.
+    #[test]
+    fn help_descriptions_start_at_the_same_column_in_both_languages() {
+        let width = 120usize;
+        for lang in [
+            crate::config::Language::English,
+            crate::config::Language::Japanese,
+        ] {
+            let mut app = help_app();
+            app.set_language_for_test(lang);
+            let text = render_to_text(&app, width as u16, 70);
+            let lines: Vec<String> = (0..70)
+                .map(|r| text.chars().skip(r * width).take(width).collect())
+                .collect();
+
+            // Every key row is "  <key padded to 14> <description>", so the
+            // description always begins at the same column.
+            let mut desc_cols = Vec::new();
+            for key in ["q / Ctrl+C", "Esc / h", "Tab / 1 / 2", "b"] {
+                let line = lines
+                    .iter()
+                    .find(|l| column_of(l, &format!("  {key} ")) == Some(1))
+                    .unwrap_or_else(|| panic!("no row for {key:?} in {lang:?}"));
+                let after: String = line.chars().skip(17).collect();
+                let lead = after.len() - after.trim_start().len();
+                desc_cols.push(17 + lead);
+            }
+            assert!(
+                desc_cols.windows(2).all(|w| w[0] == w[1]),
+                "descriptions not aligned for {lang:?}: {desc_cols:?}"
+            );
+        }
     }
 }
