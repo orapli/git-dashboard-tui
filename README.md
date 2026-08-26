@@ -153,7 +153,7 @@ against the one published with the release, and installs to `~/.local/bin` (or
 ```bash
 # Install somewhere specific, or pin a version
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | INSTALL_DIR=~/bin sh
-curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.3.0 sh
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.3.1 sh
 ```
 
 > Piping a script into a shell means trusting it. The script is short and dependency-free —
