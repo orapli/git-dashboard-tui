@@ -5,7 +5,7 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-08-26
 
 ### Added
 
@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `0` or `""`, which used to scatter them through the list as the refresh landed.
   Modes 0-3 keep their existing meaning so `prefs.json` stays compatible with the
   sibling GUI, and an unrecognised mode written by it falls back to newest-first.
+
+## [0.1.0] - 2026-08-26
+
+First release. Everything below shipped in it — the repository had no tagged
+release before this, so the hardening and fixes listed here were applied
+before any version was published rather than in response to a shipped bug.
+
+### Added
+
 - **One-line installer** (`install.sh`): `curl -fsSL .../install.sh | sh` detects the
   platform, downloads the matching release binary, verifies its SHA-256 against the
   checksum file published with the release, and installs without ever using `sudo`.
@@ -35,15 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tried to start the TUI, which panics when stdout is not a terminal — so
   `git-dashboard-tui --version` failed in scripts and CI. Unknown arguments now exit
   with status 2 and a pointer to `--help` instead of launching the dashboard.
-
-## [0.1.0] - 2026-08-26
-
-First release. Everything below shipped in it — the repository had no tagged
-release before this, so the hardening and fixes listed here were applied
-before any version was published rather than in response to a shipped bug.
-
-### Added
-
 - Pre-built binaries for **Linux (x86_64, ARM64)**, **macOS (Apple Silicon,
   Intel)**, and **Windows (x64)**. The arm64 Linux binary is built natively on
   an arm64 runner, and CI runs the full test suite on arm64 Linux too, so that
@@ -154,5 +154,6 @@ externally; no released version was affected, as none of this had shipped.
 - Integration test suite running against real temporary Git repositories, plus CI on Linux,
   macOS, and Windows.
 
-[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/orapli/git-dashboard-tui/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/orapli/git-dashboard-tui/releases/tag/v0.1.0

@@ -1,6 +1,6 @@
 [package]
 name = "git-dashboard-tui"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Fast, multi-repository Git dashboard with interactive TUI, commit graphs, Worktree support, diff views, and contributor analytics"
 authors = ["orapli"]
