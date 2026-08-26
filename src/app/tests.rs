@@ -1241,6 +1241,8 @@ fn test_mouse_click_repo_tabs() {
     let mut app = App::new();
     app.screen = Screen::Repo;
     app.repo_tab = RepoTab::Status;
+    // The click hit-test uses bounds the renderer records, so draw once first.
+    crate::ui::tests::render(&app, 120, 24);
 
     let click_commits = crossterm::event::MouseEvent {
         kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
@@ -1457,8 +1459,9 @@ fn mouse_tab_click_resets_the_list_cursor() {
     app.repo_tab = RepoTab::Contributors;
     app.list_selected = 150;
     app.list_filter = "abc".to_string();
+    crate::ui::tests::render(&app, 120, 24);
 
-    app.handle_mouse_click(0, 1);
+    app.handle_mouse_click(2, 1);
 
     assert_eq!(app.repo_tab, RepoTab::Status);
     assert_eq!(app.list_selected, 0);

@@ -64,6 +64,11 @@ pub struct App {
     /// click carries screen coordinates, and only the renderer knows what row
     /// they landed on.
     pub list_viewport: std::cell::Cell<ListViewport>,
+    /// Screen x-range of each repository tab, recorded by the renderer. The
+    /// click handler used fixed ranges computed from the English labels, so it
+    /// mapped clicks to the wrong tab in Japanese — and would again whenever a
+    /// label changed.
+    pub tab_bounds: std::cell::RefCell<Vec<(u16, u16)>>,
     /// First visible help line. Clamped by the renderer, which is the only
     /// place that knows how tall the help box ended up.
     pub help_scroll: std::cell::Cell<usize>,
@@ -173,6 +178,7 @@ impl App {
             home_offset: std::cell::Cell::new(0),
             home_col_bounds: std::cell::RefCell::new(Vec::new()),
             list_viewport: std::cell::Cell::new(ListViewport::default()),
+            tab_bounds: std::cell::RefCell::new(Vec::new()),
             help_scroll: std::cell::Cell::new(0),
             home_rows: HashMap::new(),
             repo_tab: RepoTab::Commits,
@@ -2226,6 +2232,17 @@ impl App {
     /// Which Home table column a screen x-coordinate falls in, using the
     /// bounds the renderer recorded. `None` before the first draw, or for an
     /// x past the last column.
+    /// Which repository tab a screen x-coordinate falls in, from the bounds
+    /// the renderer recorded. `None` before the first draw or past the last tab.
+    pub fn repo_tab_at(&self, x: u16) -> Option<RepoTab> {
+        let idx = self
+            .tab_bounds
+            .borrow()
+            .iter()
+            .position(|&(start, end)| x >= start && x < end)?;
+        RepoTab::all().get(idx).copied()
+    }
+
     pub fn home_column_at(&self, x: u16) -> Option<usize> {
         self.home_col_bounds
             .borrow()

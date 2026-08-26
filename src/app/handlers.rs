@@ -186,20 +186,10 @@ impl App {
                 // Tab bar click (usually row 1). Route through switch_tab so the
                 // selection and filter are reset: a stale list_selected from a
                 // longer tab leaves Enter/d/space silently doing nothing.
-                if row == 1 || row == 2 {
-                    let tab = match col {
-                        0..=13 => Some(RepoTab::Status),
-                        14..=27 => Some(RepoTab::Commits),
-                        28..=41 => Some(RepoTab::Branches),
-                        42..=53 => Some(RepoTab::Tags),
-                        54..=65 => Some(RepoTab::Stash),
-                        66..=83 => Some(RepoTab::Contributors),
-                        84..=99 => Some(RepoTab::Worktrees),
-                        _ => None,
-                    };
-                    if let Some(tab) = tab {
-                        self.switch_tab(tab);
-                    }
+                if (row == 1 || row == 2)
+                    && let Some(tab) = self.repo_tab_at(col)
+                {
+                    self.switch_tab(tab);
                 }
             }
             Screen::Settings => {

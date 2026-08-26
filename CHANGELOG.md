@@ -26,6 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Home column headers no longer truncate themselves.** Column widths were fixed at
+  values chosen for the English headers, so `未コミット` (10 columns) was cut to
+  `未コミッ` in an 8-column cell — a chopped word with no ellipsis to admit it. Each
+  column is now at least as wide as its own header, in any language.
+- **All seven repository tabs stay visible on a narrow terminal.** The full labels need
+  87 columns in English and 95 in Japanese; at 80 the bar was clipped, and in Japanese
+  `7 ワークツリー` vanished entirely, leaving no sign the tab existed. Shorter labels
+  are used when the full ones don't fit, and bare numbers below that.
+- **Clicking a tab selects the tab under the cursor.** The handler matched fixed column
+  ranges derived from the English labels, so in Japanese — where every label is a
+  different width — a click could land on a neighbouring tab. It now uses the bounds
+  the renderer recorded.
 - **The help screen was almost entirely English** under a Japanese UI — only the four
   section headings went through translation. Every line does now.
 - **Two section headings rendered as raw translation keys** (`global_members`,

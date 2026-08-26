@@ -246,27 +246,29 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     } else {
         "▼"
     };
-    let header_cells: Vec<Cell> = [
+    let labels = [
         app.tt("Name", "名前"),
         app.tt("Branch", "ブランチ"),
         app.tt("Sync", "同期"),
         app.tt("Dirty", "未コミット"),
         app.tt("Updated", "更新"),
         app.tt("Path", "パス"),
-    ]
-    .into_iter()
-    .enumerate()
-    .map(|(i, label)| {
-        if Some(i) == sorted_col {
-            Cell::from(Line::from(vec![Span::styled(
-                format!("{label}{marker}"),
-                Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
-            )]))
-        } else {
-            Cell::from(label)
-        }
-    })
-    .collect();
+    ];
+    let header_cells: Vec<Cell> = labels
+        .clone()
+        .into_iter()
+        .enumerate()
+        .map(|(i, label)| {
+            if Some(i) == sorted_col {
+                Cell::from(Line::from(vec![Span::styled(
+                    format!("{label}{marker}"),
+                    Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
+                )]))
+            } else {
+                Cell::from(label)
+            }
+        })
+        .collect();
     let header = Row::new(header_cells).style(
         Style::default()
             .fg(pal.subtext)
@@ -402,12 +404,21 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         )
     };
 
+    // Fixed widths were picked for the English headers, so `未コミット` (10
+    // columns) was silently cut to `未コミッ` in an 8-column cell. Take the
+    // wider of the two, plus a column for the sort marker, so a header can
+    // never be truncated by its own column — in any language, including one
+    // added later.
+    let min_w = |i: usize, fixed: u16| {
+        use unicode_width::UnicodeWidthStr;
+        Constraint::Length(fixed.max(labels[i].width() as u16 + 1))
+    };
     let widths = [
-        Constraint::Length(26),
-        Constraint::Length(30),
-        Constraint::Length(10),
-        Constraint::Length(8),
-        Constraint::Length(18),
+        min_w(0, 26),
+        min_w(1, 30),
+        min_w(2, 10),
+        min_w(3, 8),
+        min_w(4, 18),
         Constraint::Min(10),
     ];
     // Record where each column actually landed so click-to-sort hit-tests
@@ -454,23 +465,53 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     app.home_offset.set(state.offset());
 }
 
+/// Width `Tabs` needs for these labels: each is padded by a space on both
+/// sides and separated by a divider.
+fn tab_bar_width(labels: &[String]) -> usize {
+    use unicode_width::UnicodeWidthStr;
+    labels.iter().map(|l| l.width() + 2).sum::<usize>() + labels.len().saturating_sub(1)
+}
+
+/// Tab labels at the widest level that fits, falling back to shorter names and
+/// finally to bare numbers.
+///
+/// The full labels need an 87-column terminal in English and 95 in Japanese.
+/// On an 80-column one the bar was clipped, and in Japanese that removed
+/// `7 ワークツリー` outright — leaving no sign a seventh tab existed, though
+/// pressing `7` still worked. Shrinking beats vanishing.
+pub(crate) fn repo_tab_labels(app: &App, width: u16) -> Vec<String> {
+    let full: Vec<String> = vec![
+        app.tt("1 Status", "1 状態"),
+        app.tt("2 Commits", "2 コミット"),
+        format!("3 {}", app.t("tab_branches")),
+        app.tt("4 Tags", "4 タグ"),
+        format!("5 {}", app.tt("Stash", "Stash")),
+        app.tt("6 Contributors", "6 コントリビューター"),
+        app.tt("7 Worktrees", "7 ワークツリー"),
+    ];
+    let inner = width.saturating_sub(2) as usize;
+    if tab_bar_width(&full) <= inner {
+        return full;
+    }
+    let short: Vec<String> = vec![
+        app.tt("1 Status", "1 状態"),
+        app.tt("2 Commits", "2 コミット"),
+        app.tt("3 Branch", "3 ブランチ"),
+        app.tt("4 Tags", "4 タグ"),
+        app.tt("5 Stash", "5 Stash"),
+        app.tt("6 People", "6 貢献者"),
+        app.tt("7 Trees", "7 ツリー"),
+    ];
+    if tab_bar_width(&short) <= inner {
+        return short;
+    }
+    (1..=7).map(|n| n.to_string()).collect()
+}
+
 fn draw_repo(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     let tabs = RepoTab::all();
-    let labels: Vec<Line> = tabs
-        .iter()
-        .map(|t| {
-            let s = match t {
-                RepoTab::Status => app.tt("1 Status", "1 状態"),
-                RepoTab::Commits => app.tt("2 Commits", "2 コミット"),
-                RepoTab::Branches => format!("3 {}", app.t("tab_branches")),
-                RepoTab::Tags => app.tt("4 Tags", "4 タグ"),
-                RepoTab::Stash => format!("5 {}", app.tt("Stash", "Stash")),
-                RepoTab::Contributors => app.tt("6 Contributors", "6 コントリビューター"),
-                RepoTab::Worktrees => app.tt("7 Worktrees", "7 ワークツリー"),
-            };
-            Line::from(s)
-        })
-        .collect();
+    let labels_text = repo_tab_labels(app, area.width);
+    let labels: Vec<Line> = labels_text.iter().cloned().map(Line::from).collect();
     let selected = tabs.iter().position(|t| *t == app.repo_tab).unwrap_or(0);
 
     let chunks = Layout::default()
@@ -488,6 +529,21 @@ fn draw_repo(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 .border_style(Style::default().fg(pal.border)),
         );
     frame.render_widget(tabs_w, chunks[0]);
+    // Record where each tab landed so a click maps to the tab actually under
+    // the cursor. `Tabs` pads every label with a space on each side and puts a
+    // one-column divider between them.
+    {
+        use unicode_width::UnicodeWidthStr;
+        let inner = chunks[0].inner(Margin::new(1, 1));
+        let mut x = inner.x;
+        let mut bounds = Vec::with_capacity(labels_text.len());
+        for label in &labels_text {
+            let w = label.width() as u16 + 2;
+            bounds.push((x, x + w));
+            x += w + 1; // divider
+        }
+        *app.tab_bounds.borrow_mut() = bounds;
+    }
 
     if app.repo_loading && app.repo_data.is_none() {
         frame.render_widget(
@@ -2632,14 +2688,14 @@ fn truncate(s: &str, max: usize) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::app::{RepoSnapshot, Screen};
     use crate::git::{Summary, WorktreeInfo};
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
 
-    fn render(app: &App, width: u16, height: u16) {
+    pub(crate) fn render(app: &App, width: u16, height: u16) {
         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
         terminal.draw(|f| draw(f, app)).unwrap();
     }
@@ -3437,7 +3493,25 @@ mod footer_and_help_tests {
     /// blank for the second — so `"戻る"` appears as `"戻 る"` and a plain
     /// `contains` never matches. Comparing with whitespace removed sidesteps
     /// that without having to model cell widths.
-    fn frame_contains(rendered: &str, needle: &str) -> bool {
+    /// Screen column where `needle` begins, tolerating the blank cell that
+    /// follows every double-width glyph in a frame dump (`"状態"` appears as
+    /// `"状 態"`). Both sides are compared with whitespace removed, and the
+    /// match is mapped back to the column the first character occupies.
+    pub(super) fn text_column_of(line: &str, needle: &str) -> Option<u16> {
+        let cols: Vec<(usize, char)> = line
+            .chars()
+            .enumerate()
+            .filter(|(_, c)| !c.is_whitespace())
+            .collect();
+        let dense: String = cols.iter().map(|(_, c)| *c).collect();
+        let pat: String = needle.chars().filter(|c| !c.is_whitespace()).collect();
+        let at = dense
+            .char_indices()
+            .position(|(b, _)| dense[b..].starts_with(&pat))?;
+        Some(cols[at].0 as u16)
+    }
+
+    pub(super) fn frame_contains(rendered: &str, needle: &str) -> bool {
         let strip = |s: &str| s.chars().filter(|c| !c.is_whitespace()).collect::<String>();
         strip(rendered).contains(&strip(needle))
     }
@@ -3650,6 +3724,131 @@ mod footer_and_help_tests {
                 desc_cols.windows(2).all(|w| w[0] == w[1]),
                 "descriptions not aligned for {lang:?}: {desc_cols:?}"
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod width_tests {
+    use super::footer_and_help_tests::{frame_contains, text_column_of};
+    use super::tests::render_to_text;
+    use super::*;
+    use crate::config::Language;
+
+    fn app(lang: Language) -> App {
+        let mut app = App::new();
+        app.repos = vec![crate::config::Repository {
+            name: "alpha".to_string(),
+            path: std::path::PathBuf::from("/tmp/repo"),
+            group: None,
+        }];
+        app.set_language_for_test(lang);
+        app
+    }
+
+    /// `未コミット` is 10 columns and the Dirty cell was a fixed 8, so the
+    /// header rendered as `未コミッ` — a truncated word, with no ellipsis to
+    /// say so.
+    #[test]
+    fn no_home_header_is_cut_off_by_its_own_column() {
+        for lang in [Language::English, Language::Japanese] {
+            let mut a = app(lang);
+            a.screen = Screen::Home;
+            let text = render_to_text(&a, 120, 20);
+            for label in [
+                "Dirty",
+                "未コミット",
+                "Branch",
+                "ブランチ",
+                "Updated",
+                "更新",
+            ] {
+                let expected_in_this_lang = (lang == Language::Japanese) == !label.is_ascii();
+                if !expected_in_this_lang {
+                    continue;
+                }
+                assert!(
+                    frame_contains(&text, label),
+                    "{label:?} truncated in {lang:?}:\n{text}"
+                );
+            }
+        }
+    }
+
+    /// At 80 columns the full Japanese tab bar overflowed and `7 ワークツリー`
+    /// disappeared entirely — no hint that a seventh tab existed.
+    #[test]
+    fn every_tab_stays_visible_on_a_narrow_terminal() {
+        for lang in [Language::English, Language::Japanese] {
+            let mut a = app(lang);
+            a.screen = Screen::Repo;
+            a.repo_index = Some(0);
+            for width in [80u16, 100, 200] {
+                let text = render_to_text(&a, width, 20);
+                for n in 1..=7 {
+                    assert!(
+                        text.contains(&n.to_string()),
+                        "tab {n} missing at {width} cols in {lang:?}:\n{text}"
+                    );
+                }
+                let labels = repo_tab_labels(&a, width);
+                assert_eq!(labels.len(), 7);
+                assert!(
+                    tab_bar_width(&labels) <= (width - 2) as usize,
+                    "tab bar {} wide does not fit {width} cols in {lang:?}: {labels:?}",
+                    tab_bar_width(&labels)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_wide_terminal_keeps_the_full_tab_labels() {
+        let mut a = app(Language::Japanese);
+        a.screen = Screen::Repo;
+        a.repo_index = Some(0);
+        let text = render_to_text(&a, 120, 20);
+        assert!(frame_contains(&text, "コントリビューター"), "{text}");
+        assert!(frame_contains(&text, "ワークツリー"), "{text}");
+    }
+
+    /// Clicking a tab must land on the tab under the cursor. The old handler
+    /// used fixed column ranges derived from the English labels, so in
+    /// Japanese — where every label is a different width — it picked the wrong
+    /// one.
+    #[test]
+    fn clicking_a_tab_selects_the_tab_actually_drawn_there() {
+        for lang in [Language::English, Language::Japanese] {
+            for width in [80u16, 120] {
+                let mut a = app(lang);
+                a.screen = Screen::Repo;
+                a.repo_index = Some(0);
+                let text = render_to_text(&a, width, 20);
+                let labels = repo_tab_labels(&a, width);
+                // Row 0 is the title bar and row 1 the box border; the tab
+                // labels are drawn on row 2.
+                let tab_row: String = text
+                    .chars()
+                    .skip(2 * width as usize)
+                    .take(width as usize)
+                    .collect();
+
+                for (i, tab) in RepoTab::all().iter().enumerate() {
+                    // Click where this label's text really is on screen.
+                    let at = text_column_of(&tab_row, &labels[i]).unwrap_or_else(|| {
+                        panic!(
+                            "label {:?} not on the tab row in {lang:?}: {tab_row:?}",
+                            labels[i]
+                        )
+                    });
+                    a.handle_mouse_click(at, 2);
+                    assert_eq!(
+                        a.repo_tab, *tab,
+                        "click at x={at} ({:?}) selected the wrong tab at {width} cols in {lang:?}",
+                        labels[i]
+                    );
+                }
+            }
         }
     }
 }
