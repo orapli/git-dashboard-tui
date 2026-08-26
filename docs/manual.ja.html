@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>git-dashboard-tui — ユーザーマニュアル</title>
+<meta name="description" content="git-dashboard-tui の導入と操作 — ダッシュボード、リポジトリ各タブ、差分ビューア、横断検索、設定、キー操作の解説。">
+<meta property="og:title" content="git-dashboard-tui — ユーザーマニュアル">
+<meta property="og:description" content="git-dashboard-tui の導入と操作 — ダッシュボード、リポジトリ各タブ、差分ビューア、横断検索、設定、キー操作の解説。">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://orapli.github.io/git-dashboard-tui/img/home.svg">
+<style>
+:root{
+  --bg:#ffffff; --page:#f7f8fb; --ink:#1b2430; --muted:#5a6779; --faint:#8b98a9;
+  --line:#e2e7ef; --accent:#5b6ee1; --accent-soft:#eef0fd; --accent-line:#c9d0f7;
+  --code-bg:#f2f4f9; --pre-bg:#1e1e2e; --pre-fg:#cdd6f4;
+  --green:#2f8a4f; --red:#c0453f; --yellow:#9a6b00; --blue:#3d63c9;
+  --shadow:0 6px 24px rgba(30,45,90,.07);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono',monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Hiragino Kaku Gothic ProN','Yu Gothic',
+         Meiryo,'Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#11131b; --page:#0d0f16; --ink:#dfe5ee; --muted:#95a1b3; --faint:#67748a;
+    --line:#232839; --accent:#8b9cf5; --accent-soft:#1b1f33; --accent-line:#2f3654;
+    --code-bg:#191d2a; --pre-bg:#181825; --pre-fg:#cdd6f4;
+    --green:#7fd39a; --red:#f0888a; --yellow:#e6c07b; --blue:#8ab0f0;
+    --shadow:0 6px 24px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+     line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px 96px}
+header.top{background:var(--bg);border-bottom:1px solid var(--line);padding:40px 0 30px;
+           margin-bottom:34px}
+header.top .wrap{padding-bottom:0}
+h1{margin:0 0 6px;font-size:2rem;letter-spacing:-.02em}
+h1 .dim{color:var(--faint);font-weight:400}
+.tagline{margin:0;color:var(--muted);font-size:1.05rem}
+.langbar{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.langbar a{font-size:.85rem;padding:5px 12px;border:1px solid var(--line);border-radius:999px;
+           color:var(--muted);text-decoration:none;background:var(--bg)}
+.langbar a:hover{border-color:var(--accent-line);color:var(--accent)}
+.langbar a.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent);
+              font-weight:600}
+nav.toc{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px 20px;
+        margin-bottom:38px;box-shadow:var(--shadow)}
+nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:34px}
+nav.toc li{margin:3px 0}
+nav.toc a{color:var(--muted);text-decoration:none}
+nav.toc a:hover{color:var(--accent)}
+section{background:var(--bg);border:1px solid var(--line);border-radius:14px;
+        padding:26px 30px 30px;margin-bottom:26px;box-shadow:var(--shadow)}
+h2{margin:0 0 14px;font-size:1.4rem;letter-spacing:-.01em;scroll-margin-top:20px}
+h2 a{color:var(--faint);text-decoration:none;font-weight:400;font-size:.8em;margin-left:8px;
+     opacity:0;transition:opacity .15s}
+h2:hover a{opacity:1}
+p{margin:0 0 14px}
+figure{margin:22px 0 8px}
+figure img{width:100%;height:auto;display:block;border-radius:10px;
+           border:1px solid var(--line);background:var(--pre-bg)}
+figcaption{margin-top:10px;color:var(--muted);font-size:.9rem;line-height:1.65}
+table{width:100%;border-collapse:collapse;margin:8px 0 16px;font-size:.93rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--faint);font-weight:600;font-size:.8rem;text-transform:uppercase;
+   letter-spacing:.04em}
+tbody tr:last-child td{border-bottom:none}
+td.k{white-space:nowrap;width:1%}
+code,kbd{font-family:var(--mono);font-size:.88em}
+code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
+kbd{background:var(--code-bg);border:1px solid var(--line);border-bottom-width:2px;
+    padding:1px 6px;border-radius:5px;white-space:nowrap}
+pre{background:var(--pre-bg);color:var(--pre-fg);padding:16px 18px;border-radius:10px;
+    overflow-x:auto;font-family:var(--mono);font-size:.88rem;line-height:1.6}
+pre code{background:none;padding:0}
+.aside{border-left:3px solid var(--accent-line);background:var(--accent-soft);
+       padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0;font-size:.94rem}
+.aside.warn{border-left-color:var(--red);background:color-mix(in srgb,var(--red) 8%,transparent)}
+b.red{color:var(--red)} b.green{color:var(--green)}
+b.yellow{color:var(--yellow)} b.blue{color:var(--blue)}
+footer{color:var(--faint);font-size:.85rem;text-align:center;padding-top:10px}
+footer a{color:var(--muted)}
+@media (max-width:720px){
+  nav.toc ol{columns:1}
+  section{padding:20px 18px 24px}
+  .wrap{padding:0 14px 60px}
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+<h1>git-dashboard-tui <span class="dim">— ユーザーマニュアル</span></h1>
+<p class="tagline">手元の全リポジトリを一望する、読み取り専用のターミナルダッシュボード。</p>
+<div class="langbar">
+<a class="on" href="#">日本語</a>
+<a href="manual.html">English</a>
+<a href="https://github.com/orapli/git-dashboard-tui">リポジトリ</a>
+<a href="https://github.com/orapli/git-dashboard-tui/blob/main/README.ja.md">README</a>
+<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴</a>
+</div></div></header>
+<div class="wrap">
+<nav class="toc"><strong>目次</strong><ol>
+<li><a href="#what">これは何か</a></li>
+<li><a href="#install">インストール</a></li>
+<li><a href="#first-run">最初の起動</a></li>
+<li><a href="#dashboard">ダッシュボード</a></li>
+<li><a href="#repository">リポジトリの中</a></li>
+<li><a href="#diff">差分を読む</a></li>
+<li><a href="#cross-repo">リポジトリ横断</a></li>
+<li><a href="#settings">設定とファイル</a></li>
+<li><a href="#trust">信頼できないリポジトリの扱い</a></li>
+<li><a href="#help">その他</a></li>
+</ol></nav>
+<section id="what">
+<h2>これは何か<a href="#what" aria-label="link">#</a></h2>
+<p>手元にチェックアウト済みのリポジトリを一覧するターミナルダッシュボードです。作業を始める前に知りたいこと — どれに未コミットの変更があるか、どれが遅れているか、どれを merge の途中で放置したか — を、ディレクトリを渡り歩かずに把握するためのものです。</p>
+<p>履歴に対しては意図的に読み取り専用です。fetch と pull は行います（手元のものを書き換えないため）が、stage・commit・branch・checkout・push は行いません。この線引きが本ツールの性格です。エディタの横に開きっぱなしにしても、作業ツリーに何かされたかを心配せずに済みます。</p>
+<figure><img src="img/home.ja.svg" loading="lazy" alt="5つのリポジトリ。api-gateway はクリーン、billing-service に未コミットが2件、infra-terraform は upstream から2コミット遅れ、web-frontend は merge 途中で未解決のコン"><figcaption>5つのリポジトリ。api-gateway はクリーン、billing-service に未コミットが2件、infra-terraform は upstream から2コミット遅れ、web-frontend は merge 途中で未解決のコンフリクトが1件残っています。</figcaption></figure>
+</section>
+<section id="install">
+<h2>インストール<a href="#install" aria-label="link">#</a></h2>
+<p>インストーラはプラットフォームを判定し、対応するリリースバイナリを取得し、リリースと同時に公開される SHA-256 と照合してから <code>~/.local/bin</code> に配置します。sudo は一切使いません。</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh</code></pre>
+<p>スクリプトをシェルに流し込むのはそれを信頼するということなので、気になる場合は先に読んでください（短く、依存もありません）。<code>INSTALL_DIR</code> と <code>VERSION</code> で既定値を上書きできます。ビルド済みバイナリは Linux (x86_64, ARM64)、macOS (Apple Silicon, Intel)、Windows (x64) を用意しています。<code>cargo install --git</code> でも導入できます。</p>
+<p>必要なもの: PATH の通った <code>git</code>。GitHub 連携列を使う場合は認証済みの <code>gh</code> CLI が追加で必要です。なければその列が空欄になるだけで、他の機能に影響はありません。</p>
+</section>
+<section id="first-run">
+<h2>最初の起動<a href="#first-run" aria-label="link">#</a></h2>
+<p>引数なしで起動します。最初は何も登録されていないので空の画面が出ます。<kbd>a</kbd> でパスを入力するか、<kbd>A</kbd> でフォルダを走査して配下の git リポジトリをまとめて登録してください。</p>
+<p>各リポジトリの解析が終わるごとに行が埋まり、結果はキャッシュされます。そのため次回の起動では、読み直しを待つ間の空欄ではなく、前回の内容が即座に表示されます。</p>
+<figure><img src="img/progress.ja.svg" loading="lazy" alt="処理中の様子。更新中のリポジトリは、これから変わる値の位置にスピナーを表示し、タイトルバーには残りジョブ数が出ます。ここで始めた処理は別の画面に移っても続くため、この表示は全画面共通です。"><figcaption>処理中の様子。更新中のリポジトリは、これから変わる値の位置にスピナーを表示し、タイトルバーには残りジョブ数が出ます。ここで始めた処理は別の画面に移っても続くため、この表示は全画面共通です。</figcaption></figure>
+</section>
+<section id="dashboard">
+<h2>ダッシュボード<a href="#dashboard" aria-label="link">#</a></h2>
+<p>1行が1リポジトリです。意味は色が担っているので、列を順に読み解くのではなく一目で状況をつかめます。</p>
+<table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
+<tr><td class="k"><code>名前</code></td><td>設定した表示名。前に黄色でグループ名が付きます。</td></tr>
+<tr><td class="k"><code>ブランチ</code></td><td>現在のブランチと、その後に付くバッジ。操作が中断されたままの場合に <b class='red'>⚠MERGE</b> / <b class='red'>⚠REBASE</b> / <b class='red'>⚠CHERRY-PICK</b> / <b class='red'>⚠REVERT</b> と、コンフリクト件数が出ます。列幅が足りない場合でも残るよう、バッジを先に描画しています。</td></tr>
+<tr><td class="k"><code>同期</code></td><td>upstream に対する先行・遅れのコミット数。どちらかが 0 でなければ<b class='yellow'>黄色</b>になります。pull / fetch 実行中はスピナーに変わります。</td></tr>
+<tr><td class="k"><code>未コミット</code></td><td>未コミットの変更数。0 なら<b class='green'>緑</b>、それ以外は<b class='red'>赤</b>。</td></tr>
+<tr><td class="k"><code>更新</code></td><td>全 ref のうち最新コミットの日時。</td></tr>
+<tr><td class="k"><code>PR / CI</code></td><td>GitHub リモートがあり <code>gh</code> が認証済みの場合の、オープン中の PR 数と最新の CI 結果。failure / cancelled / timed_out / action_required は「要対応」として扱われます。</td></tr>
+</tbody></table>
+<figure><img src="img/home-attention.ja.svg" loading="lazy" alt="&lt;kbd&gt;n&lt;/kbd&gt; で「本当に対応が要るもの」だけに絞り込みます — CI 失敗、未解決のコンフリクト、中断された操作。未コミットや遅れは通常の作業状態なので、意図的に含めていません。"><figcaption><kbd>n</kbd> で「本当に対応が要るもの」だけに絞り込みます — CI 失敗、未解決のコンフリクト、中断された操作。未コミットや遅れは通常の作業状態なので、意図的に含めていません。</figcaption></figure>
+<figure><img src="img/home-sorted.ja.svg" loading="lazy" alt="列ヘッダをクリックするとその列で並び替え、同じ列を再クリックで昇降が反転します。並び替え中の列には ▲ / ▼ が付きます。&lt;kbd&gt;o&lt;/kbd&gt; でも同じ順序を切り替えられます。まだ読み込まれていない行は末尾に置かれるため、ダッシュボー"><figcaption>列ヘッダをクリックするとその列で並び替え、同じ列を再クリックで昇降が反転します。並び替え中の列には ▲ / ▼ が付きます。<kbd>o</kbd> でも同じ順序を切り替えられます。まだ読み込まれていない行は末尾に置かれるため、ダッシュボードが埋まっていく間に並びが乱れません。</figcaption></figure>
+<table><thead><tr><th>キー</th><th>動作</th></tr></thead><tbody>
+<tr><td class="k"><kbd>Enter</kbd></td><td>選択したリポジトリを開く</td></tr>
+<tr><td class="k"><kbd>a / A</kbd></td><td>パスで追加 / フォルダを走査して一括追加</td></tr>
+<tr><td class="k"><kbd>d / e</kbd></td><td>削除 / 表示名の変更</td></tr>
+<tr><td class="k"><kbd>[ / ]</kbd></td><td>グループフィルタを切り替え</td></tr>
+<tr><td class="k"><kbd>/</kbd></td><td>名前・パス・グループで絞り込み</td></tr>
+<tr><td class="k"><kbd>n</kbd></td><td>要対応フィルタの切り替え</td></tr>
+<tr><td class="k"><kbd>o</kbd></td><td>並び順を切り替え</td></tr>
+<tr><td class="k"><kbd>p / f</kbd></td><td>選択リポジトリを pull / fetch</td></tr>
+<tr><td class="k"><kbd>P / F</kbd></td><td>絞り込み中の全リポジトリを pull / fetch</td></tr>
+<tr><td class="k"><kbd>S / M</kbd></td><td>リポジトリ横断のコミット検索 / メンバー分析</td></tr>
+<tr><td class="k"><kbd>t</kbd></td><td>そのリポジトリでシェルを開く</td></tr>
+<tr><td class="k"><kbd>r / s</kbd></td><td>全行の再読み込み / 設定画面</td></tr>
+</tbody></table>
+</section>
+<section id="repository">
+<h2>リポジトリの中<a href="#repository" aria-label="link">#</a></h2>
+<p>7つのタブがあり、<kbd>1</kbd>〜<kbd>7</kbd>・<kbd>Tab</kbd>・クリックで移動できます。端末幅が狭い場合は、末尾のタブが消えるのではなくラベルが短縮されます。</p>
+<figure><img src="img/repo-status.ja.svg" loading="lazy" alt="Status — 概要、マニフェストから検出した技術スタック、作業ツリーの変更。ファイル上で &lt;kbd&gt;Enter&lt;/kbd&gt; を押すと差分が開きます。"><figcaption>Status — 概要、マニフェストから検出した技術スタック、作業ツリーの変更。ファイル上で <kbd>Enter</kbd> を押すと差分が開きます。</figcaption></figure>
+<figure><img src="img/repo-commits.ja.svg" loading="lazy" alt="Commits — グラフは git 自身のレーン色をそのまま使うため、並行するブランチが視覚的に区別できます。ref はバッジ表示で、現在のブランチが &lt;b class=&#x27;green&#x27;&gt;(main)&lt;/b&gt;、それ以外が &lt;b class="><figcaption>Commits — グラフは git 自身のレーン色をそのまま使うため、並行するブランチが視覚的に区別できます。ref はバッジ表示で、現在のブランチが <b class='green'>(main)</b>、それ以外が <b class='blue'>[hotfix/timeout]</b> です。</figcaption></figure>
+<figure><img src="img/repo-compare.ja.svg" loading="lazy" alt="任意の2コミットを比較できます。行頭の &lt;code&gt;[ ]&lt;/code&gt; をクリックするか &lt;kbd&gt;space&lt;/kbd&gt; を押してください。1つ目が基準 &lt;b class=&#x27;green&#x27;&gt;[B]&lt;/b&gt;、2つ目が対象 &lt;b class="><figcaption>任意の2コミットを比較できます。行頭の <code>[ ]</code> をクリックするか <kbd>space</kbd> を押してください。1つ目が基準 <b class='green'>[B]</b>、2つ目が対象 <b class='yellow'>[T]</b> になり、<kbd>Enter</kbd> でその範囲の差分を開きます。選択済みの行を再クリックすると解除されます。</figcaption></figure>
+<figure><img src="img/repo-branches.ja.svg" loading="lazy" alt="Branches — ローカルとリモート、最終コミットの作者・日時・件名付き。&lt;kbd&gt;Enter&lt;/kbd&gt; でそのブランチのログを表示します。"><figcaption>Branches — ローカルとリモート、最終コミットの作者・日時・件名付き。<kbd>Enter</kbd> でそのブランチのログを表示します。</figcaption></figure>
+<figure><img src="img/repo-tags.ja.svg" loading="lazy" alt="Tags — Commits と同じ選択方法で、2つ選んでその間の差分を比較できます。"><figcaption>Tags — Commits と同じ選択方法で、2つ選んでその間の差分を比較できます。</figcaption></figure>
+<figure><img src="img/repo-stash.ja.svg" loading="lazy" alt="Stash — &lt;kbd&gt;Enter&lt;/kbd&gt; で差分、&lt;kbd&gt;a&lt;/kbd&gt; で適用、&lt;kbd&gt;d&lt;/kbd&gt; は確認のうえ削除します。"><figcaption>Stash — <kbd>Enter</kbd> で差分、<kbd>a</kbd> で適用、<kbd>d</kbd> は確認のうえ削除します。</figcaption></figure>
+<figure><img src="img/repo-contributors.ja.svg" loading="lazy" alt="Contributors — 人ごとのコミット数。設定したメンバー一覧に従って別名を1人に統合します。&lt;kbd&gt;w&lt;/kbd&gt; で集計期間を切り替えられます。"><figcaption>Contributors — 人ごとのコミット数。設定したメンバー一覧に従って別名を1人に統合します。<kbd>w</kbd> で集計期間を切り替えられます。</figcaption></figure>
+<figure><img src="img/repo-worktrees.ja.svg" loading="lazy" alt="Worktrees — 各ワークツリーのブランチ・HEAD・ロック状態。&lt;kbd&gt;Enter&lt;/kbd&gt; でそのワークツリーでシェルを開きます。"><figcaption>Worktrees — 各ワークツリーのブランチ・HEAD・ロック状態。<kbd>Enter</kbd> でそのワークツリーでシェルを開きます。</figcaption></figure>
+</section>
+<section id="diff">
+<h2>差分を読む<a href="#diff" aria-label="link">#</a></h2>
+<p>3つのペインで構成されます — 変更ファイル、選択ファイル内のハンク、差分本体。<kbd>Tab</kbd> でペイン移動、<kbd>n</kbd> / <kbd>p</kbd> でハンク間を移動します。</p>
+<figure><img src="img/diff.ja.svg" loading="lazy" alt="追加行は緑、削除行は赤。その上に軽量なシンタックスカラーが乗ります。"><figcaption>追加行は緑、削除行は赤。その上に軽量なシンタックスカラーが乗ります。</figcaption></figure>
+<figure><img src="img/diff-blame.ja.svg" loading="lazy" alt="&lt;kbd&gt;b&lt;/kbd&gt; で blame 表示を追加します（行ごとの短縮ハッシュと作者）。未コミットの行は、直前に触った人ではなく &lt;i&gt;Not Committed Yet&lt;/i&gt; と表示されます。"><figcaption><kbd>b</kbd> で blame 表示を追加します（行ごとの短縮ハッシュと作者）。未コミットの行は、直前に触った人ではなく <i>Not Committed Yet</i> と表示されます。</figcaption></figure>
+<table><thead><tr><th>キー</th><th>動作</th></tr></thead><tbody>
+<tr><td class="k"><kbd>w</kbd></td><td>空白のみの差分を無視</td></tr>
+<tr><td class="k"><kbd>f</kbd></td><td>変更周辺だけでなくファイル全体を表示</td></tr>
+<tr><td class="k"><kbd>b</kbd></td><td>blame 表示の切り替え</td></tr>
+<tr><td class="k"><kbd>[ / ]</kbd></td><td>前 / 次の変更ファイル</td></tr>
+<tr><td class="k"><kbd>n / p</kbd></td><td>次 / 前のハンク</td></tr>
+</tbody></table>
+<div class="aside">使い慣れた diff ツールを使いたい場合は、設定画面で <kbd>c</kbd> から外部コマンドを指定できます。<code>{path}</code> <code>{range}</code> <code>{base}</code> <code>{target}</code> <code>{file}</code> のプレースホルダが使えます。プログラムは PATH から解決するか絶対パスで指定してください。相対パスは拒否されます — 子プロセスは表示中のリポジトリを作業ディレクトリとして動くため、そのリポジトリが自分のものとは限らないからです。</div>
+</section>
+<section id="cross-repo">
+<h2>リポジトリ横断<a href="#cross-repo" aria-label="link">#</a></h2>
+<figure><img src="img/commit-search.ja.svg" loading="lazy" alt="&lt;kbd&gt;S&lt;/kbd&gt; で登録済み全リポジトリのコミットメッセージを一括検索します（正規表現ではなく大文字小文字を無視した部分一致）。&lt;kbd&gt;Enter&lt;/kbd&gt; でそのコミットの差分に直接移動します。検索できなかったリポジトリは、「"><figcaption><kbd>S</kbd> で登録済み全リポジトリのコミットメッセージを一括検索します（正規表現ではなく大文字小文字を無視した部分一致）。<kbd>Enter</kbd> でそのコミットの差分に直接移動します。検索できなかったリポジトリは、「一致なし」と混同されないよう失敗として報告されます。</figcaption></figure>
+<figure><img src="img/global-members.ja.svg" loading="lazy" alt="&lt;kbd&gt;M&lt;/kbd&gt; で全リポジトリの貢献者を集計し、別名を1人に統合します。&lt;kbd&gt;Enter&lt;/kbd&gt; でカーソル位置のリポジトリに移動します。"><figcaption><kbd>M</kbd> で全リポジトリの貢献者を集計し、別名を1人に統合します。<kbd>Enter</kbd> でカーソル位置のリポジトリに移動します。</figcaption></figure>
+</section>
+<section id="settings">
+<h2>設定とファイル<a href="#settings" aria-label="link">#</a></h2>
+<figure><img src="img/settings.ja.svg" loading="lazy" alt="ダッシュボードで &lt;kbd&gt;s&lt;/kbd&gt;。表示言語、テーマ、外部 diff コマンド、Home の自動更新間隔を設定できます。"><figcaption>ダッシュボードで <kbd>s</kbd>。表示言語、テーマ、外部 diff コマンド、Home の自動更新間隔を設定できます。</figcaption></figure>
+<p>設定は OS の設定ディレクトリに保存されます — macOS は <code>~/Library/Application Support/com.git-dashboard.git-dashboard/</code>、Linux は <code>~/.config/git-dashboard/</code>、Windows は <code>%APPDATA%\git-dashboard\git-dashboard\config\</code>。</p>
+<table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
+<tr><td class="k"><code>config.json</code></td><td>登録済みリポジトリ（名前・パス・グループ）。</td></tr>
+<tr><td class="k"><code>members.json</code></td><td>チームメンバーと、そこへ統合するコミット作者の別名。</td></tr>
+<tr><td class="k"><code>prefs.json</code></td><td>表示言語・テーマ・差分トグル・並び順・更新間隔。</td></tr>
+<tr><td class="k"><code>tech_rules.json</code></td><td>言語・フレームワークのバージョン検出ルール。</td></tr>
+<tr><td class="k"><code>cache/</code></td><td>ダッシュボード行とリポジトリ解析結果のキャッシュ。削除しても次回更新時に再生成されます。</td></tr>
+</tbody></table>
+<div class="aside">自動更新は既定でオフです。1周ごとにリポジトリ1つにつき GitHub API を叩くため、25リポジトリを60秒間隔にすると毎時およそ3000リクエスト — 認証済みレート制限の約60%になります。アップグレードで勝手に有効になるのではなく、明示的に選ぶべき設定という位置づけです。</div>
+</section>
+<section id="trust">
+<h2>信頼できないリポジトリの扱い<a href="#trust" aria-label="link">#</a></h2>
+<p>リポジトリを登録するとその中で git を実行することになり、git はそのリポジトリ自身の設定を読みます。いくつかの設定キーは任意コマンドの実行に十分なため、毎回の実行時に無効化しています — <code>core.fsmonitor</code>、<code>core.sshCommand</code>、<code>uploadpack.packObjectsHook</code>、<code>protocol.ext.allow</code>。加えて <code>--no-ext-diff --no-textconv</code> を渡し、<code>diff.external</code> や textconv ドライバが起動しないようにしています。git の <code>safe.directory</code> はこの範囲をカバーしません。</p>
+<p>リポジトリの<i>内容</i>も同様に信頼していません。ファイル本文・コミットメッセージ・ブランチ名・作者名はいずれも画面に届き、端末は送られたものを実行します。そのため git の出力が文字列になる唯一の地点でエスケープシーケンスを除去しています。またファイル内容を表示する箇所ではタブを展開しており、タブでインデントされたファイルがペインの外へ文字を押し出すことはありません。</p>
+<p><code>-</code> で始まるホストを持つ <code>ssh://</code> は <code>ssh</code> にオプションとして渡ってしまうため、ホストを許可リストで検証しています。複数の git コマンドが1本の SSH 接続を共有する際、出力を区切る文字列は呼び出しごとの予測不能な nonce です — 固定文字列だと、それを名前にしたコミット作者に偽装される恐れがあるためです。</p>
+</section>
+<section id="help">
+<h2>その他<a href="#help" aria-label="link">#</a></h2>
+<figure><img src="img/help.ja.svg" loading="lazy" alt="どの画面でも &lt;kbd&gt;?&lt;/kbd&gt; で全キー操作の一覧が出ます。&lt;kbd&gt;j&lt;/kbd&gt;/&lt;kbd&gt;k&lt;/kbd&gt; やホイールでスクロールできます。フッターには現在の画面のキー操作が表示され、1行に収まらない場合は2行に折り返します。"><figcaption>どの画面でも <kbd>?</kbd> で全キー操作の一覧が出ます。<kbd>j</kbd>/<kbd>k</kbd> やホイールでスクロールできます。フッターには現在の画面のキー操作が表示され、1行に収まらない場合は2行に折り返します。</figcaption></figure>
+<table><thead><tr><th>キー</th><th>動作</th></tr></thead><tbody>
+<tr><td class="k"><kbd>q / Ctrl+C</kbd></td><td>終了</td></tr>
+<tr><td class="k"><kbd>Esc / h</kbd></td><td>1つ前の画面に戻る</td></tr>
+<tr><td class="k"><kbd>g / G</kbd></td><td>先頭 / 末尾へ</td></tr>
+<tr><td class="k"><kbd>t / T</kbd></td><td>リポジトリのディレクトリでシェルを開く</td></tr>
+</tbody></table>
+</section>
+<footer><p>スクリーンショットは <code>docs/gen_demo.py</code> が生成するデモ環境に対して <code>docs/gen_shots.py</code> が実行中のプログラムから取得しています。そのため実際の表示と乖離しません。</p></footer>
+</div></body></html>

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1216" height="410" viewBox="0 0 1216.00 410.40" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono','Noto Sans Mono CJK JP','Hiragino Kaku Gothic ProN','Yu Gothic',monospace" font-size="15.0">
+<title>git-dashboard-tui — Worktrees tab</title>
+<rect width="1216.00" height="410.40" rx="10" fill="#181825"/>
+<circle cx="20.0" cy="15.0" r="5" fill="#f38ba8"/>
+<circle cx="35.0" cy="15.0" r="5" fill="#f9e2af"/>
+<circle cx="50.0" cy="15.0" r="5" fill="#a6e3a1"/>
+<text x="608.0" y="19.0" fill="#7f849c" font-size="10.8" text-anchor="middle">git-dashboard-tui — Worktrees tab</text>
+<rect x="14.00" y="40.00" width="1188.00" height="356.40" fill="#1e1e2e"/>
+<rect x="14.00" y="40.00" width="135.00" height="19.80" fill="#89b4fa"/>
+<text x="23.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">design-system</text>
+<text x="167.00" y="55.05" fill="#6c7086" xml:space="preserve">git-dashboard-tui</text>
+<text x="14.00" y="74.85" fill="#45475a" xml:space="preserve">┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<text x="14.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="32.00" y="94.65" fill="#a6adc8" xml:space="preserve">1</text>
+<text x="50.00" y="94.65" fill="#a6adc8" xml:space="preserve">Status</text>
+<text x="113.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="131.00" y="94.65" fill="#a6adc8" xml:space="preserve">2</text>
+<text x="149.00" y="94.65" fill="#a6adc8" xml:space="preserve">Commits</text>
+<text x="221.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="239.00" y="94.65" fill="#a6adc8" xml:space="preserve">3</text>
+<text x="257.00" y="94.65" fill="#a6adc8" xml:space="preserve">Branches</text>
+<text x="338.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="356.00" y="94.65" fill="#a6adc8" xml:space="preserve">4</text>
+<text x="374.00" y="94.65" fill="#a6adc8" xml:space="preserve">Tags</text>
+<text x="419.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="437.00" y="94.65" fill="#a6adc8" xml:space="preserve">5</text>
+<text x="455.00" y="94.65" fill="#a6adc8" xml:space="preserve">Stash</text>
+<text x="509.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="527.00" y="94.65" fill="#a6adc8" xml:space="preserve">6</text>
+<text x="545.00" y="94.65" fill="#a6adc8" xml:space="preserve">Contributors</text>
+<text x="662.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="680.00" y="94.65" fill="#89b4fa" font-weight="bold" xml:space="preserve">7</text>
+<text x="698.00" y="94.65" fill="#89b4fa" font-weight="bold" xml:space="preserve">Worktrees</text>
+<text x="1193.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="114.45" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<text x="14.00" y="134.25" fill="#45475a" xml:space="preserve">┌Worktrees</text>
+<text x="113.00" y="134.25" fill="#45475a" xml:space="preserve">(2)─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<text x="14.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="154.05" fill="#a6adc8" font-weight="bold" xml:space="preserve">Path</text>
+<text x="590.00" y="154.05" fill="#a6adc8" font-weight="bold" xml:space="preserve">Branch</text>
+<text x="896.00" y="154.05" fill="#a6adc8" font-weight="bold" xml:space="preserve">HEAD</text>
+<text x="1076.00" y="154.05" fill="#a6adc8" font-weight="bold" xml:space="preserve">Status</text>
+<text x="1193.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
+<rect x="23.00" y="158.80" width="1170.00" height="19.80" fill="#313244"/>
+<text x="14.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="173.85" fill="#cdd6f4" font-weight="bold" xml:space="preserve">/home/dev/work/design-system</text>
+<text x="590.00" y="173.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">(main)</text>
+<text x="896.00" y="173.85" fill="#f9e2af" font-weight="bold" xml:space="preserve">24b918c</text>
+<text x="1193.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="193.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="193.65" fill="#cdd6f4" xml:space="preserve">/home/dev/work/design-system-2.0</text>
+<text x="590.00" y="193.65" fill="#89b4fa" xml:space="preserve">(release/2.0)</text>
+<text x="896.00" y="193.65" fill="#f9e2af" xml:space="preserve">24b918c</text>
+<text x="1193.00" y="193.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="213.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="213.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="253.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="253.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="272.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="272.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="352.05" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<rect x="14.00" y="356.80" width="1188.00" height="19.80" fill="#313244"/>
+<text x="14.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">1-7</text>
+<text x="50.00" y="371.85" fill="#a6adc8" xml:space="preserve">tabs</text>
+<text x="104.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">j/k</text>
+<text x="140.00" y="371.85" fill="#a6adc8" xml:space="preserve">move</text>
+<text x="194.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">enter/t</text>
+<text x="266.00" y="371.85" fill="#a6adc8" xml:space="preserve">shell</text>
+<text x="329.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">t</text>
+<text x="347.00" y="371.85" fill="#a6adc8" xml:space="preserve">shell</text>
+<text x="410.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">r</text>
+<text x="428.00" y="371.85" fill="#a6adc8" xml:space="preserve">reload</text>
+<text x="500.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">?</text>
+<text x="518.00" y="371.85" fill="#a6adc8" xml:space="preserve">help</text>
+<text x="572.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">esc</text>
+<text x="608.00" y="371.85" fill="#a6adc8" xml:space="preserve">back</text>
+<text x="662.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">q</text>
+<text x="680.00" y="371.85" fill="#a6adc8" xml:space="preserve">quit</text>
+<rect x="14.00" y="376.60" width="1188.00" height="19.80" fill="#313244"/>
+</svg>

@@ -9,7 +9,9 @@
 [![Rust](https://img.shields.io/badge/Rust-1.85%2B%20(2024%20edition)-orange)](https://www.rust-lang.org/)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-blue)](#インストール)
 
-[クイックスタート](#クイックスタート) · [こんな人に](#こんな人に効きます) · [キーバインド](#キーバインド) · [English README](README.md)
+[クイックスタート](#クイックスタート) · [ユーザーマニュアル](https://orapli.github.io/git-dashboard-tui/manual.ja.html) · [キーバインド](#キーバインド) · [English README](README.md)
+
+<img src="docs/img/home.ja.svg" alt="ダッシュボード: 5つのリポジトリのブランチ・同期状態・未コミット・最終コミットを一覧" width="100%">
 
 </div>
 
@@ -22,6 +24,8 @@ git-dashboard-tui は、ターミナル向けの**読み取り専用マルチリ
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh
 git-dashboard-tui
 ```
+
+**図解マニュアル:** [日本語](https://orapli.github.io/git-dashboard-tui/manual.ja.html) · [English](https://orapli.github.io/git-dashboard-tui/manual.html) — 実行中のプログラムから取得した、色付きの全画面解説です。
 
 これだけです（Linux / macOS、Rust ツールチェーン不要）。インストーラがプラットフォームを判定し、
 チェックサムを検証したうえで導入します。Windows やその他の方法、スクリプトを事前に確認する手順は

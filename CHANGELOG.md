@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **An illustrated user manual**, in English and Japanese:
+  [manual.html](https://orapli.github.io/git-dashboard-tui/manual.html) /
+  [manual.ja.html](https://orapli.github.io/git-dashboard-tui/manual.ja.html). Every screen
+  is a real screenshot of the running program — colour is most of how this tool conveys
+  state, and a text-only description of "green when clean, red when dirty" conveys none
+  of it. Screenshots are captured by driving the binary in a pty and writing the terminal
+  buffer out as SVG, so they cannot drift from what the program draws, and both languages
+  are generated from one content structure so they cannot drift from each other.
+
 ### Security
 
 - **Repository content could drive the terminal.** Nothing sanitised what git

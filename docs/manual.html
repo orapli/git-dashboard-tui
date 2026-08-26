@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>git-dashboard-tui — User Manual</title>
+<meta name="description" content="Install, run and drive git-dashboard-tui: the dashboard, the repository tabs, the diff viewer, cross-repository search, settings and keybindings.">
+<meta property="og:title" content="git-dashboard-tui — User Manual">
+<meta property="og:description" content="Install, run and drive git-dashboard-tui: the dashboard, the repository tabs, the diff viewer, cross-repository search, settings and keybindings.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://orapli.github.io/git-dashboard-tui/img/home.svg">
+<style>
+:root{
+  --bg:#ffffff; --page:#f7f8fb; --ink:#1b2430; --muted:#5a6779; --faint:#8b98a9;
+  --line:#e2e7ef; --accent:#5b6ee1; --accent-soft:#eef0fd; --accent-line:#c9d0f7;
+  --code-bg:#f2f4f9; --pre-bg:#1e1e2e; --pre-fg:#cdd6f4;
+  --green:#2f8a4f; --red:#c0453f; --yellow:#9a6b00; --blue:#3d63c9;
+  --shadow:0 6px 24px rgba(30,45,90,.07);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono',monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Hiragino Kaku Gothic ProN','Yu Gothic',
+         Meiryo,'Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#11131b; --page:#0d0f16; --ink:#dfe5ee; --muted:#95a1b3; --faint:#67748a;
+    --line:#232839; --accent:#8b9cf5; --accent-soft:#1b1f33; --accent-line:#2f3654;
+    --code-bg:#191d2a; --pre-bg:#181825; --pre-fg:#cdd6f4;
+    --green:#7fd39a; --red:#f0888a; --yellow:#e6c07b; --blue:#8ab0f0;
+    --shadow:0 6px 24px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+     line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px 96px}
+header.top{background:var(--bg);border-bottom:1px solid var(--line);padding:40px 0 30px;
+           margin-bottom:34px}
+header.top .wrap{padding-bottom:0}
+h1{margin:0 0 6px;font-size:2rem;letter-spacing:-.02em}
+h1 .dim{color:var(--faint);font-weight:400}
+.tagline{margin:0;color:var(--muted);font-size:1.05rem}
+.langbar{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.langbar a{font-size:.85rem;padding:5px 12px;border:1px solid var(--line);border-radius:999px;
+           color:var(--muted);text-decoration:none;background:var(--bg)}
+.langbar a:hover{border-color:var(--accent-line);color:var(--accent)}
+.langbar a.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent);
+              font-weight:600}
+nav.toc{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px 20px;
+        margin-bottom:38px;box-shadow:var(--shadow)}
+nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:34px}
+nav.toc li{margin:3px 0}
+nav.toc a{color:var(--muted);text-decoration:none}
+nav.toc a:hover{color:var(--accent)}
+section{background:var(--bg);border:1px solid var(--line);border-radius:14px;
+        padding:26px 30px 30px;margin-bottom:26px;box-shadow:var(--shadow)}
+h2{margin:0 0 14px;font-size:1.4rem;letter-spacing:-.01em;scroll-margin-top:20px}
+h2 a{color:var(--faint);text-decoration:none;font-weight:400;font-size:.8em;margin-left:8px;
+     opacity:0;transition:opacity .15s}
+h2:hover a{opacity:1}
+p{margin:0 0 14px}
+figure{margin:22px 0 8px}
+figure img{width:100%;height:auto;display:block;border-radius:10px;
+           border:1px solid var(--line);background:var(--pre-bg)}
+figcaption{margin-top:10px;color:var(--muted);font-size:.9rem;line-height:1.65}
+table{width:100%;border-collapse:collapse;margin:8px 0 16px;font-size:.93rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--faint);font-weight:600;font-size:.8rem;text-transform:uppercase;
+   letter-spacing:.04em}
+tbody tr:last-child td{border-bottom:none}
+td.k{white-space:nowrap;width:1%}
+code,kbd{font-family:var(--mono);font-size:.88em}
+code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
+kbd{background:var(--code-bg);border:1px solid var(--line);border-bottom-width:2px;
+    padding:1px 6px;border-radius:5px;white-space:nowrap}
+pre{background:var(--pre-bg);color:var(--pre-fg);padding:16px 18px;border-radius:10px;
+    overflow-x:auto;font-family:var(--mono);font-size:.88rem;line-height:1.6}
+pre code{background:none;padding:0}
+.aside{border-left:3px solid var(--accent-line);background:var(--accent-soft);
+       padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0;font-size:.94rem}
+.aside.warn{border-left-color:var(--red);background:color-mix(in srgb,var(--red) 8%,transparent)}
+b.red{color:var(--red)} b.green{color:var(--green)}
+b.yellow{color:var(--yellow)} b.blue{color:var(--blue)}
+footer{color:var(--faint);font-size:.85rem;text-align:center;padding-top:10px}
+footer a{color:var(--muted)}
+@media (max-width:720px){
+  nav.toc ol{columns:1}
+  section{padding:20px 18px 24px}
+  .wrap{padding:0 14px 60px}
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+<h1>git-dashboard-tui <span class="dim">— User Manual</span></h1>
+<p class="tagline">A read-only terminal dashboard for every repository you have checked out.</p>
+<div class="langbar">
+<a class="on" href="#">English</a>
+<a href="manual.ja.html">日本語</a>
+<a href="https://github.com/orapli/git-dashboard-tui">Repository</a>
+<a href="https://github.com/orapli/git-dashboard-tui/blob/main/README.md">README</a>
+<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">Changelog</a>
+</div></div></header>
+<div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol>
+<li><a href="#what">What this is</a></li>
+<li><a href="#install">Installing</a></li>
+<li><a href="#first-run">First run</a></li>
+<li><a href="#dashboard">The dashboard</a></li>
+<li><a href="#repository">Inside a repository</a></li>
+<li><a href="#diff">Reading a diff</a></li>
+<li><a href="#cross-repo">Across every repository</a></li>
+<li><a href="#settings">Settings and files</a></li>
+<li><a href="#trust">What it does with a repository you do not trust</a></li>
+<li><a href="#help">Everything else</a></li>
+</ol></nav>
+<section id="what">
+<h2>What this is<a href="#what" aria-label="link">#</a></h2>
+<p>A terminal dashboard for the repositories you already have checked out. It answers the question you ask before you start work — which of these has uncommitted changes, which is behind, which did I leave half-way through a merge — without cd-ing through a dozen directories.</p>
+<p>It is deliberately read-only about your history. It will fetch and pull, because those do not rewrite anything you have. It will not stage, commit, branch, checkout or push. That boundary is the point: you can leave it open next to your editor and never wonder whether it did something to your tree.</p>
+<figure><img src="img/home.svg" loading="lazy" alt="Five repositories. api-gateway is clean, billing-service has two uncommitted changes, infra-terraform is two commits beh"><figcaption>Five repositories. api-gateway is clean, billing-service has two uncommitted changes, infra-terraform is two commits behind its upstream, and web-frontend was left in the middle of a merge with one unresolved conflict.</figcaption></figure>
+</section>
+<section id="install">
+<h2>Installing<a href="#install" aria-label="link">#</a></h2>
+<p>The installer detects your platform, downloads the matching release binary, verifies its SHA-256 against the checksum published with the release, and installs to <code>~/.local/bin</code>. It never uses sudo.</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh</code></pre>
+<p>Piping a script into a shell means trusting it, so read it first if you prefer — it is short and has no dependencies. <code>INSTALL_DIR</code> and <code>VERSION</code> override the defaults. Pre-built binaries cover Linux (x86_64, ARM64), macOS (Apple Silicon, Intel) and Windows (x64); <code>cargo install --git</code> works too.</p>
+<p>Requirements: <code>git</code> on your PATH. The GitHub columns additionally need the <code>gh</code> CLI, authenticated — without it those columns stay empty and nothing else changes.</p>
+</section>
+<section id="first-run">
+<h2>First run<a href="#first-run" aria-label="link">#</a></h2>
+<p>Start it with no arguments. The first screen is empty because nothing is registered yet: press <kbd>a</kbd> and type a path, or press <kbd>A</kbd> to scan a folder and pick out every git repository under it at once.</p>
+<p>Rows fill in as each repository is analysed, and the result is cached — so the next launch shows the dashboard populated straight away rather than a screen of placeholders while it re-reads everything.</p>
+<figure><img src="img/progress.svg" loading="lazy" alt="Work in flight. The repository being refreshed shows a spinner in place of the value about to change, and the title bar "><figcaption>Work in flight. The repository being refreshed shows a spinner in place of the value about to change, and the title bar counts the jobs still running — from any screen, since work started here keeps going while you look elsewhere.</figcaption></figure>
+</section>
+<section id="dashboard">
+<h2>The dashboard<a href="#dashboard" aria-label="link">#</a></h2>
+<p>Every row is one repository. The colours carry the meaning, so the table is readable at a glance rather than something you parse column by column.</p>
+<table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody>
+<tr><td class="k"><code>Name</code></td><td>The alias you gave it, prefixed by its group in yellow.</td></tr>
+<tr><td class="k"><code>Branch</code></td><td>Current branch, followed by badges: <b class='red'>⚠MERGE</b>, <b class='red'>⚠REBASE</b>, <b class='red'>⚠CHERRY-PICK</b> or <b class='red'>⚠REVERT</b> when an operation was left unfinished, and a conflict count. Badges are drawn first so they survive if the column is too narrow for everything.</td></tr>
+<tr><td class="k"><code>Sync</code></td><td>Commits ahead of and behind the upstream, <b class='yellow'>yellow</b> when either is non-zero. Replaced by a spinner while a pull or fetch runs.</td></tr>
+<tr><td class="k"><code>Dirty</code></td><td>Uncommitted changes — <b class='green'>green</b> at zero, <b class='red'>red</b> otherwise.</td></tr>
+<tr><td class="k"><code>Updated</code></td><td>Date of the most recent commit across all refs.</td></tr>
+<tr><td class="k"><code>PR / CI</code></td><td>Open pull requests and the latest CI conclusion, for repositories with a GitHub remote and an authenticated <code>gh</code>. A failing, cancelled, timed-out or action-required run counts as needing attention.</td></tr>
+</tbody></table>
+<figure><img src="img/home-attention.svg" loading="lazy" alt="&lt;kbd&gt;n&lt;/kbd&gt; narrows the list to what actually needs a response: a failing CI run, an unresolved conflict, or an interru"><figcaption><kbd>n</kbd> narrows the list to what actually needs a response: a failing CI run, an unresolved conflict, or an interrupted operation. Uncommitted changes and being behind are normal working state, so they are deliberately not included.</figcaption></figure>
+<figure><img src="img/home-sorted.svg" loading="lazy" alt="Click a column header to sort by it; click the same one again to reverse. The sorted column carries a ▲ or ▼. &lt;kbd&gt;o&lt;/kb"><figcaption>Click a column header to sort by it; click the same one again to reverse. The sorted column carries a ▲ or ▼. <kbd>o</kbd> cycles the same orders from the keyboard. Repositories whose row has not loaded yet sort last, so the order does not churn while the dashboard fills in.</figcaption></figure>
+<table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td class="k"><kbd>Enter</kbd></td><td>Open the selected repository</td></tr>
+<tr><td class="k"><kbd>a / A</kbd></td><td>Add by path / scan a folder and bulk-add</td></tr>
+<tr><td class="k"><kbd>d / e</kbd></td><td>Remove / rename the alias</td></tr>
+<tr><td class="k"><kbd>[ / ]</kbd></td><td>Cycle the group filter</td></tr>
+<tr><td class="k"><kbd>/</kbd></td><td>Filter by name, path or group</td></tr>
+<tr><td class="k"><kbd>n</kbd></td><td>Toggle the needs-attention filter</td></tr>
+<tr><td class="k"><kbd>o</kbd></td><td>Cycle the sort order</td></tr>
+<tr><td class="k"><kbd>p / f</kbd></td><td>Pull / fetch the selected repository</td></tr>
+<tr><td class="k"><kbd>P / F</kbd></td><td>Pull / fetch every filtered repository</td></tr>
+<tr><td class="k"><kbd>S / M</kbd></td><td>Cross-repository commit search / contributors</td></tr>
+<tr><td class="k"><kbd>t</kbd></td><td>Open a shell in the repository</td></tr>
+<tr><td class="k"><kbd>r / s</kbd></td><td>Reload every row / open Settings</td></tr>
+</tbody></table>
+</section>
+<section id="repository">
+<h2>Inside a repository<a href="#repository" aria-label="link">#</a></h2>
+<p>Seven tabs, reachable with <kbd>1</kbd>–<kbd>7</kbd>, <kbd>Tab</kbd>, or by clicking them. On a narrow terminal the labels shorten rather than the last tabs disappearing.</p>
+<figure><img src="img/repo-status.svg" loading="lazy" alt="Status — the summary, the technology detected from manifest files, and the working-tree changes. &lt;kbd&gt;Enter&lt;/kbd&gt; on a f"><figcaption>Status — the summary, the technology detected from manifest files, and the working-tree changes. <kbd>Enter</kbd> on a file opens its diff.</figcaption></figure>
+<figure><img src="img/repo-commits.svg" loading="lazy" alt="Commits — the graph keeps git&#x27;s own per-lane colours, so concurrent branches stay visually distinct. Refs are shown as b"><figcaption>Commits — the graph keeps git's own per-lane colours, so concurrent branches stay visually distinct. Refs are shown as badges: <b class='green'>(main)</b> for the current branch, <b class='blue'>[hotfix/timeout]</b> for others.</figcaption></figure>
+<figure><img src="img/repo-compare.svg" loading="lazy" alt="Pick any two commits to compare: click the &lt;code&gt;[ ]&lt;/code&gt; at the start of a row, or press &lt;kbd&gt;space&lt;/kbd&gt;. The first "><figcaption>Pick any two commits to compare: click the <code>[ ]</code> at the start of a row, or press <kbd>space</kbd>. The first becomes the base <b class='green'>[B]</b>, the second the target <b class='yellow'>[T]</b>, and <kbd>Enter</kbd> diffs the range. Clicking a marked row again clears it.</figcaption></figure>
+<figure><img src="img/repo-branches.svg" loading="lazy" alt="Branches — local and remote, with the last commit&#x27;s author, date and subject. &lt;kbd&gt;Enter&lt;/kbd&gt; shows that branch&#x27;s log."><figcaption>Branches — local and remote, with the last commit's author, date and subject. <kbd>Enter</kbd> shows that branch's log.</figcaption></figure>
+<figure><img src="img/repo-tags.svg" loading="lazy" alt="Tags — same marking as Commits: pick two and compare the range between them."><figcaption>Tags — same marking as Commits: pick two and compare the range between them.</figcaption></figure>
+<figure><img src="img/repo-stash.svg" loading="lazy" alt="Stash — &lt;kbd&gt;Enter&lt;/kbd&gt; shows the diff, &lt;kbd&gt;a&lt;/kbd&gt; applies, &lt;kbd&gt;d&lt;/kbd&gt; drops after a confirmation."><figcaption>Stash — <kbd>Enter</kbd> shows the diff, <kbd>a</kbd> applies, <kbd>d</kbd> drops after a confirmation.</figcaption></figure>
+<figure><img src="img/repo-contributors.svg" loading="lazy" alt="Contributors — commit counts per person, with aliases merged into one identity using the member list you configure. &lt;kbd"><figcaption>Contributors — commit counts per person, with aliases merged into one identity using the member list you configure. <kbd>w</kbd> cycles the time span.</figcaption></figure>
+<figure><img src="img/repo-worktrees.svg" loading="lazy" alt="Worktrees — every linked worktree with its branch, HEAD and lock state. &lt;kbd&gt;Enter&lt;/kbd&gt; opens a shell there."><figcaption>Worktrees — every linked worktree with its branch, HEAD and lock state. <kbd>Enter</kbd> opens a shell there.</figcaption></figure>
+</section>
+<section id="diff">
+<h2>Reading a diff<a href="#diff" aria-label="link">#</a></h2>
+<p>Three panes: the changed files, the hunks in the selected file, and the diff itself. <kbd>Tab</kbd> moves between them, <kbd>n</kbd> and <kbd>p</kbd> jump hunk to hunk.</p>
+<figure><img src="img/diff.svg" loading="lazy" alt="Added lines in green, removed in red, with lightweight syntax colouring on top."><figcaption>Added lines in green, removed in red, with lightweight syntax colouring on top.</figcaption></figure>
+<figure><img src="img/diff-blame.svg" loading="lazy" alt="&lt;kbd&gt;b&lt;/kbd&gt; adds a blame gutter — short hash and author per line. Lines you have not committed are attributed to &lt;i&gt;Not"><figcaption><kbd>b</kbd> adds a blame gutter — short hash and author per line. Lines you have not committed are attributed to <i>Not Committed Yet</i> rather than to whoever last touched them.</figcaption></figure>
+<table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td class="k"><kbd>w</kbd></td><td>Ignore whitespace changes</td></tr>
+<tr><td class="k"><kbd>f</kbd></td><td>Show the whole file, not just changed context</td></tr>
+<tr><td class="k"><kbd>b</kbd></td><td>Toggle the blame gutter</td></tr>
+<tr><td class="k"><kbd>[ / ]</kbd></td><td>Previous / next changed file</td></tr>
+<tr><td class="k"><kbd>n / p</kbd></td><td>Next / previous hunk</td></tr>
+</tbody></table>
+<div class="aside">Prefer your own diff tool? Set an external command in Settings with <kbd>c</kbd>. It may contain <code>{path}</code>, <code>{range}</code>, <code>{base}</code>, <code>{target}</code> and <code>{file}</code>. Programs are resolved from PATH or given as an absolute path — a relative path is rejected, since the child runs with the displayed repository as its working directory and that repository may not be yours.</div>
+</section>
+<section id="cross-repo">
+<h2>Across every repository<a href="#cross-repo" aria-label="link">#</a></h2>
+<figure><img src="img/commit-search.svg" loading="lazy" alt="&lt;kbd&gt;S&lt;/kbd&gt; searches commit messages in every registered repository at once — a case-insensitive substring, not a regex"><figcaption><kbd>S</kbd> searches commit messages in every registered repository at once — a case-insensitive substring, not a regex. <kbd>Enter</kbd> jumps straight into the matching commit's diff. A repository the search could not reach is reported as failed rather than silently counted as having no matches.</figcaption></figure>
+<figure><img src="img/global-members.svg" loading="lazy" alt="&lt;kbd&gt;M&lt;/kbd&gt; aggregates contributors across all repositories, merging aliases into one person. &lt;kbd&gt;Enter&lt;/kbd&gt; jumps in"><figcaption><kbd>M</kbd> aggregates contributors across all repositories, merging aliases into one person. <kbd>Enter</kbd> jumps into the repository under the cursor.</figcaption></figure>
+</section>
+<section id="settings">
+<h2>Settings and files<a href="#settings" aria-label="link">#</a></h2>
+<figure><img src="img/settings.svg" loading="lazy" alt="&lt;kbd&gt;s&lt;/kbd&gt; from the dashboard. Language, theme, external diff command, and the Home auto-refresh interval."><figcaption><kbd>s</kbd> from the dashboard. Language, theme, external diff command, and the Home auto-refresh interval.</figcaption></figure>
+<p>Configuration lives in the OS config directory — <code>~/Library/Application Support/com.git-dashboard.git-dashboard/</code> on macOS, <code>~/.config/git-dashboard/</code> on Linux, <code>%APPDATA%\git-dashboard\git-dashboard\config\</code> on Windows.</p>
+<table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody>
+<tr><td class="k"><code>config.json</code></td><td>Registered repositories: name, path, group.</td></tr>
+<tr><td class="k"><code>members.json</code></td><td>Team members and the commit-author aliases merged into them.</td></tr>
+<tr><td class="k"><code>prefs.json</code></td><td>Language, theme, diff toggles, sort order, refresh interval.</td></tr>
+<tr><td class="k"><code>tech_rules.json</code></td><td>Rules for detecting language and framework versions.</td></tr>
+<tr><td class="k"><code>cache/</code></td><td>Cached dashboard rows and repository snapshots. Safe to delete; rebuilt on the next refresh.</td></tr>
+</tbody></table>
+<div class="aside">Auto-refresh is off by default. Each cycle re-queries the GitHub API once per repository, so 25 repositories on a 60-second interval is roughly 3000 requests an hour — about 60% of the authenticated rate limit. Turning it on should be a decision, not something an upgrade does to you.</div>
+</section>
+<section id="trust">
+<h2>What it does with a repository you do not trust<a href="#trust" aria-label="link">#</a></h2>
+<p>Registering a repository means running git inside it, and git reads that repository's own configuration. Several config keys are enough to execute arbitrary commands, so every invocation neutralises them: <code>core.fsmonitor</code>, <code>core.sshCommand</code>, <code>uploadpack.packObjectsHook</code> and <code>protocol.ext.allow</code>, plus <code>--no-ext-diff --no-textconv</code> so <code>diff.external</code> and textconv drivers cannot fire. Git's own <code>safe.directory</code> does not cover this.</p>
+<p>Repository <i>content</i> is untrusted in the same way. File text, commit messages, branch names and author names all reach the screen, and a terminal executes what it is sent — so escape sequences are removed from everything git returns, at the single point where its output becomes a string. Tabs are expanded where content is displayed, so a tab-indented file cannot push text out of its pane.</p>
+<p>An <code>ssh://</code> locator whose host begins with <code>-</code> would be passed to <code>ssh</code> as an option, so hosts are validated against an allowlist. When several git commands share one SSH connection, the delimiter between their outputs is an unpredictable per-call nonce — a fixed one could be forged by a commit author named after it.</p>
+</section>
+<section id="help">
+<h2>Everything else<a href="#help" aria-label="link">#</a></h2>
+<figure><img src="img/help.svg" loading="lazy" alt="&lt;kbd&gt;?&lt;/kbd&gt; from any screen lists every binding, scrollable with &lt;kbd&gt;j&lt;/kbd&gt;/&lt;kbd&gt;k&lt;/kbd&gt; or the wheel. The footer sho"><figcaption><kbd>?</kbd> from any screen lists every binding, scrollable with <kbd>j</kbd>/<kbd>k</kbd> or the wheel. The footer shows the bindings for the current screen, wrapping to a second row when they do not fit one.</figcaption></figure>
+<table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td class="k"><kbd>q / Ctrl+C</kbd></td><td>Quit</td></tr>
+<tr><td class="k"><kbd>Esc / h</kbd></td><td>Back one screen</td></tr>
+<tr><td class="k"><kbd>g / G</kbd></td><td>First / last item</td></tr>
+<tr><td class="k"><kbd>t / T</kbd></td><td>Open a shell in the repository directory</td></tr>
+</tbody></table>
+</section>
+<footer><p>Screenshots are captured from the running program by <code>docs/gen_shots.py</code> against the demo workspace built by <code>docs/gen_demo.py</code> — so they cannot drift from what the tool actually draws.</p></footer>
+</div></body></html>

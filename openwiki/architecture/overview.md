@@ -7,7 +7,7 @@ tags: [architecture, runtime, terminal, process-safety]
 
 # Runtime architecture and process boundaries
 
-`src/main.rs` is deliberately thin: it calls `git_dashboard_tui::run()`. `run` in `src/lib.rs` owns the terminal lifecycle, while [`App`](../application/navigation.md) owns mutable interaction state and [`crate::git`](../git/engine.md) owns all Git CLI work. Rendering is read-only through `ui::draw`.
+`src/main.rs` handles `-h`/`--help` and `-V`/`--version` before terminal initialization, rejects an unrecognized first argument with exit status 2, and otherwise calls `git_dashboard_tui::run()`. That preserves scriptable release/installer checks when stdout is not a terminal. `run` in `src/lib.rs` owns the terminal lifecycle, while [`App`](../application/navigation.md) owns mutable interaction state and [`crate::git`](../git/engine.md) owns all Git CLI work. Rendering is read-only through `ui::draw`.
 
 ```mermaid
 sequenceDiagram

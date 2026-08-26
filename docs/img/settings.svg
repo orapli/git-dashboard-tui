@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1216" height="569" viewBox="0 0 1216.00 568.80" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono','Noto Sans Mono CJK JP','Hiragino Kaku Gothic ProN','Yu Gothic',monospace" font-size="15.0">
+<title>git-dashboard-tui — Settings</title>
+<rect width="1216.00" height="568.80" rx="10" fill="#181825"/>
+<circle cx="20.0" cy="15.0" r="5" fill="#f38ba8"/>
+<circle cx="35.0" cy="15.0" r="5" fill="#f9e2af"/>
+<circle cx="50.0" cy="15.0" r="5" fill="#a6e3a1"/>
+<text x="608.0" y="19.0" fill="#7f849c" font-size="10.8" text-anchor="middle">git-dashboard-tui — Settings</text>
+<rect x="14.00" y="40.00" width="1188.00" height="514.80" fill="#1e1e2e"/>
+<rect x="14.00" y="40.00" width="90.00" height="19.80" fill="#89b4fa"/>
+<text x="23.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">Settings</text>
+<text x="122.00" y="55.05" fill="#6c7086" xml:space="preserve">git-dashboard-tui</text>
+<text x="14.00" y="74.85" fill="#45475a" xml:space="preserve">┌Appearance────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<text x="14.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="94.65" fill="#6c7086" xml:space="preserve">Display</text>
+<text x="95.00" y="94.65" fill="#6c7086" xml:space="preserve">Language</text>
+<text x="185.00" y="94.65" fill="#89b4fa" xml:space="preserve">English</text>
+<text x="266.00" y="94.65" fill="#6c7086" xml:space="preserve">(l)</text>
+<text x="1193.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="114.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="114.45" fill="#6c7086" xml:space="preserve">Diff</text>
+<text x="77.00" y="114.45" fill="#89b4fa" xml:space="preserve">builtin</text>
+<text x="158.00" y="114.45" fill="#6c7086" xml:space="preserve">(c)</text>
+<text x="1193.00" y="114.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="134.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="134.25" fill="#6c7086" xml:space="preserve">Auto-refresh</text>
+<text x="149.00" y="134.25" fill="#89b4fa" xml:space="preserve">off</text>
+<text x="194.00" y="134.25" fill="#6c7086" xml:space="preserve">(i)</text>
+<text x="1193.00" y="134.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="154.05" fill="#6c7086" xml:space="preserve">Theme</text>
+<text x="86.00" y="154.05" fill="#89b4fa" xml:space="preserve">mocha</text>
+<text x="149.00" y="154.05" fill="#6c7086" xml:space="preserve">(T)</text>
+<text x="1193.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="173.85" fill="#6c7086" xml:space="preserve">Config</text>
+<text x="86.00" y="173.85" fill="#6c7086" xml:space="preserve">Storage</text>
+<text x="158.00" y="173.85" fill="#6c7086" xml:space="preserve">Path</text>
+<text x="212.00" y="173.85" fill="#cdd6f4" xml:space="preserve">/tmp/gdt-shot-home/.config/git-dashboard</text>
+<text x="1193.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="193.65" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<text x="14.00" y="213.45" fill="#45475a" xml:space="preserve">┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<text x="14.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="32.00" y="233.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">1</text>
+<text x="50.00" y="233.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">Repositories</text>
+<text x="167.00" y="233.25" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="185.00" y="233.25" fill="#a6adc8" xml:space="preserve">2</text>
+<text x="203.00" y="233.25" fill="#a6adc8" xml:space="preserve">Members</text>
+<text x="275.00" y="233.25" fill="#a6adc8" xml:space="preserve">(Committers)</text>
+<text x="1193.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="253.05" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<text x="14.00" y="272.85" fill="#45475a" xml:space="preserve">┌</text>
+<text x="23.00" y="272.85" fill="#89b4fa" xml:space="preserve">Repositories</text>
+<text x="140.00" y="272.85" fill="#89b4fa" xml:space="preserve">(a:</text>
+<text x="176.00" y="272.85" fill="#89b4fa" xml:space="preserve">add,</text>
+<text x="221.00" y="272.85" fill="#89b4fa" xml:space="preserve">A:</text>
+<text x="248.00" y="272.85" fill="#89b4fa" xml:space="preserve">bulk</text>
+<text x="293.00" y="272.85" fill="#89b4fa" xml:space="preserve">add,</text>
+<text x="338.00" y="272.85" fill="#89b4fa" xml:space="preserve">g:</text>
+<text x="365.00" y="272.85" fill="#89b4fa" xml:space="preserve">group,</text>
+<text x="428.00" y="272.85" fill="#89b4fa" xml:space="preserve">e:</text>
+<text x="455.00" y="272.85" fill="#89b4fa" xml:space="preserve">alias,</text>
+<text x="518.00" y="272.85" fill="#89b4fa" xml:space="preserve">d:</text>
+<text x="545.00" y="272.85" fill="#89b4fa" xml:space="preserve">delete)</text>
+<text x="608.00" y="272.85" fill="#45475a" xml:space="preserve">─────────────────────────────────────────────────────────────────┐</text>
+<rect x="23.00" y="277.60" width="1170.00" height="19.80" fill="#45475a"/>
+<text x="14.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="292.65" fill="#cdd6f4" font-weight="bold" xml:space="preserve">▸</text>
+<text x="41.00" y="292.65" fill="#f9e2af" font-weight="bold" xml:space="preserve">[platform]</text>
+<text x="140.00" y="292.65" fill="#cdd6f4" font-weight="bold" xml:space="preserve">api-gateway</text>
+<text x="257.00" y="292.65" fill="#6c7086" font-weight="bold" xml:space="preserve">/home/dev/work/api-gateway</text>
+<text x="1193.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="41.00" y="312.45" fill="#f9e2af" xml:space="preserve">[payments]</text>
+<text x="140.00" y="312.45" fill="#cdd6f4" xml:space="preserve">billing-service</text>
+<text x="293.00" y="312.45" fill="#6c7086" xml:space="preserve">/home/dev/work/billing-service</text>
+<text x="1193.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="41.00" y="332.25" fill="#f9e2af" xml:space="preserve">[platform]</text>
+<text x="140.00" y="332.25" fill="#cdd6f4" xml:space="preserve">infra-terraform</text>
+<text x="293.00" y="332.25" fill="#6c7086" xml:space="preserve">/home/dev/work/infra-terraform</text>
+<text x="1193.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="352.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="41.00" y="352.05" fill="#f9e2af" xml:space="preserve">[storefront]</text>
+<text x="158.00" y="352.05" fill="#cdd6f4" xml:space="preserve">web-frontend</text>
+<text x="284.00" y="352.05" fill="#6c7086" xml:space="preserve">/home/dev/work/web-frontend</text>
+<text x="1193.00" y="352.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="371.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="41.00" y="371.85" fill="#f9e2af" xml:space="preserve">[storefront]</text>
+<text x="158.00" y="371.85" fill="#cdd6f4" xml:space="preserve">design-system</text>
+<text x="293.00" y="371.85" fill="#6c7086" xml:space="preserve">/home/dev/work/design-system</text>
+<text x="1193.00" y="371.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="391.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="391.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="411.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="411.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="431.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="431.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="451.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="451.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="470.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="470.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="490.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="490.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="510.45" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<rect x="14.00" y="515.20" width="1188.00" height="19.80" fill="#313244"/>
+<text x="14.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">tab/1/2</text>
+<text x="86.00" y="530.25" fill="#a6adc8" xml:space="preserve">tab</text>
+<text x="131.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">j/k</text>
+<text x="167.00" y="530.25" fill="#a6adc8" xml:space="preserve">move</text>
+<text x="221.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">a/A</text>
+<text x="257.00" y="530.25" fill="#a6adc8" xml:space="preserve">add/bulk</text>
+<text x="347.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">g</text>
+<text x="365.00" y="530.25" fill="#a6adc8" xml:space="preserve">group</text>
+<text x="428.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">d</text>
+<text x="446.00" y="530.25" fill="#a6adc8" xml:space="preserve">del</text>
+<text x="491.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">l</text>
+<text x="509.00" y="530.25" fill="#a6adc8" xml:space="preserve">lang</text>
+<text x="563.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">i</text>
+<text x="581.00" y="530.25" fill="#a6adc8" xml:space="preserve">auto-refresh</text>
+<text x="707.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">T</text>
+<text x="725.00" y="530.25" fill="#a6adc8" xml:space="preserve">theme</text>
+<text x="788.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">?</text>
+<text x="806.00" y="530.25" fill="#a6adc8" xml:space="preserve">help</text>
+<text x="860.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">esc</text>
+<text x="896.00" y="530.25" fill="#a6adc8" xml:space="preserve">back</text>
+<text x="950.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">q</text>
+<text x="968.00" y="530.25" fill="#a6adc8" xml:space="preserve">quit</text>
+<rect x="14.00" y="535.00" width="1188.00" height="19.80" fill="#313244"/>
+</svg>

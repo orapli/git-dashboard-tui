@@ -9,7 +9,9 @@
 [![Rust](https://img.shields.io/badge/Rust-1.85%2B%20(2024%20edition)-orange)](https://www.rust-lang.org/)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-blue)](#installation)
 
-[Quick start](#quick-start) · [Who this helps](#who-this-helps) · [Keybindings](#keybindings) · [日本語 README](README.ja.md)
+[Quick start](#quick-start) · [User manual](https://orapli.github.io/git-dashboard-tui/manual.html) · [Keybindings](#keybindings) · [日本語 README](README.ja.md)
+
+<img src="docs/img/home.svg" alt="The dashboard: five repositories with their branch, sync state, uncommitted changes and last commit" width="100%">
 
 </div>
 
@@ -22,6 +24,8 @@ a diff, or a commit — and do the actual work with whatever tool you already us
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh
 git-dashboard-tui
 ```
+
+**Illustrated manual:** [English](https://orapli.github.io/git-dashboard-tui/manual.html) · [日本語](https://orapli.github.io/git-dashboard-tui/manual.ja.html) — every screen, in colour, captured from the running program.
 
 That is the whole quickstart — Linux and macOS, no Rust toolchain required. The
 installer picks the right binary for your platform and verifies its checksum. See

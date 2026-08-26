@@ -1,0 +1,307 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1216" height="569" viewBox="0 0 1216.00 568.80" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono','Noto Sans Mono CJK JP','Hiragino Kaku Gothic ProN','Yu Gothic',monospace" font-size="15.0">
+<title>git-dashboard-tui — blame gutter (b)</title>
+<rect width="1216.00" height="568.80" rx="10" fill="#181825"/>
+<circle cx="20.0" cy="15.0" r="5" fill="#f38ba8"/>
+<circle cx="35.0" cy="15.0" r="5" fill="#f9e2af"/>
+<circle cx="50.0" cy="15.0" r="5" fill="#a6e3a1"/>
+<text x="608.0" y="19.0" fill="#7f849c" font-size="10.8" text-anchor="middle">git-dashboard-tui — blame gutter (b)</text>
+<rect x="14.00" y="40.00" width="1188.00" height="514.80" fill="#1e1e2e"/>
+<rect x="14.00" y="40.00" width="504.00" height="19.80" fill="#89b4fa"/>
+<text x="23.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">33e9629</text>
+<text x="104.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">Track</text>
+<text x="158.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">per-key</text>
+<text x="230.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">usage</text>
+<text x="284.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">and</text>
+<text x="320.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">raise</text>
+<text x="374.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">the</text>
+<text x="410.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">burst</text>
+<text x="464.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">to</text>
+<text x="491.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">60</text>
+<text x="536.00" y="55.05" fill="#6c7086" xml:space="preserve">git-dashboard-tui</text>
+<text x="14.00" y="74.85" fill="#45475a" xml:space="preserve">┌</text>
+<text x="23.00" y="74.85" fill="#89b4fa" xml:space="preserve">▸</text>
+<text x="41.00" y="74.85" fill="#89b4fa" xml:space="preserve">Changed</text>
+<text x="113.00" y="74.85" fill="#89b4fa" xml:space="preserve">Files</text>
+<text x="167.00" y="74.85" fill="#89b4fa" xml:space="preserve">(1)</text>
+<text x="194.00" y="74.85" fill="#45475a" xml:space="preserve">─────────────┐┌</text>
+<text x="347.00" y="74.85" fill="#89b4fa" xml:space="preserve">hunks</text>
+<text x="401.00" y="74.85" fill="#89b4fa" xml:space="preserve">(1/5)</text>
+<text x="446.00" y="74.85" fill="#45475a" xml:space="preserve">─────────────────┐┌</text>
+<text x="635.00" y="74.85" fill="#89b4fa" xml:space="preserve">Diff</text>
+<text x="689.00" y="74.85" fill="#89b4fa" xml:space="preserve">commit</text>
+<text x="752.00" y="74.85" fill="#89b4fa" xml:space="preserve">33e9629fa29b0ac73f8364f626cc0f02…</text>
+<text x="1067.00" y="74.85" fill="#89b4fa" xml:space="preserve">[b:blame]</text>
+<text x="1148.00" y="74.85" fill="#45475a" xml:space="preserve">─────┐</text>
+<rect x="23.00" y="79.60" width="288.00" height="19.80" fill="#45475a"/>
+<rect x="329.00" y="79.60" width="270.00" height="19.80" fill="#45475a"/>
+<rect x="617.00" y="79.60" width="342.00" height="19.80" fill="#45475a"/>
+<text x="14.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="94.65" fill="#f9e2af" font-weight="bold" xml:space="preserve">▸</text>
+<text x="41.00" y="94.65" fill="#f9e2af" font-weight="bold" xml:space="preserve">[M]</text>
+<text x="77.00" y="94.65" fill="#f9e2af" font-weight="bold" xml:space="preserve">src/limit.go</text>
+<text x="311.00" y="94.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="329.00" y="94.65" fill="#cdd6f4" font-weight="bold" xml:space="preserve">▸</text>
+<text x="347.00" y="94.65" fill="#cdd6f4" font-weight="bold" xml:space="preserve">#1</text>
+<text x="392.00" y="94.65" fill="#cdd6f4" font-weight="bold" xml:space="preserve">L3</text>
+<text x="455.00" y="94.65" fill="#cdd6f4" font-weight="bold" xml:space="preserve">import</text>
+<text x="518.00" y="94.65" fill="#cdd6f4" font-weight="bold" xml:space="preserve">"time"</text>
+<text x="599.00" y="94.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="815.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="833.00" y="94.65" fill="#f38ba8" xml:space="preserve">-import</text>
+<text x="905.00" y="94.65" fill="#f38ba8" xml:space="preserve">"time"</text>
+<text x="1193.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
+<rect x="617.00" y="99.40" width="297.00" height="19.80" fill="#45475a"/>
+<text x="14.00" y="114.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="114.45" fill="#45475a" xml:space="preserve">││</text>
+<text x="347.00" y="114.45" fill="#cdd6f4" xml:space="preserve">#2</text>
+<text x="392.00" y="114.45" fill="#cdd6f4" xml:space="preserve">L9</text>
+<text x="455.00" y="114.45" fill="#cdd6f4" xml:space="preserve">mu</text>
+<text x="518.00" y="114.45" fill="#cdd6f4" xml:space="preserve">sync.Mute</text>
+<text x="599.00" y="114.45" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="114.45" fill="#6c7086" xml:space="preserve">33e9629</text>
+<text x="689.00" y="114.45" fill="#6c7086" xml:space="preserve">Ben</text>
+<text x="725.00" y="114.45" fill="#6c7086" xml:space="preserve">Ortiz</text>
+<text x="815.00" y="114.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="833.00" y="114.45" fill="#a6e3a1" xml:space="preserve">+import</text>
+<text x="905.00" y="114.45" fill="#a6e3a1" xml:space="preserve">(</text>
+<text x="1193.00" y="114.45" fill="#45475a" xml:space="preserve">│</text>
+<rect x="617.00" y="119.20" width="315.00" height="19.80" fill="#45475a"/>
+<text x="14.00" y="134.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="134.25" fill="#45475a" xml:space="preserve">││</text>
+<text x="347.00" y="134.25" fill="#cdd6f4" xml:space="preserve">#3</text>
+<text x="392.00" y="134.25" fill="#cdd6f4" xml:space="preserve">L12</text>
+<text x="455.00" y="134.25" fill="#cdd6f4" xml:space="preserve">seen</text>
+<text x="518.00" y="134.25" fill="#cdd6f4" xml:space="preserve">map[strin</text>
+<text x="599.00" y="134.25" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="134.25" fill="#6c7086" xml:space="preserve">33e9629</text>
+<text x="689.00" y="134.25" fill="#6c7086" xml:space="preserve">Ben</text>
+<text x="725.00" y="134.25" fill="#6c7086" xml:space="preserve">Ortiz</text>
+<text x="815.00" y="134.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="833.00" y="134.25" fill="#a6e3a1" xml:space="preserve">+</text>
+<text x="878.00" y="134.25" fill="#a6e3a1" xml:space="preserve">"sync"</text>
+<text x="1193.00" y="134.25" fill="#45475a" xml:space="preserve">│</text>
+<rect x="617.00" y="139.00" width="315.00" height="19.80" fill="#45475a"/>
+<text x="14.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="154.05" fill="#45475a" xml:space="preserve">││</text>
+<text x="347.00" y="154.05" fill="#cdd6f4" xml:space="preserve">#4</text>
+<text x="392.00" y="154.05" fill="#cdd6f4" xml:space="preserve">L11</text>
+<text x="455.00" y="154.05" fill="#cdd6f4" xml:space="preserve">return</text>
+<text x="518.00" y="154.05" fill="#cdd6f4" xml:space="preserve">&amp;Limiter{</text>
+<text x="599.00" y="154.05" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="154.05" fill="#6c7086" xml:space="preserve">33e9629</text>
+<text x="689.00" y="154.05" fill="#6c7086" xml:space="preserve">Ben</text>
+<text x="725.00" y="154.05" fill="#6c7086" xml:space="preserve">Ortiz</text>
+<text x="815.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="833.00" y="154.05" fill="#a6e3a1" xml:space="preserve">+</text>
+<text x="878.00" y="154.05" fill="#a6e3a1" xml:space="preserve">"time"</text>
+<text x="1193.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
+<rect x="617.00" y="158.80" width="234.00" height="19.80" fill="#45475a"/>
+<text x="14.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="173.85" fill="#45475a" xml:space="preserve">││</text>
+<text x="347.00" y="173.85" fill="#cdd6f4" xml:space="preserve">#5</text>
+<text x="392.00" y="173.85" fill="#cdd6f4" xml:space="preserve">L18</text>
+<text x="455.00" y="173.85" fill="#cdd6f4" xml:space="preserve">return</text>
+<text x="518.00" y="173.85" fill="#cdd6f4" xml:space="preserve">true</text>
+<text x="599.00" y="173.85" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="173.85" fill="#6c7086" xml:space="preserve">33e9629</text>
+<text x="689.00" y="173.85" fill="#6c7086" xml:space="preserve">Ben</text>
+<text x="725.00" y="173.85" fill="#6c7086" xml:space="preserve">Ortiz</text>
+<text x="815.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="833.00" y="173.85" fill="#a6e3a1" xml:space="preserve">+)</text>
+<text x="1193.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="193.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="193.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="193.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="193.65" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="193.65" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="193.65" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="193.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="193.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="213.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="213.45" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="213.45" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="213.45" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="213.45" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="213.45" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="213.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="842.00" y="213.45" fill="#cdd6f4" xml:space="preserve">type</text>
+<text x="887.00" y="213.45" fill="#cdd6f4" xml:space="preserve">Limiter</text>
+<text x="959.00" y="213.45" fill="#cdd6f4" xml:space="preserve">struct</text>
+<text x="1022.00" y="213.45" fill="#cdd6f4" xml:space="preserve">{</text>
+<text x="1193.00" y="213.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="233.25" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="233.25" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="233.25" fill="#6c7086" xml:space="preserve">33e9629</text>
+<text x="689.00" y="233.25" fill="#6c7086" xml:space="preserve">Ben</text>
+<text x="725.00" y="233.25" fill="#6c7086" xml:space="preserve">Ortiz</text>
+<text x="815.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="833.00" y="233.25" fill="#a6e3a1" xml:space="preserve">+</text>
+<text x="878.00" y="233.25" fill="#a6e3a1" xml:space="preserve">mu</text>
+<text x="941.00" y="233.25" fill="#a6e3a1" xml:space="preserve">sync.Mutex</text>
+<text x="1193.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="253.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="253.05" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="253.05" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="253.05" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="253.05" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="253.05" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="253.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="878.00" y="253.05" fill="#cdd6f4" xml:space="preserve">burst</text>
+<text x="941.00" y="253.05" fill="#cdd6f4" xml:space="preserve">int</text>
+<text x="1193.00" y="253.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="272.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="272.85" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="272.85" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="272.85" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="272.85" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="272.85" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="272.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="878.00" y="272.85" fill="#cdd6f4" xml:space="preserve">window</text>
+<text x="941.00" y="272.85" fill="#cdd6f4" xml:space="preserve">time.Duration</text>
+<text x="1193.00" y="272.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="292.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="292.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="292.65" fill="#6c7086" xml:space="preserve">33e9629</text>
+<text x="689.00" y="292.65" fill="#6c7086" xml:space="preserve">Ben</text>
+<text x="725.00" y="292.65" fill="#6c7086" xml:space="preserve">Ortiz</text>
+<text x="815.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="833.00" y="292.65" fill="#a6e3a1" xml:space="preserve">+</text>
+<text x="878.00" y="292.65" fill="#a6e3a1" xml:space="preserve">seen</text>
+<text x="941.00" y="292.65" fill="#a6e3a1" xml:space="preserve">map[string]int</text>
+<text x="1193.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="312.45" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="312.45" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="312.45" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="312.45" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="312.45" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="842.00" y="312.45" fill="#cdd6f4" xml:space="preserve">}</text>
+<text x="1193.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="332.25" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="332.25" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="332.25" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="332.25" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="332.25" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="352.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="352.05" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="352.05" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="352.05" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="352.05" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="352.05" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="352.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="842.00" y="352.05" fill="#cdd6f4" xml:space="preserve">func</text>
+<text x="887.00" y="352.05" fill="#cdd6f4" xml:space="preserve">NewLimiter()</text>
+<text x="1004.00" y="352.05" fill="#cdd6f4" xml:space="preserve">*Limiter</text>
+<text x="1085.00" y="352.05" fill="#cdd6f4" xml:space="preserve">{</text>
+<text x="1193.00" y="352.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="371.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="371.85" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="371.85" fill="#45475a" xml:space="preserve">││</text>
+<text x="815.00" y="371.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="833.00" y="371.85" fill="#f38ba8" xml:space="preserve">-</text>
+<text x="878.00" y="371.85" fill="#f38ba8" xml:space="preserve">return</text>
+<text x="941.00" y="371.85" fill="#f38ba8" xml:space="preserve">&amp;Limiter{burst:</text>
+<text x="1085.00" y="371.85" fill="#f38ba8" xml:space="preserve">40,</text>
+<text x="1121.00" y="371.85" fill="#f38ba8" xml:space="preserve">window:</text>
+<text x="1193.00" y="371.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="391.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="391.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="391.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="391.65" fill="#6c7086" xml:space="preserve">33e9629</text>
+<text x="689.00" y="391.65" fill="#6c7086" xml:space="preserve">Ben</text>
+<text x="725.00" y="391.65" fill="#6c7086" xml:space="preserve">Ortiz</text>
+<text x="815.00" y="391.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="833.00" y="391.65" fill="#a6e3a1" xml:space="preserve">+</text>
+<text x="878.00" y="391.65" fill="#a6e3a1" xml:space="preserve">return</text>
+<text x="941.00" y="391.65" fill="#a6e3a1" xml:space="preserve">&amp;Limiter{burst:</text>
+<text x="1085.00" y="391.65" fill="#a6e3a1" xml:space="preserve">60,</text>
+<text x="1121.00" y="391.65" fill="#a6e3a1" xml:space="preserve">window:</text>
+<text x="1193.00" y="391.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="411.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="411.45" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="411.45" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="411.45" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="411.45" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="411.45" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="411.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="842.00" y="411.45" fill="#cdd6f4" xml:space="preserve">}</text>
+<text x="1193.00" y="411.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="431.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="431.25" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="431.25" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="431.25" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="431.25" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="431.25" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="431.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="431.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="451.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="451.05" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="451.05" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="451.05" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="451.05" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="451.05" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="451.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="842.00" y="451.05" fill="#cdd6f4" xml:space="preserve">func</text>
+<text x="887.00" y="451.05" fill="#cdd6f4" xml:space="preserve">(l</text>
+<text x="914.00" y="451.05" fill="#cdd6f4" xml:space="preserve">*Limiter)</text>
+<text x="1004.00" y="451.05" fill="#cdd6f4" xml:space="preserve">Allow(key</text>
+<text x="1094.00" y="451.05" fill="#cdd6f4" xml:space="preserve">string)</text>
+<text x="1166.00" y="451.05" fill="#cdd6f4" xml:space="preserve">boo</text>
+<text x="1193.00" y="451.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="470.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="470.85" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="470.85" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="470.85" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="470.85" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="470.85" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="470.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="878.00" y="470.85" fill="#cdd6f4" xml:space="preserve">if</text>
+<text x="905.00" y="470.85" fill="#cdd6f4" xml:space="preserve">key</text>
+<text x="941.00" y="470.85" fill="#cdd6f4" xml:space="preserve">==</text>
+<text x="968.00" y="470.85" fill="#cdd6f4" xml:space="preserve">""</text>
+<text x="995.00" y="470.85" fill="#cdd6f4" xml:space="preserve">{</text>
+<text x="1193.00" y="470.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="490.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="311.00" y="490.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="599.00" y="490.65" fill="#45475a" xml:space="preserve">││</text>
+<text x="617.00" y="490.65" fill="#6c7086" xml:space="preserve">3d1eac7</text>
+<text x="689.00" y="490.65" fill="#6c7086" xml:space="preserve">Dara</text>
+<text x="734.00" y="490.65" fill="#6c7086" xml:space="preserve">Osei</text>
+<text x="815.00" y="490.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="914.00" y="490.65" fill="#cdd6f4" xml:space="preserve">return</text>
+<text x="977.00" y="490.65" fill="#cdd6f4" xml:space="preserve">false</text>
+<text x="1193.00" y="490.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="510.45" fill="#45475a" xml:space="preserve">└────────────────────────────────┘└──────────────────────────────┘└────────────────────────────────────────────────────────────────┘</text>
+<rect x="14.00" y="515.20" width="1188.00" height="19.80" fill="#313244"/>
+<text x="14.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">hunk</text>
+<text x="59.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">1/5</text>
+<text x="104.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">n/p</text>
+<text x="140.00" y="530.25" fill="#a6adc8" xml:space="preserve">hunk</text>
+<text x="194.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">tab</text>
+<text x="230.00" y="530.25" fill="#a6adc8" xml:space="preserve">pane</text>
+<text x="284.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">[/]</text>
+<text x="320.00" y="530.25" fill="#a6adc8" xml:space="preserve">file</text>
+<text x="374.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">w</text>
+<text x="392.00" y="530.25" fill="#a6adc8" xml:space="preserve">ignore</text>
+<text x="455.00" y="530.25" fill="#a6adc8" xml:space="preserve">ws</text>
+<text x="491.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">f</text>
+<text x="509.00" y="530.25" fill="#a6adc8" xml:space="preserve">full</text>
+<text x="554.00" y="530.25" fill="#a6adc8" xml:space="preserve">file</text>
+<text x="608.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">b</text>
+<text x="626.00" y="530.25" fill="#a6adc8" xml:space="preserve">blame</text>
+<text x="689.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">t</text>
+<text x="707.00" y="530.25" fill="#a6adc8" xml:space="preserve">shell</text>
+<text x="770.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">?</text>
+<text x="788.00" y="530.25" fill="#a6adc8" xml:space="preserve">help</text>
+<text x="842.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">esc</text>
+<text x="878.00" y="530.25" fill="#a6adc8" xml:space="preserve">back</text>
+<text x="932.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">q</text>
+<text x="950.00" y="530.25" fill="#a6adc8" xml:space="preserve">quit</text>
+<rect x="14.00" y="535.00" width="1188.00" height="19.80" fill="#313244"/>
+</svg>

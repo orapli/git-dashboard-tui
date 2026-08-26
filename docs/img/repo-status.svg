@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1216" height="569" viewBox="0 0 1216.00 568.80" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono','Noto Sans Mono CJK JP','Hiragino Kaku Gothic ProN','Yu Gothic',monospace" font-size="15.0">
+<title>git-dashboard-tui — Status tab</title>
+<rect width="1216.00" height="568.80" rx="10" fill="#181825"/>
+<circle cx="20.0" cy="15.0" r="5" fill="#f38ba8"/>
+<circle cx="35.0" cy="15.0" r="5" fill="#f9e2af"/>
+<circle cx="50.0" cy="15.0" r="5" fill="#a6e3a1"/>
+<text x="608.0" y="19.0" fill="#7f849c" font-size="10.8" text-anchor="middle">git-dashboard-tui — Status tab</text>
+<rect x="14.00" y="40.00" width="1188.00" height="514.80" fill="#1e1e2e"/>
+<rect x="14.00" y="40.00" width="126.00" height="19.80" fill="#89b4fa"/>
+<text x="23.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">web-frontend</text>
+<text x="158.00" y="55.05" fill="#6c7086" xml:space="preserve">git-dashboard-tui</text>
+<text x="14.00" y="74.85" fill="#45475a" xml:space="preserve">┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<text x="14.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="32.00" y="94.65" fill="#89b4fa" font-weight="bold" xml:space="preserve">1</text>
+<text x="50.00" y="94.65" fill="#89b4fa" font-weight="bold" xml:space="preserve">Status</text>
+<text x="113.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="131.00" y="94.65" fill="#a6adc8" xml:space="preserve">2</text>
+<text x="149.00" y="94.65" fill="#a6adc8" xml:space="preserve">Commits</text>
+<text x="221.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="239.00" y="94.65" fill="#a6adc8" xml:space="preserve">3</text>
+<text x="257.00" y="94.65" fill="#a6adc8" xml:space="preserve">Branches</text>
+<text x="338.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="356.00" y="94.65" fill="#a6adc8" xml:space="preserve">4</text>
+<text x="374.00" y="94.65" fill="#a6adc8" xml:space="preserve">Tags</text>
+<text x="419.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="437.00" y="94.65" fill="#a6adc8" xml:space="preserve">5</text>
+<text x="455.00" y="94.65" fill="#a6adc8" xml:space="preserve">Stash</text>
+<text x="509.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="527.00" y="94.65" fill="#a6adc8" xml:space="preserve">6</text>
+<text x="545.00" y="94.65" fill="#a6adc8" xml:space="preserve">Contributors</text>
+<text x="662.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
+<text x="680.00" y="94.65" fill="#a6adc8" xml:space="preserve">7</text>
+<text x="698.00" y="94.65" fill="#a6adc8" xml:space="preserve">Worktrees</text>
+<text x="1193.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="114.45" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<text x="14.00" y="134.25" fill="#45475a" xml:space="preserve">┌</text>
+<text x="23.00" y="134.25" fill="#89b4fa" xml:space="preserve">Overview</text>
+<text x="113.00" y="134.25" fill="#89b4fa" xml:space="preserve">(2</text>
+<text x="140.00" y="134.25" fill="#89b4fa" xml:space="preserve">=</text>
+<text x="158.00" y="134.25" fill="#89b4fa" xml:space="preserve">full</text>
+<text x="203.00" y="134.25" fill="#89b4fa" xml:space="preserve">commit</text>
+<text x="266.00" y="134.25" fill="#89b4fa" xml:space="preserve">log)</text>
+<text x="302.00" y="134.25" fill="#45475a" xml:space="preserve">───────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<text x="14.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="41.00" y="154.05" fill="#6c7086" xml:space="preserve">Branch:</text>
+<text x="167.00" y="154.05" fill="#89b4fa" font-weight="bold" xml:space="preserve">main</text>
+<text x="365.00" y="154.05" fill="#6c7086" xml:space="preserve">Commits:</text>
+<text x="491.00" y="154.05" fill="#cdd6f4" xml:space="preserve">3</text>
+<text x="599.00" y="154.05" fill="#6c7086" xml:space="preserve">Contributors:</text>
+<text x="725.00" y="154.05" fill="#cdd6f4" xml:space="preserve">2</text>
+<text x="1193.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="41.00" y="173.85" fill="#6c7086" xml:space="preserve">Sync</text>
+<text x="86.00" y="173.85" fill="#6c7086" xml:space="preserve">(↑/↓):</text>
+<text x="167.00" y="173.85" fill="#f9e2af" xml:space="preserve">↑0</text>
+<text x="194.00" y="173.85" fill="#f9e2af" xml:space="preserve">↓0</text>
+<text x="365.00" y="173.85" fill="#6c7086" xml:space="preserve">Branches:</text>
+<text x="491.00" y="173.85" fill="#cdd6f4" xml:space="preserve">3</text>
+<text x="599.00" y="173.85" fill="#6c7086" xml:space="preserve">Uncommitted:</text>
+<text x="725.00" y="173.85" fill="#f38ba8" xml:space="preserve">1</text>
+<text x="743.00" y="173.85" fill="#f38ba8" xml:space="preserve">files</text>
+<text x="1193.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="193.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="41.00" y="193.65" fill="#6c7086" xml:space="preserve">Local</text>
+<text x="95.00" y="193.65" fill="#6c7086" xml:space="preserve">Path:</text>
+<text x="167.00" y="193.65" fill="#a6adc8" xml:space="preserve">/home/dev/work/web-frontend</text>
+<text x="1193.00" y="193.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="213.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="41.00" y="213.45" fill="#f38ba8" font-weight="bold" xml:space="preserve">⚠</text>
+<text x="59.00" y="213.45" fill="#f38ba8" font-weight="bold" xml:space="preserve">MERGE</text>
+<text x="122.00" y="213.45" fill="#f38ba8" xml:space="preserve">1</text>
+<text x="140.00" y="213.45" fill="#f38ba8" xml:space="preserve">unresolved</text>
+<text x="239.00" y="213.45" fill="#f38ba8" xml:space="preserve">conflict(s)</text>
+<text x="1193.00" y="213.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="253.05" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<text x="14.00" y="272.85" fill="#45475a" xml:space="preserve">┌</text>
+<text x="23.00" y="272.85" fill="#89b4fa" xml:space="preserve">Recent</text>
+<text x="86.00" y="272.85" fill="#89b4fa" xml:space="preserve">commits</text>
+<text x="149.00" y="272.85" fill="#45475a" xml:space="preserve">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<text x="14.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="292.65" fill="#89b4fa" xml:space="preserve">910fb3d</text>
+<text x="104.00" y="292.65" fill="#6c7086" xml:space="preserve">2025-08-13</text>
+<text x="203.00" y="292.65" fill="#6c7086" xml:space="preserve">06:20</text>
+<text x="275.00" y="292.65" fill="#a6e3a1" font-weight="bold" xml:space="preserve">(main)</text>
+<text x="338.00" y="292.65" fill="#f38ba8" xml:space="preserve">[origin/main]</text>
+<text x="464.00" y="292.65" fill="#cdd6f4" xml:space="preserve">Raise</text>
+<text x="518.00" y="292.65" fill="#cdd6f4" xml:space="preserve">the</text>
+<text x="554.00" y="292.65" fill="#cdd6f4" xml:space="preserve">checkout</text>
+<text x="635.00" y="292.65" fill="#cdd6f4" xml:space="preserve">timeout</text>
+<text x="707.00" y="292.65" fill="#cdd6f4" xml:space="preserve">to</text>
+<text x="734.00" y="292.65" fill="#cdd6f4" xml:space="preserve">45s</text>
+<text x="1193.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="312.45" fill="#89b4fa" xml:space="preserve">99f11b4</text>
+<text x="104.00" y="312.45" fill="#6c7086" xml:space="preserve">2025-08-13</text>
+<text x="203.00" y="312.45" fill="#6c7086" xml:space="preserve">04:00</text>
+<text x="275.00" y="312.45" fill="#89b4fa" xml:space="preserve">[hotfix/timeout]</text>
+<text x="428.00" y="312.45" fill="#cdd6f4" xml:space="preserve">Raise</text>
+<text x="482.00" y="312.45" fill="#cdd6f4" xml:space="preserve">the</text>
+<text x="518.00" y="312.45" fill="#cdd6f4" xml:space="preserve">checkout</text>
+<text x="599.00" y="312.45" fill="#cdd6f4" xml:space="preserve">timeout</text>
+<text x="671.00" y="312.45" fill="#cdd6f4" xml:space="preserve">to</text>
+<text x="698.00" y="312.45" fill="#cdd6f4" xml:space="preserve">60s</text>
+<text x="1193.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="332.25" fill="#89b4fa" xml:space="preserve">5082261</text>
+<text x="104.00" y="332.25" fill="#6c7086" xml:space="preserve">2025-08-13</text>
+<text x="203.00" y="332.25" fill="#6c7086" xml:space="preserve">01:40</text>
+<text x="266.00" y="332.25" fill="#cdd6f4" xml:space="preserve">Add</text>
+<text x="302.00" y="332.25" fill="#cdd6f4" xml:space="preserve">a</text>
+<text x="320.00" y="332.25" fill="#cdd6f4" xml:space="preserve">checkout</text>
+<text x="401.00" y="332.25" fill="#cdd6f4" xml:space="preserve">timeout</text>
+<text x="1193.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="352.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="352.05" fill="#89b4fa" xml:space="preserve">1a0b9c7</text>
+<text x="104.00" y="352.05" fill="#6c7086" xml:space="preserve">2025-08-12</text>
+<text x="203.00" y="352.05" fill="#6c7086" xml:space="preserve">23:20</text>
+<text x="266.00" y="352.05" fill="#cdd6f4" xml:space="preserve">Initial</text>
+<text x="338.00" y="352.05" fill="#cdd6f4" xml:space="preserve">commit</text>
+<text x="1193.00" y="352.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="371.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="371.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="391.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="391.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="411.45" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<text x="14.00" y="431.25" fill="#45475a" xml:space="preserve">┌</text>
+<text x="23.00" y="431.25" fill="#89b4fa" xml:space="preserve">Uncommitted</text>
+<text x="131.00" y="431.25" fill="#89b4fa" xml:space="preserve">Changes</text>
+<text x="203.00" y="431.25" fill="#89b4fa" xml:space="preserve">(Working</text>
+<text x="284.00" y="431.25" fill="#89b4fa" xml:space="preserve">Tree)</text>
+<text x="338.00" y="431.25" fill="#89b4fa" xml:space="preserve">(1)</text>
+<text x="365.00" y="431.25" fill="#45475a" xml:space="preserve">────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<rect x="23.00" y="436.00" width="1170.00" height="19.80" fill="#45475a"/>
+<text x="14.00" y="451.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="23.00" y="451.05" fill="#f9e2af" font-weight="bold" xml:space="preserve">▸</text>
+<text x="41.00" y="451.05" fill="#f9e2af" font-weight="bold" xml:space="preserve">[M]</text>
+<text x="77.00" y="451.05" fill="#f9e2af" font-weight="bold" xml:space="preserve">+4/-0</text>
+<text x="140.00" y="451.05" fill="#f9e2af" font-weight="bold" xml:space="preserve">checkout.ts</text>
+<text x="1193.00" y="451.05" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="470.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="470.85" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="490.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="1193.00" y="490.65" fill="#45475a" xml:space="preserve">│</text>
+<text x="14.00" y="510.45" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<rect x="14.00" y="515.20" width="1188.00" height="19.80" fill="#313244"/>
+<text x="14.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">1-7</text>
+<text x="50.00" y="530.25" fill="#a6adc8" xml:space="preserve">tabs</text>
+<text x="104.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">j/k</text>
+<text x="140.00" y="530.25" fill="#a6adc8" xml:space="preserve">move</text>
+<text x="194.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">enter</text>
+<text x="248.00" y="530.25" fill="#a6adc8" xml:space="preserve">diff</text>
+<text x="302.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">t</text>
+<text x="320.00" y="530.25" fill="#a6adc8" xml:space="preserve">shell</text>
+<text x="383.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">r</text>
+<text x="401.00" y="530.25" fill="#a6adc8" xml:space="preserve">reload</text>
+<text x="473.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">?</text>
+<text x="491.00" y="530.25" fill="#a6adc8" xml:space="preserve">help</text>
+<text x="545.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">esc</text>
+<text x="581.00" y="530.25" fill="#a6adc8" xml:space="preserve">back</text>
+<text x="635.00" y="530.25" fill="#89b4fa" font-weight="bold" xml:space="preserve">q</text>
+<text x="653.00" y="530.25" fill="#a6adc8" xml:space="preserve">quit</text>
+<rect x="14.00" y="535.00" width="1188.00" height="19.80" fill="#313244"/>
+</svg>

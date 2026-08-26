@@ -19,7 +19,7 @@ Recent and diff-selectable history uses `--graph --color=always --all`, but `spl
 
 `WORKING_TREE` means `HEAD` versus local changes. For commits, `diff_range` produces `base..target`, `base...target` for merge-base style compare, or `target^..target` for a single commit. A root commit cannot resolve its parent; `run_diff` retries exactly that case against Git’s empty tree. Inputs validate refs and pass file paths after `--`.
 
-`get_changed_files` combines `--name-status --find-renames` with `--numstat --find-renames`; quoted and brace-renamed paths are normalized. `get_file_diff` recognizes binary marker lines, parses unified hunks, pairs changed lines as `Modified` only at >=0.5 character similarity, and otherwise retains removal/addition blocks. It caps parsed rows at 2,000 normally or 5,000 full-context rows before calling `syntax::tokenize`.
+`get_changed_files` combines `--name-status --find-renames` with `--numstat --find-renames`; quoted and brace-renamed paths are normalized. `get_file_diff` recognizes binary marker lines, parses unified hunks, pairs changed lines as `Modified` only at >=0.5 character similarity, and otherwise retains removal/addition blocks. It caps parsed rows at 2,000 normally or 5,000 full-context rows, expands file-content tabs to four-column stops, then calls `syntax::tokenize`; expansion must remain before tokenization so token positions and rendered columns agree. Git output is already control-sequence-sanitized by the [execution engine](engine.md), so this parser must not reintroduce raw output paths.
 
 ```mermaid
 flowchart TD
@@ -37,4 +37,4 @@ This is the data flow from repository selection to the three-pane Diff view.
 
 `FileDiff` keeps token vectors, but `helpers::flatten_diff` currently uses text and row kind to produce `DiffLine`; renderer behavior belongs to [presentation](../presentation/ui-and-localization.md). Diff sequence numbers prevent stale files, blame, or range results from replacing the active view; density toggles preserve scroll using `pending_scroll_restore`.
 
-`src/git/tests.rs` covers range/path/diff parsers and similarity; `src/app/tests.rs` covers hunk and scroll synchronization; `tests/integration_tests.rs` verifies working-tree, root-commit, graph ANSI isolation, and blame behavior with real Git. Use `cargo test --lib git::tests` and `cargo test --test integration_tests`.
+`src/git/tests.rs` covers range/path/diff parsers and similarity; `src/app/tests.rs` covers hunk and scroll synchronization; `tests/integration_tests.rs` verifies working-tree, root-commit, graph ANSI isolation, blame behavior, terminal-control sanitization, and tab-indented diff display with real Git. Use `cargo test --lib git::tests` and `cargo test --test integration_tests`.

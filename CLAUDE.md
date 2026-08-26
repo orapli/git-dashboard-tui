@@ -38,6 +38,7 @@ git-dashboard-tui/
 │   ├── git.rs          # Git command execution and parsing
 │   ├── i18n.rs         # i18n helper (rust-i18n)
 │   └── syntax.rs       # Lightweight syntax tokenizer
+├── docs/               # Generated manual + screenshots (see docs/README.md)
 ```
 
 Config files (config.json / members.json / prefs.json) are shared with `git-dashboard` under the OS config directory

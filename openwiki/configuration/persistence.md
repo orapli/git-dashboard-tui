@@ -17,7 +17,7 @@ tags: [configuration, persistence, json, caching]
 | `members.json` | `Vec<Member>`: canonical name, aliases, active status. |
 | `prefs.json` | `Preferences`: theme/language, UI values, diff toggles/command, sort, auto-refresh, recent comparisons. |
 | `tech_rules.json` | `Vec<TechRule>` used by local technology detection. |
-| `cache/repo-*.json` / `cache/tui-*.json` | hashes of repository paths; the TUI snapshot cache format lives in `app/worker.rs`. |
+| `cache/repo-*.json` / `cache/home-*.json` / `cache/tui-*.json` | hashes of repository paths; repository inspection, Home-row, and TUI-snapshot cache formats respectively live in `app/worker.rs`. |
 
 `load_json` differentiates a missing file (`Ok(None)`) from a read or JSON parse error. `App::new` records which of repositories, members, and preferences failed to load and disables writes to that individual file for the process, avoiding replacement of corrupt user data with defaults. `write_atomic` writes a sibling process-and-counter unique temporary file then renames it.
 
@@ -25,7 +25,7 @@ tags: [configuration, persistence, json, caching]
 
 `Preferences` has serde defaults. `prefs.json` is byte-for-byte shared with a sibling GUI application outside this repository; defaults let either app read fields it does not understand, but saving will drop unknown fields. This is documented in code as an out-of-scope cross-repository schema limitation, not a merge-preserving format.
 
-`repo_cache_path` and `tui_cache_path` hash the absolute path. `TuiCache` requires version 1; invalid JSON or version mismatch is ignored. Its intentional exclusion of working-tree files prevents stale local-change display. See [background work](../application/background-work.md) for cache load/save timing and [inspection](../git/repository-inspection.md) for `tech_rules.json` creation/fallback.
+`repo_cache_path`, `home_cache_path`, and `tui_cache_path` hash the repository path. `HomeRow` cache JSON is tolerant of missing fields through serde defaults and ignored when invalid; it is written after Home refresh and deleted with the repository. `TuiCache` requires version 1; invalid JSON or version mismatch is ignored. Its intentional exclusion of working-tree files prevents stale local-change display. See [background work](../application/background-work.md) for cache load/save timing and [inspection](../git/repository-inspection.md) for `tech_rules.json` creation/fallback.
 
 ## Safe changes and tests
 
