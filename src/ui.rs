@@ -1,14 +1,21 @@
-use crate::app::{App, CiOutcome, FocusPane, RepoTab, Screen, classify_ci_status, short_hash};
+use crate::app::{
+    App, CiOutcome, FocusPane, RepoTab, Screen, classify_ci_status, column_for_sort_mode,
+    short_hash, sort_is_ascending,
+};
 use crate::colors::Palette;
 use crate::git::{CommitRef, DiffRowKind, GitOpState};
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
     Block, Borders, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table, TableState,
     Tabs, Wrap,
 };
+
+/// Selection marker used by the Home table. Its width shifts every column
+/// right, so the click hit-test has to account for it too.
+const HIGHLIGHT_SYMBOL: &str = "▸ ";
 
 pub fn draw(frame: &mut Frame, app: &App) {
     let pal = Palette::for_name(app.theme_name());
@@ -140,15 +147,36 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     }
 
     let indices = app.filtered_home();
-    let header = Row::new(vec![
+    // The sorted column carries the direction marker, so the current sort is
+    // visible in the table itself rather than only in the title.
+    let sorted_col = column_for_sort_mode(app.sort_mode());
+    let marker = if sort_is_ascending(app.sort_mode()) {
+        "▲"
+    } else {
+        "▼"
+    };
+    let header_cells: Vec<Cell> = [
         app.tt("Name", "名前"),
         app.tt("Branch", "ブランチ"),
         app.tt("Sync", "同期"),
         app.tt("Dirty", "未コミット"),
         app.tt("Updated", "更新"),
         app.tt("Path", "パス"),
-    ])
-    .style(
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(i, label)| {
+        if Some(i) == sorted_col {
+            Cell::from(Line::from(vec![Span::styled(
+                format!("{label}{marker}"),
+                Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
+            )]))
+        } else {
+            Cell::from(label)
+        }
+    })
+    .collect();
+    let header = Row::new(header_cells).style(
         Style::default()
             .fg(pal.subtext)
             .add_modifier(Modifier::BOLD),
@@ -283,33 +311,47 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         )
     };
 
-    let table = Table::new(
-        rows,
-        [
-            Constraint::Length(26),
-            Constraint::Length(30),
-            Constraint::Length(10),
-            Constraint::Length(8),
-            Constraint::Length(18),
-            Constraint::Min(10),
-        ],
-    )
-    .header(header)
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(pal.border))
-            .title(title)
-            .title_style(Style::default().fg(pal.accent)),
-    )
-    .row_highlight_style(
-        Style::default()
-            .bg(pal.overlay)
-            .fg(pal.text)
-            .add_modifier(Modifier::BOLD),
-    )
-    .highlight_symbol("▸ ")
-    .column_spacing(1);
+    let widths = [
+        Constraint::Length(26),
+        Constraint::Length(30),
+        Constraint::Length(10),
+        Constraint::Length(8),
+        Constraint::Length(18),
+        Constraint::Min(10),
+    ];
+    // Record where each column actually landed so click-to-sort hit-tests
+    // against the real layout instead of a second copy of this arithmetic.
+    // `Table` lays its columns out inside the block, after the highlight
+    // symbol, with `column_spacing` between them.
+    {
+        let inner = area.inner(Margin::new(1, 1));
+        let sym_w = HIGHLIGHT_SYMBOL.chars().count() as u16;
+        let cols_area = Rect {
+            x: inner.x.saturating_add(sym_w),
+            width: inner.width.saturating_sub(sym_w),
+            ..inner
+        };
+        let cols = Layout::horizontal(widths).spacing(1).split(cols_area);
+        *app.home_col_bounds.borrow_mut() = cols.iter().map(|r| (r.x, r.x + r.width)).collect();
+    }
+
+    let table = Table::new(rows, widths)
+        .header(header)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(pal.border))
+                .title(title)
+                .title_style(Style::default().fg(pal.accent)),
+        )
+        .row_highlight_style(
+            Style::default()
+                .bg(pal.overlay)
+                .fg(pal.text)
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol(HIGHLIGHT_SYMBOL)
+        .column_spacing(1);
 
     let mut state = TableState::default().with_offset(app.home_offset.get());
     if !indices.is_empty() {
@@ -2213,7 +2255,7 @@ mod tests {
 
     /// Render and flatten the frame to plain text, for asserting specific
     /// content survived column truncation.
-    fn render_to_text(app: &App, width: u16, height: u16) -> String {
+    pub(super) fn render_to_text(app: &App, width: u16, height: u16) -> String {
         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
         terminal.draw(|f| draw(f, app)).unwrap();
         terminal
@@ -2653,5 +2695,109 @@ mod tests {
             occurrences, 1,
             "blame gutter text should render exactly once, not once per wrapped row: {text}"
         );
+    }
+}
+
+#[cfg(test)]
+mod sort_tests {
+    use super::tests::render_to_text;
+    use super::*;
+    use crate::app::Screen;
+
+    fn app_with_repos(n: usize) -> App {
+        let mut app = App::new();
+        app.repos = (0..n)
+            .map(|i| crate::config::Repository {
+                name: format!("repo-{i:02}"),
+                path: std::path::PathBuf::from(format!("/tmp/r{i:02}")),
+                group: None,
+            })
+            .collect();
+        app.screen = Screen::Home;
+        app
+    }
+
+    /// The click hit-test uses bounds the renderer records. If those bounds
+    /// drifted from where the header text actually lands, clicking a header
+    /// would sort by the wrong column — so check them against the real buffer.
+    #[test]
+    fn recorded_column_bounds_match_where_headers_actually_render() {
+        let app = app_with_repos(3);
+        let text = render_to_text(&app, 120, 12);
+        let width = 120usize;
+        // Row 2 is the header row (0 = title bar, 1 = table top border).
+        let header: String = text.chars().skip(2 * width).take(width).collect();
+
+        let bounds = app.home_col_bounds.borrow().clone();
+        assert_eq!(bounds.len(), 6, "expected six columns, got {bounds:?}");
+
+        for (label, col) in [
+            ("Name", 0),
+            ("Branch", 1),
+            ("Sync", 2),
+            ("Dirty", 3),
+            ("Updated", 4),
+        ] {
+            let found = header
+                .find(label)
+                .unwrap_or_else(|| panic!("header {label:?} not rendered in: {header:?}"));
+            let (start, end) = bounds[col];
+            assert!(
+                found as u16 >= start && (found as u16) < end,
+                "{label} renders at x={found} but column {col} was recorded as {start}..{end}"
+            );
+            // And the hit-test agrees for that x.
+            assert_eq!(
+                app.home_column_at(found as u16),
+                Some(col),
+                "hit-test for {label}"
+            );
+        }
+    }
+
+    #[test]
+    fn clicking_a_header_sorts_by_it_and_toggles_direction() {
+        let mut app = app_with_repos(3);
+        render_to_text(&app, 120, 12); // populate the recorded bounds
+
+        let bounds = app.home_col_bounds.borrow().clone();
+        let x_of = |c: usize| bounds[c].0;
+
+        // Name column: first click ascending, second click reverses.
+        app.handle_mouse_click(x_of(0), 2);
+        assert_eq!(app.sort_mode(), crate::app::SORT_NAME_ASC);
+        app.handle_mouse_click(x_of(0), 2);
+        assert_eq!(app.sort_mode(), crate::app::SORT_NAME_DESC);
+
+        // A different column starts at its own default direction — "most
+        // changed first" for Dirty rather than blindly ascending.
+        app.handle_mouse_click(x_of(3), 2);
+        assert_eq!(app.sort_mode(), crate::app::SORT_DIRTY_DESC);
+        app.handle_mouse_click(x_of(3), 2);
+        assert_eq!(app.sort_mode(), crate::app::SORT_DIRTY_ASC);
+
+        // Updated defaults to newest-first.
+        app.handle_mouse_click(x_of(4), 2);
+        assert_eq!(app.sort_mode(), crate::app::SORT_UPDATED_DESC);
+
+        // The Path column is not sortable; clicking it changes nothing.
+        let before = app.sort_mode();
+        app.handle_mouse_click(x_of(5), 2);
+        assert_eq!(app.sort_mode(), before);
+    }
+
+    #[test]
+    fn the_sorted_column_shows_a_direction_marker() {
+        let mut app = app_with_repos(3);
+        render_to_text(&app, 120, 12);
+        let bounds = app.home_col_bounds.borrow().clone();
+
+        app.handle_mouse_click(bounds[0].0, 2); // Name ascending
+        let text = render_to_text(&app, 120, 12);
+        assert!(text.contains("Name▲"), "expected ascending marker: {text}");
+
+        app.handle_mouse_click(bounds[0].0, 2); // Name descending
+        let text = render_to_text(&app, 120, 12);
+        assert!(text.contains("Name▼"), "expected descending marker: {text}");
     }
 }

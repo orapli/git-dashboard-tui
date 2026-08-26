@@ -55,6 +55,10 @@ pub struct App {
     /// First table row currently on screen, recorded by the renderer so a
     /// mouse click can be mapped back to a repository once the list scrolls.
     pub home_offset: std::cell::Cell<usize>,
+    /// Screen x-range of each Home table column header, recorded by the
+    /// renderer. Click-to-sort hit-tests against these rather than recomputing
+    /// the layout, so the two can never disagree about where a column is.
+    pub home_col_bounds: std::cell::RefCell<Vec<(u16, u16)>>,
     pub home_rows: HashMap<usize, HomeRow>,
     pub repo_tab: RepoTab,
     pub repo_index: Option<usize>,
@@ -159,6 +163,7 @@ impl App {
             home_filter: String::new(),
             home_selected: 0,
             home_offset: std::cell::Cell::new(0),
+            home_col_bounds: std::cell::RefCell::new(Vec::new()),
             home_rows: HashMap::new(),
             repo_tab: RepoTab::Commits,
             repo_index: None,
@@ -218,8 +223,22 @@ impl App {
         if !load_errors.is_empty() {
             app.error = Some(load_errors.join(" / "));
         }
+        // Populate from cache before the first refresh is even queued, so the
+        // dashboard renders with real numbers immediately rather than a screen
+        // of `…` while every repository is analysed one at a time.
+        app.load_cached_home_rows();
         app.refresh_home();
         app
+    }
+
+    /// Fill `home_rows` from each repository's cached row. Purely local file
+    /// reads — no git — so this stays fast even with many repositories.
+    fn load_cached_home_rows(&mut self) {
+        for (i, repo) in self.repos.iter().enumerate() {
+            if let Some(row) = load_home_cache(&repo.path) {
+                self.home_rows.insert(i, row);
+            }
+        }
     }
 
     pub fn members(&self) -> &[Member] {
@@ -395,13 +414,23 @@ impl App {
         }
     }
 
+    pub fn sort_mode(&self) -> usize {
+        self.prefs.repo_sort
+    }
+
     pub fn sort_label(&self) -> String {
         match self.prefs.repo_sort {
-            0 => self.tt("name ↑", "名前 ↑"),
-            1 => self.tt("name ↓", "名前 ↓"),
-            2 => self.tt("updated ↓", "更新 ↓"),
-            3 => self.tt("updated ↑", "更新 ↑"),
-            _ => String::new(),
+            SORT_NAME_ASC => self.tt("name ↑", "名前 ↑"),
+            SORT_NAME_DESC => self.tt("name ↓", "名前 ↓"),
+            SORT_UPDATED_DESC => self.tt("updated ↓", "更新 ↓"),
+            SORT_UPDATED_ASC => self.tt("updated ↑", "更新 ↑"),
+            SORT_BRANCH_ASC => self.tt("branch ↑", "ブランチ ↑"),
+            SORT_BRANCH_DESC => self.tt("branch ↓", "ブランチ ↓"),
+            SORT_DIRTY_DESC => self.tt("dirty ↓", "未コミット ↓"),
+            SORT_DIRTY_ASC => self.tt("dirty ↑", "未コミット ↑"),
+            SORT_SYNC_DESC => self.tt("sync ↓", "同期 ↓"),
+            SORT_SYNC_ASC => self.tt("sync ↑", "同期 ↑"),
+            _ => self.tt("updated ↓", "更新 ↓"),
         }
     }
 
@@ -546,6 +575,7 @@ impl App {
                 pair("M", "members", "横断メンバー"),
                 pair("S", "search commits", "コミット検索"),
                 pair("n", "needs attention", "要対応"),
+                pair("o", "sort", "並替"),
                 pair("s", "settings", "設定"),
                 pair("?", "help", "ヘルプ"),
                 pair("q", "quit", "終了"),
@@ -2121,7 +2151,40 @@ impl App {
     }
 
     fn cycle_sort(&mut self) {
-        self.prefs.repo_sort = (self.prefs.repo_sort + 1) % 4;
+        let pos = SORT_CYCLE
+            .iter()
+            .position(|&m| m == self.prefs.repo_sort)
+            .unwrap_or(0);
+        self.set_sort(SORT_CYCLE[(pos + 1) % SORT_CYCLE.len()]);
+    }
+
+    /// Which Home table column a screen x-coordinate falls in, using the
+    /// bounds the renderer recorded. `None` before the first draw, or for an
+    /// x past the last column.
+    pub fn home_column_at(&self, x: u16) -> Option<usize> {
+        self.home_col_bounds
+            .borrow()
+            .iter()
+            .position(|&(start, end)| x >= start && x < end)
+    }
+
+    /// Sort by the given Home table column, toggling direction if that column
+    /// is already the active one — the behaviour a clickable table header is
+    /// expected to have.
+    pub fn sort_by_column(&mut self, column: usize) {
+        let Some((primary, secondary)) = sort_modes_for_column(column) else {
+            return;
+        };
+        let next = if self.prefs.repo_sort == primary {
+            secondary
+        } else {
+            primary
+        };
+        self.set_sort(next);
+    }
+
+    fn set_sort(&mut self, mode: usize) {
+        self.prefs.repo_sort = mode;
         self.persist_prefs();
         self.home_selected = 0;
         self.status = format!("{} {}", self.tt("Sort:", "ソート:"), self.sort_label());
@@ -2965,6 +3028,10 @@ impl App {
             self.error = Some(e);
             return;
         }
+        // Drop the on-disk caches too, so removing a repository doesn't leave
+        // files behind that would be served if it is ever re-added.
+        let _ = std::fs::remove_file(config::home_cache_path(&removed.path));
+        let _ = std::fs::remove_file(config::tui_cache_path(&removed.path));
         self.home_rows.remove(&i);
         let shifted: HashMap<_, _> = self
             .home_rows
@@ -3107,6 +3174,9 @@ impl App {
                 }
                 match row {
                     Ok(r) => {
+                        if let Some(repo) = self.repos.get(index) {
+                            save_home_cache(&repo.path, &r);
+                        }
                         self.home_rows.insert(index, r);
                         if self.screen == Screen::Home {
                             self.status.clear();

@@ -244,6 +244,7 @@ Then:
 | `t` | Open `$SHELL` in the current repository<br>(except the Contributors tab, where `t` toggles member status) |
 | **Mouse wheel** | Scroll lists, commit logs, and diff views |
 | **Mouse click** | Switch tabs or select items directly |
+| **Click a column header** | Sort the Home list by that column; click again to reverse |
 
 ### 1. Home (multi-repo hub)
 
@@ -253,7 +254,7 @@ Then:
 | `a` / `A` | Add repository by path / Launch **Repository Finder** (scan folder) |
 | `d` | Remove selected repository |
 | `e` | Rename repository alias |
-| `o` | Cycle sort order (name ↑ / name ↓ / updated ↓ / updated ↑) |
+| `o` | Cycle sort order — name, branch, sync, dirty, updated, each ↑ and ↓. The sorted column is marked ▲ / ▼ in the header, and can also be set by clicking it. |
 | `[` / `]` | Cycle repository group filter |
 | `n` | Toggle **needs-attention** filter (failing CI / conflicts / interrupted op) |
 | `S` | **Cross-repo commit message search** |
@@ -361,7 +362,7 @@ Settings are plain JSON, written atomically, and shared with the `git-dashboard`
 | `members.json` | Team members and the commit-author aliases that merge into them |
 | `prefs.json` | Language, theme, diff toggles, sort order, auto-refresh interval, external diff command |
 | `tech_rules.json` | Rules for detecting language/framework versions from manifest files |
-| `cache/` | Per-repository analysis cache, so a repository opens instantly before its refresh lands |
+| `cache/` | Per-repository cache of the Home row and the repository snapshot, so the dashboard opens populated instead of blank while the refresh runs. Safe to delete; it is rebuilt on the next refresh |
 
 Most preferences are set from inside the app (`s` for Settings) rather than by editing
 these files by hand.

@@ -145,7 +145,10 @@ impl FocusPane {
     }
 }
 
-#[derive(Clone, Debug)]
+/// `#[serde(default)]` so a cache file written by an older build — one that
+/// predates a field added later — still loads instead of being discarded.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct HomeRow {
     pub branch: String,
     pub ahead: usize,

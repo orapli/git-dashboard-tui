@@ -395,6 +395,28 @@ pub fn save_tui_cache(path: &std::path::Path, snap: &RepoSnapshot) {
     }
 }
 
+/// Home rows are cached per repository so the dashboard renders populated on
+/// the next launch instead of a screen of `…` placeholders.
+///
+/// This matters because building one row is not cheap: a batch of git commands
+/// plus, for GitHub repositories, two `gh` calls. Measured on a real
+/// repository, that is ~1.7 s with GitHub integration and ~0.45 s without —
+/// and the rows are built one at a time on a worker, so the wait scales with
+/// the number of repositories. The cached values are replaced as each refresh
+/// lands, so the cost is a few seconds of possibly-stale numbers rather than a
+/// few seconds of nothing.
+pub fn load_home_cache(path: &std::path::Path) -> Option<HomeRow> {
+    let json = std::fs::read_to_string(config::home_cache_path(path)).ok()?;
+    serde_json::from_str(&json).ok()
+}
+
+pub fn save_home_cache(path: &std::path::Path, row: &HomeRow) {
+    let _ = std::fs::create_dir_all(config::cache_dir());
+    if let Ok(json) = serde_json::to_string(row) {
+        let _ = config::write_atomic(&config::home_cache_path(path), &json);
+    }
+}
+
 pub fn resolve_diff_command(
     template: &str,
     repo: &std::path::Path,
@@ -470,5 +492,85 @@ pub fn split_list<T>(result: Result<Vec<T>, String>) -> (Vec<T>, Option<String>)
     match result {
         Ok(v) => (v, None),
         Err(e) => (Vec::new(), Some(e)),
+    }
+}
+
+#[cfg(test)]
+mod home_cache_tests {
+    use super::*;
+    use crate::git::GitOpState;
+
+    fn row() -> HomeRow {
+        HomeRow {
+            branch: "main".into(),
+            ahead: 2,
+            behind: 1,
+            dirty: 3,
+            last_commit: "2026-08-25".into(),
+            open_prs: Some(4),
+            ci_status: Some("success".into()),
+            op_state: GitOpState::None,
+            conflicts: 0,
+        }
+    }
+
+    #[test]
+    fn a_saved_row_round_trips() {
+        let path = std::path::Path::new("/tmp/round-trips-repo");
+        save_home_cache(path, &row());
+        let got = load_home_cache(path).expect("cache should load back");
+        assert_eq!(got.branch, "main");
+        assert_eq!((got.ahead, got.behind, got.dirty), (2, 1, 3));
+        assert_eq!(got.open_prs, Some(4));
+        assert_eq!(got.ci_status.as_deref(), Some("success"));
+    }
+
+    #[test]
+    fn each_repository_gets_its_own_cache_file() {
+        let a = std::path::Path::new("/tmp/distinct-a");
+        let b = std::path::Path::new("/tmp/distinct-b");
+        assert_ne!(
+            crate::config::home_cache_path(a),
+            crate::config::home_cache_path(b)
+        );
+        let mut other = row();
+        other.branch = "develop".into();
+        save_home_cache(a, &row());
+        save_home_cache(b, &other);
+        assert_eq!(load_home_cache(a).unwrap().branch, "main");
+        assert_eq!(load_home_cache(b).unwrap().branch, "develop");
+    }
+
+    #[test]
+    fn a_never_cached_repository_simply_has_no_row() {
+        assert!(load_home_cache(std::path::Path::new("/tmp/never-cached-repo")).is_none());
+    }
+
+    /// A truncated or hand-corrupted cache file must not take the app down —
+    /// a stale dashboard row is a cache, not a source of truth.
+    #[test]
+    fn a_corrupt_cache_file_is_ignored_rather_than_fatal() {
+        let path = std::path::Path::new("/tmp/corrupt-cache-repo");
+        let _ = std::fs::create_dir_all(crate::config::cache_dir());
+        std::fs::write(crate::config::home_cache_path(path), "{not json").unwrap();
+        assert!(load_home_cache(path).is_none());
+    }
+
+    /// The cache is written by whatever build the user last ran. A file from
+    /// an older build lacks fields added since; `#[serde(default)]` has to
+    /// fill them in rather than the whole row being thrown away.
+    #[test]
+    fn a_row_from_an_older_build_still_loads() {
+        let path = std::path::Path::new("/tmp/older-build-repo");
+        let _ = std::fs::create_dir_all(crate::config::cache_dir());
+        std::fs::write(
+            crate::config::home_cache_path(path),
+            r#"{"branch":"main","dirty":2}"#,
+        )
+        .unwrap();
+        let got = load_home_cache(path).expect("partial row should still load");
+        assert_eq!(got.branch, "main");
+        assert_eq!(got.dirty, 2);
+        assert_eq!(got.open_prs, None);
     }
 }

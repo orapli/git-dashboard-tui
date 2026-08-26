@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The Home dashboard now opens populated instead of blank.** Each repository's Home
+  row is cached under `cache/` and redisplayed at startup while the refresh runs in the
+  background. Measured against four local repositories, the first frame previously showed
+  `…` placeholders for ~1.9 s; it is now filled in immediately. The dominant cost is the
+  per-repository `gh` call (~1.2 s of a ~1.8 s refresh), which the cache does not remove —
+  it only stops the user waiting on it to see anything. Cached rows are replaced as soon
+  as the real ones arrive, and a repository's cache file is deleted when it is removed.
+- **Sort the Home list by clicking a column header.** The sorted column is marked ▲ / ▼.
+  Clicking the active column reverses it; each column starts in the direction that is
+  useful first (names ascending, but most-changed and most-recent first).
+- **Four more sort orders**: by branch, by ahead/behind count, by uncommitted-change
+  count, and by name/date as before — all reachable from `o` as well as from the header.
+  Rows that have not loaded yet sort last in every mode rather than being compared as
+  `0` or `""`, which used to scatter them through the list as the refresh landed.
+  Modes 0-3 keep their existing meaning so `prefs.json` stays compatible with the
+  sibling GUI, and an unrecognised mode written by it falls back to newest-first.
 - **One-line installer** (`install.sh`): `curl -fsSL .../install.sh | sh` detects the
   platform, downloads the matching release binary, verifies its SHA-256 against the
   checksum file published with the release, and installs without ever using `sudo`.

@@ -97,6 +97,16 @@ pub fn tui_cache_path(repo_path: &Path) -> PathBuf {
     cache_dir().join(format!("tui-{:016x}.json", h.finish()))
 }
 
+/// Cache file for a repository's Home row. Separate from `tui_cache_path`
+/// because the two are written at different times: the Home row after a
+/// dashboard refresh, the full snapshot only once a repository is opened.
+pub fn home_cache_path(repo_path: &Path) -> PathBuf {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    repo_path.hash(&mut h);
+    cache_dir().join(format!("home-{:016x}.json", h.finish()))
+}
+
 /// Load a JSON config file. `Ok(None)` means "not written yet"; a parse or read
 /// failure is an error rather than an empty value, because silently returning
 /// the default would present a corrupt config as an empty one — and the next

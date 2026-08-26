@@ -234,41 +234,262 @@ pub fn flatten_diff(diff: &FileDiff) -> Vec<DiffLine> {
     out
 }
 
+/// Sort modes for the Home table, stored in `Preferences::repo_sort`.
+///
+/// Values 0-3 are fixed by history: `prefs.json` is shared with the
+/// `git-dashboard` GUI application, which knows only those four, so their
+/// meaning must not change. New columns are appended instead.
+pub const SORT_NAME_ASC: usize = 0;
+pub const SORT_NAME_DESC: usize = 1;
+pub const SORT_UPDATED_DESC: usize = 2;
+pub const SORT_UPDATED_ASC: usize = 3;
+pub const SORT_BRANCH_ASC: usize = 4;
+pub const SORT_BRANCH_DESC: usize = 5;
+pub const SORT_DIRTY_DESC: usize = 6;
+pub const SORT_DIRTY_ASC: usize = 7;
+pub const SORT_SYNC_DESC: usize = 8;
+pub const SORT_SYNC_ASC: usize = 9;
+
+/// Every sort mode, in the order `o` cycles through them.
+pub const SORT_CYCLE: [usize; 10] = [
+    SORT_NAME_ASC,
+    SORT_NAME_DESC,
+    SORT_UPDATED_DESC,
+    SORT_UPDATED_ASC,
+    SORT_BRANCH_ASC,
+    SORT_BRANCH_DESC,
+    SORT_DIRTY_DESC,
+    SORT_DIRTY_ASC,
+    SORT_SYNC_DESC,
+    SORT_SYNC_ASC,
+];
+
+/// The two sort modes a Home table column toggles between, by column index
+/// (Name, Branch, Sync, Dirty, Updated, Path). The first is the direction a
+/// fresh click on that header selects — descending where "most" is the
+/// interesting end (newest, most changes, most diverged), ascending for names.
+/// `None` marks a column that isn't worth sorting by.
+pub fn sort_modes_for_column(column: usize) -> Option<(usize, usize)> {
+    match column {
+        0 => Some((SORT_NAME_ASC, SORT_NAME_DESC)),
+        1 => Some((SORT_BRANCH_ASC, SORT_BRANCH_DESC)),
+        2 => Some((SORT_SYNC_DESC, SORT_SYNC_ASC)),
+        3 => Some((SORT_DIRTY_DESC, SORT_DIRTY_ASC)),
+        4 => Some((SORT_UPDATED_DESC, SORT_UPDATED_ASC)),
+        _ => None, // Path sorts almost identically to Name
+    }
+}
+
+/// The column a sort mode belongs to, for drawing the direction marker on the
+/// right header. Inverse of [`sort_modes_for_column`].
+pub fn column_for_sort_mode(sort_by: usize) -> Option<usize> {
+    (0..6)
+        .find(|&c| matches!(sort_modes_for_column(c), Some((a, b)) if a == sort_by || b == sort_by))
+}
+
+/// Whether a sort mode is the ascending one of its pair — the marker shown is
+/// ▲ for ascending and ▼ for descending.
+pub fn sort_is_ascending(sort_by: usize) -> bool {
+    matches!(
+        sort_by,
+        SORT_NAME_ASC | SORT_UPDATED_ASC | SORT_BRANCH_ASC | SORT_DIRTY_ASC | SORT_SYNC_ASC
+    )
+}
+
 pub fn sort_repo_indices(
     idx: &mut [usize],
     repos: &[Repository],
     rows: &HashMap<usize, HomeRow>,
     sort_by: usize,
 ) {
+    // A repository whose row hasn't loaded yet has no value to compare, so it
+    // sorts last in every mode rather than being treated as an empty string or
+    // a zero, which would scatter unloaded rows through the list.
+    fn missing_last<T: Ord>(
+        a: Option<T>,
+        b: Option<T>,
+        cmp: impl Fn(T, T) -> std::cmp::Ordering,
+    ) -> std::cmp::Ordering {
+        match (a, b) {
+            (Some(x), Some(y)) => cmp(x, y),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        }
+    }
+
     idx.sort_by(|&a, &b| {
-        let date = |i: usize| rows.get(&i).map(|r| r.last_commit.as_str()).unwrap_or("");
+        let date = |i: usize| {
+            rows.get(&i)
+                .map(|r| r.last_commit.as_str())
+                .filter(|s| !s.is_empty())
+        };
+        let branch = |i: usize| {
+            rows.get(&i)
+                .map(|r| r.branch.to_lowercase())
+                .filter(|s| !s.is_empty())
+        };
+        let dirty = |i: usize| rows.get(&i).map(|r| r.dirty);
+        let sync = |i: usize| rows.get(&i).map(|r| r.ahead + r.behind);
+        let name = |i: usize| repos[i].name.to_lowercase();
+
         match sort_by {
-            0 => repos[a]
-                .name
-                .to_lowercase()
-                .cmp(&repos[b].name.to_lowercase()),
-            1 => repos[b]
-                .name
-                .to_lowercase()
-                .cmp(&repos[a].name.to_lowercase()),
-            3 => {
-                let da = date(a);
-                let db = date(b);
-                match (da.is_empty(), db.is_empty()) {
-                    (true, false) => std::cmp::Ordering::Greater,
-                    (false, true) => std::cmp::Ordering::Less,
-                    _ => da.cmp(db),
-                }
-            }
-            _ => {
-                let da = date(a);
-                let db = date(b);
-                match (da.is_empty(), db.is_empty()) {
-                    (true, false) => std::cmp::Ordering::Greater,
-                    (false, true) => std::cmp::Ordering::Less,
-                    _ => db.cmp(da),
-                }
-            }
+            SORT_NAME_ASC => name(a).cmp(&name(b)),
+            SORT_NAME_DESC => name(b).cmp(&name(a)),
+            SORT_UPDATED_ASC => missing_last(date(a), date(b), |x, y| x.cmp(y)),
+            SORT_BRANCH_ASC => missing_last(branch(a), branch(b), |x, y| x.cmp(&y)),
+            SORT_BRANCH_DESC => missing_last(branch(a), branch(b), |x, y| y.cmp(&x)),
+            SORT_DIRTY_DESC => missing_last(dirty(a), dirty(b), |x, y| y.cmp(&x)),
+            SORT_DIRTY_ASC => missing_last(dirty(a), dirty(b), |x, y| x.cmp(&y)),
+            SORT_SYNC_DESC => missing_last(sync(a), sync(b), |x, y| y.cmp(&x)),
+            SORT_SYNC_ASC => missing_last(sync(a), sync(b), |x, y| x.cmp(&y)),
+            // SORT_UPDATED_DESC, and anything unrecognised (a value written by
+            // a newer build, or the GUI) falls back to newest-first.
+            _ => missing_last(date(a), date(b), |x, y| y.cmp(x)),
         }
     });
+}
+
+#[cfg(test)]
+mod sort_tests {
+    use super::*;
+
+    fn repo(name: &str) -> Repository {
+        Repository {
+            name: name.to_string(),
+            path: std::path::PathBuf::from(format!("/tmp/{name}")),
+            group: None,
+        }
+    }
+
+    struct Fixture {
+        repos: Vec<Repository>,
+        rows: HashMap<usize, HomeRow>,
+    }
+
+    impl Fixture {
+        /// Three repositories, deliberately ordered so that no two sort modes
+        /// produce the same answer — otherwise a test could pass against the
+        /// wrong comparator.
+        fn new() -> Self {
+            let repos = vec![repo("charlie"), repo("alpha"), repo("bravo")];
+            let mut rows = HashMap::new();
+            rows.insert(
+                0,
+                HomeRow {
+                    branch: "main".into(),
+                    ahead: 0,
+                    behind: 5,
+                    dirty: 1,
+                    last_commit: "2026-08-20".into(),
+                    ..Default::default()
+                },
+            );
+            rows.insert(
+                1,
+                HomeRow {
+                    branch: "zebra".into(),
+                    ahead: 1,
+                    behind: 0,
+                    dirty: 9,
+                    last_commit: "2026-08-25".into(),
+                    ..Default::default()
+                },
+            );
+            rows.insert(
+                2,
+                HomeRow {
+                    branch: "develop".into(),
+                    ahead: 0,
+                    behind: 0,
+                    dirty: 0,
+                    last_commit: "2026-08-10".into(),
+                    ..Default::default()
+                },
+            );
+            Self { repos, rows }
+        }
+
+        fn order(&self, mode: usize) -> Vec<&str> {
+            let mut idx: Vec<usize> = (0..self.repos.len()).collect();
+            sort_repo_indices(&mut idx, &self.repos, &self.rows, mode);
+            idx.iter().map(|&i| self.repos[i].name.as_str()).collect()
+        }
+    }
+
+    #[test]
+    fn every_mode_orders_by_its_own_column() {
+        let f = Fixture::new();
+        assert_eq!(f.order(SORT_NAME_ASC), ["alpha", "bravo", "charlie"]);
+        assert_eq!(f.order(SORT_NAME_DESC), ["charlie", "bravo", "alpha"]);
+        // develop < main < zebra
+        assert_eq!(f.order(SORT_BRANCH_ASC), ["bravo", "charlie", "alpha"]);
+        assert_eq!(f.order(SORT_BRANCH_DESC), ["alpha", "charlie", "bravo"]);
+        // dirty: alpha 9, charlie 1, bravo 0
+        assert_eq!(f.order(SORT_DIRTY_DESC), ["alpha", "charlie", "bravo"]);
+        assert_eq!(f.order(SORT_DIRTY_ASC), ["bravo", "charlie", "alpha"]);
+        // ahead+behind: charlie 5, alpha 1, bravo 0
+        assert_eq!(f.order(SORT_SYNC_DESC), ["charlie", "alpha", "bravo"]);
+        assert_eq!(f.order(SORT_SYNC_ASC), ["bravo", "alpha", "charlie"]);
+        assert_eq!(f.order(SORT_UPDATED_DESC), ["alpha", "charlie", "bravo"]);
+        assert_eq!(f.order(SORT_UPDATED_ASC), ["bravo", "charlie", "alpha"]);
+    }
+
+    /// On the first launch after adding a repository its row has not loaded.
+    /// Those rows must collect at the end instead of being compared as 0 or
+    /// "", which would scatter them through the list and make the order churn
+    /// as each row arrives.
+    #[test]
+    fn rows_that_have_not_loaded_sort_last_in_every_mode() {
+        let mut f = Fixture::new();
+        f.repos.push(repo("zzz-unloaded"));
+        for &mode in SORT_CYCLE.iter() {
+            if mode == SORT_NAME_ASC || mode == SORT_NAME_DESC {
+                continue; // name comes from the repo list, never missing
+            }
+            assert_eq!(
+                *f.order(mode).last().unwrap(),
+                "zzz-unloaded",
+                "mode {mode} put an unloaded row somewhere other than last"
+            );
+        }
+    }
+
+    /// `prefs.json` is shared with the sibling GUI, which knows only modes
+    /// 0-3 and may also write a value this build has never heard of. An
+    /// unknown mode must degrade to a sensible order, not panic or scramble.
+    #[test]
+    fn an_unrecognised_mode_falls_back_to_newest_first() {
+        let f = Fixture::new();
+        assert_eq!(f.order(9999), f.order(SORT_UPDATED_DESC));
+    }
+
+    #[test]
+    fn a_column_maps_to_the_pair_of_modes_that_maps_back_to_it() {
+        for column in 0..6 {
+            let Some((primary, secondary)) = sort_modes_for_column(column) else {
+                continue;
+            };
+            assert_eq!(column_for_sort_mode(primary), Some(column));
+            assert_eq!(column_for_sort_mode(secondary), Some(column));
+            assert_ne!(
+                sort_is_ascending(primary),
+                sort_is_ascending(secondary),
+                "column {column}'s two modes should be opposite directions"
+            );
+        }
+    }
+
+    /// The `o` key cycles through modes; every one of them has to be a mode
+    /// the header renderer can draw a marker for, or the cycle would pass
+    /// through states the header cannot explain.
+    #[test]
+    fn every_cycled_mode_belongs_to_a_visible_column() {
+        for &mode in SORT_CYCLE.iter() {
+            assert!(
+                column_for_sort_mode(mode).is_some(),
+                "cycle mode {mode} maps to no column"
+            );
+        }
+    }
 }

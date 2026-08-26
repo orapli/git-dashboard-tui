@@ -111,8 +111,13 @@ impl App {
 
         match self.screen {
             Screen::Home => {
-                // Clicking on a row in the table (header is row 2)
-                if row >= 3 {
+                // Row 2 is the column header: clicking one sorts by it, and
+                // clicking the active one again reverses the direction.
+                if row == 2 {
+                    if let Some(col) = self.home_column_at(col) {
+                        self.sort_by_column(col);
+                    }
+                } else if row >= 3 {
                     // The table scrolls, so the top visible row is not index 0
                     let row_idx = self.home_offset.get() + (row - 3) as usize;
                     let indices = self.filtered_home();
