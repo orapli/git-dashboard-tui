@@ -191,7 +191,11 @@ pub struct Preferences {
     /// and `hunk show <hash>` (single commit). A space between refs is a file compare.
     #[serde(default)]
     pub diff_command: String,
-    /// 0=name asc, 1=name desc, 2=updated desc, 3=updated asc
+    /// Sort order for the Home list. 0-3 keep the meanings the sibling GUI
+    /// writes — 0=name asc, 1=name desc, 2=updated desc, 3=updated asc — and
+    /// 4-9 add branch, dirty and sync in both directions; see the `SORT_*`
+    /// constants in `app::helpers`. A value this build does not recognise
+    /// falls back to newest-first rather than being rejected.
     #[serde(default = "default_repo_sort")]
     pub repo_sort: usize,
     /// Seconds between automatic Home refreshes; 0 disables it (the

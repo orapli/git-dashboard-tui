@@ -1084,12 +1084,14 @@ fn draw_contributors(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         crate::config::Language::Japanese => app.contributor_time_span.label_ja(),
     };
     let title = format!(
-        "{} ({}/{}) [{period_label}] {}",
+        // The active-members note is conditional, so append it rather than
+        // interpolating an empty string and leaving a space before the border.
+        "{} ({}/{}) [{period_label}]{}",
         app.tt("Contributors", "貢献者"),
         vis.len(),
         data.contributors.len(),
         if app.active_only {
-            app.tt("[active members]", "[在籍メンバーのみ]")
+            format!(" {}", app.tt("[active members]", "[在籍メンバーのみ]"))
         } else {
             String::new()
         }
@@ -1528,6 +1530,9 @@ fn draw_diff(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
 }
 
 fn draw_settings(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    use unicode_width::UnicodeWidthStr;
+    let config_label = app.t("config_file_location");
+    let config_label_w = config_label.width() as u16;
     let lang = match app.lang() {
         crate::config::Language::English => "English",
         crate::config::Language::Japanese => "日本語",
@@ -1564,12 +1569,12 @@ fn draw_settings(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             Span::styled("  (T)", Style::default().fg(pal.muted)),
         ]),
         Line::from(vec![
-            Span::styled(
-                app.t("config_file_location"),
-                Style::default().fg(pal.muted),
-            ),
+            Span::styled(config_label.clone(), Style::default().fg(pal.muted)),
             Span::raw("  "),
-            Span::raw(crate::config::get_config_dir().display().to_string()),
+            Span::raw(truncate_middle(
+                &crate::config::get_config_dir().display().to_string(),
+                area.width.saturating_sub(config_label_w + 4) as usize,
+            )),
         ]),
     ];
     let split = Layout::default()
@@ -2661,6 +2666,40 @@ fn file_status_line<'a>(f: &crate::git::ChangedFile, pal: Palette) -> Line<'a> {
 ///
 /// Counting characters instead of columns made a CJK string occupy twice its
 /// budget, pushing the neighbouring fields of a fixed-width row off screen.
+/// Shorten to `max` display columns by eliding the middle.
+///
+/// A path cut from the right loses the directory name, which is the part worth
+/// reading; the config-file path in Settings was simply chopped at the frame
+/// edge with nothing to signal it had been.
+fn truncate_middle(s: &str, max: usize) -> String {
+    use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+    if s.width() <= max {
+        return s.to_string();
+    }
+    if max <= 1 {
+        return "…".to_string();
+    }
+    let budget = max - 1;
+    let tail_budget = budget * 2 / 3;
+    let head_budget = budget - tail_budget;
+    fn take(it: impl Iterator<Item = char>, budget: usize) -> String {
+        let mut out = String::new();
+        let mut w = 0;
+        for c in it {
+            let cw = c.width().unwrap_or(0);
+            if w + cw > budget {
+                break;
+            }
+            out.push(c);
+            w += cw;
+        }
+        out
+    }
+    let head = take(s.chars(), head_budget);
+    let tail: String = take(s.chars().rev(), tail_budget).chars().rev().collect();
+    format!("{head}…{tail}")
+}
+
 fn truncate(s: &str, max: usize) -> String {
     use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
     if max == 0 {
@@ -3850,5 +3889,106 @@ mod width_tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod polish_tests {
+    use super::footer_and_help_tests::frame_contains;
+    use super::tests::render_to_text;
+    use super::*;
+    use crate::app::RepoSnapshot;
+
+    #[test]
+    fn truncate_middle_keeps_both_ends_and_marks_the_gap() {
+        assert_eq!(truncate_middle("/short/path", 40), "/short/path");
+        let long = "/home/someone/Library/Application Support/com.git-dashboard.git-dashboard";
+        let out = truncate_middle(long, 40);
+        use unicode_width::UnicodeWidthStr;
+        assert_eq!(out.width(), 40);
+        assert!(out.contains('…'));
+        // The tail names the directory, so it is the half worth keeping.
+        assert!(out.ends_with("git-dashboard"), "{out}");
+        assert!(out.starts_with("/home"), "{out}");
+    }
+
+    #[test]
+    fn truncate_middle_counts_display_columns() {
+        use unicode_width::UnicodeWidthStr;
+        let s = "/日本語/とても/長い/パス/設定";
+        let out = truncate_middle(s, 15);
+        assert!(out.width() <= 15, "{out} is {} wide", out.width());
+        assert!(out.contains('…'));
+    }
+
+    #[test]
+    fn truncate_middle_degrades_rather_than_panicking_on_no_room() {
+        for max in 0..3 {
+            let out = truncate_middle("/a/very/long/path", max);
+            use unicode_width::UnicodeWidthStr;
+            assert!(out.width() <= max.max(1), "max={max} gave {out:?}");
+        }
+    }
+
+    /// The settings screen showed the config path chopped at the frame edge,
+    /// with nothing to say it had been.
+    #[test]
+    fn the_settings_config_path_is_elided_not_chopped() {
+        let mut app = App::new();
+        app.screen = Screen::Settings;
+        let width = 60usize;
+        let narrow = render_to_text(&app, width as u16, 24);
+        assert!(narrow.contains('…'), "no elision marker:\n{narrow}");
+        // The frame dump is a flat grid, so slice it back into rows: the
+        // elided path must sit inside the box, not run over its right border.
+        let path_row: String = (0..24)
+            .map(|r| {
+                narrow
+                    .chars()
+                    .skip(r * width)
+                    .take(width)
+                    .collect::<String>()
+            })
+            .find(|l| l.contains('…'))
+            .expect("no row holds the elided path");
+        assert!(
+            path_row.trim_end().ends_with('│'),
+            "path spills past the box border: {path_row:?}"
+        );
+    }
+
+    #[test]
+    fn the_contributors_title_has_no_stray_trailing_space() {
+        let mut app = App::new();
+        app.repos = vec![crate::config::Repository {
+            name: "r".to_string(),
+            path: std::path::PathBuf::from("/tmp/repo"),
+            group: None,
+        }];
+        app.repo_index = Some(0);
+        app.screen = Screen::Repo;
+        app.repo_tab = RepoTab::Contributors;
+        app.repo_data = Some(RepoSnapshot {
+            summary: crate::git::Summary::default(),
+            commits: vec![],
+            commits_err: None,
+            branches: vec![],
+            branches_err: None,
+            tags: vec![],
+            tags_err: None,
+            stashes: vec![],
+            stashes_err: None,
+            working_files: vec![],
+            working_err: None,
+            contributors: vec![],
+            contributors_err: None,
+            worktrees: vec![],
+            worktrees_err: None,
+        });
+        let text = render_to_text(&app, 100, 20);
+        assert!(
+            frame_contains(&text, "[Alltime]─"),
+            "expected the border to follow the period label directly:\n{text}"
+        );
     }
 }

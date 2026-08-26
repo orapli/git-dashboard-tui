@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Two section headings rendered as raw translation keys** (`global_members`,
   `repo_detail`) in both languages: the keys were referenced but never defined in
   `locales/`, and the i18n layer falls back to printing the key itself.
+- **The Settings config-file path is elided from the middle** rather than chopped at
+  the frame edge with nothing to signal it. The tail names the directory, so both ends
+  are kept.
+- The Contributors panel title no longer carries a stray trailing space before its
+  border when the active-members filter is off.
 - **The Commits and Tags comparison headers were English-only**, even with the UI set to
   Japanese: `base=abc1234  (space to pick target)` never went through translation. They
   are now bilingual, and say that the `[ ]` marker is clickable — "space to mark" gave no
