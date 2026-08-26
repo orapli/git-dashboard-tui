@@ -1531,3 +1531,124 @@ fn complete_path_lists_children_and_filters_by_prefix() {
 
     std::fs::remove_dir_all(&base).ok();
 }
+
+/// A spinner that never stops is worse than none: it says "still working"
+/// about something that finished. Every path that starts one has to end it.
+mod activity_lifecycle {
+    use super::*;
+    use crate::app::{Activity, Msg};
+
+    fn app_with_repos(n: usize) -> App {
+        let mut app = App::new();
+        app.repos = (0..n)
+            .map(|i| crate::config::Repository {
+                name: format!("r{i}"),
+                path: std::path::PathBuf::from(format!("/tmp/r{i}")),
+                group: None,
+            })
+            .collect();
+        app.busy.clear();
+        app
+    }
+
+    /// A pull that succeeds immediately queues the row reload, so the marker
+    /// turns over from `Pull` to `Refresh` rather than clearing. That is the
+    /// point: the row really is still being updated, and blinking the spinner
+    /// off between the two would misreport it as done.
+    #[test]
+    fn a_finished_pull_hands_over_to_the_row_reload() {
+        let mut app = app_with_repos(2);
+        app.busy.insert(1, Activity::Pull);
+        app.apply_msg_for_test(Msg::OpDone {
+            ok: true,
+            text: "done".to_string(),
+            repo_index: Some(1),
+        });
+        assert_eq!(app.activity(1), Some(Activity::Refresh));
+
+        // ...and the reload finishing is what finally clears it.
+        app.apply_msg_for_test(Msg::HomeLoaded {
+            generation: u64::MAX,
+            index: 1,
+            row: Ok(HomeRow::default()),
+        });
+        assert_eq!(app.activity(1), None);
+        assert_eq!(app.busy_count(), 0);
+    }
+
+    /// A pull that fails still finished. Reporting the error and leaving the
+    /// row spinning would be the worst of both.
+    #[test]
+    fn a_failed_pull_also_clears_its_marker() {
+        let mut app = app_with_repos(2);
+        app.busy.insert(0, Activity::Pull);
+        app.apply_msg_for_test(Msg::OpDone {
+            ok: false,
+            text: "remote unreachable".to_string(),
+            repo_index: Some(0),
+        });
+        assert_eq!(app.activity(0), None);
+        assert!(app.error.is_some());
+    }
+
+    /// A refresh superseded by a newer one is discarded on arrival — but the
+    /// job it belonged to has still stopped running, so the marker must go.
+    #[test]
+    fn a_superseded_home_row_still_clears_its_marker() {
+        let mut app = app_with_repos(2);
+        app.busy.insert(0, Activity::Refresh);
+        app.apply_msg_for_test(Msg::HomeLoaded {
+            // Deliberately stale: `apply_msg` drops the row itself.
+            generation: u64::MAX,
+            index: 0,
+            row: Ok(HomeRow::default()),
+        });
+        assert_eq!(app.activity(0), None, "stale result left the row spinning");
+    }
+
+    #[test]
+    fn a_repository_that_failed_to_load_does_not_keep_spinning() {
+        let mut app = app_with_repos(1);
+        app.busy.insert(0, Activity::Refresh);
+        app.apply_msg_for_test(Msg::HomeLoaded {
+            generation: u64::MAX,
+            index: 0,
+            row: Err("not a git repository".to_string()),
+        });
+        assert_eq!(app.activity(0), None);
+    }
+
+    /// Markers are keyed by repository, so a duplicate completion is a no-op
+    /// rather than something that could unbalance a counter.
+    #[test]
+    fn clearing_twice_is_harmless() {
+        let mut app = app_with_repos(1);
+        app.busy.insert(0, Activity::Fetch);
+        for _ in 0..2 {
+            app.apply_msg_for_test(Msg::OpDone {
+                ok: false,
+                text: "failed".to_string(),
+                repo_index: Some(0),
+            });
+        }
+        assert_eq!(app.busy_count(), 0);
+    }
+
+    #[test]
+    fn one_repository_finishing_leaves_the_others_running() {
+        let mut app = app_with_repos(3);
+        for i in 0..3 {
+            app.busy.insert(i, Activity::Fetch);
+        }
+        // Failed, so it does not hand over to a reload and simply stops.
+        app.apply_msg_for_test(Msg::OpDone {
+            ok: false,
+            text: "remote unreachable".to_string(),
+            repo_index: Some(1),
+        });
+        assert_eq!(app.activity(0), Some(Activity::Fetch));
+        assert_eq!(app.activity(1), None);
+        assert_eq!(app.activity(2), Some(Activity::Fetch));
+        assert_eq!(app.busy_count(), 2);
+    }
+}

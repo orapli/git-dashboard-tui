@@ -496,3 +496,31 @@ impl ListViewport {
         Some(self.offset + (row - self.y) as usize)
     }
 }
+
+/// A long-running operation attributed to one repository, so its Home row can
+/// say what is happening to it rather than sitting there looking stale.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Activity {
+    Refresh,
+    Pull,
+    Fetch,
+}
+
+impl Activity {
+    /// The git verb, not a translated word: these name the command being run,
+    /// and `pull`/`fetch` are what the user typed to start them.
+    pub fn label(self) -> &'static str {
+        match self {
+            Activity::Refresh => "refresh",
+            Activity::Pull => "pull",
+            Activity::Fetch => "fetch",
+        }
+    }
+}
+
+/// Braille frames, one column wide each, so a spinner fits a narrow table cell.
+pub const SPINNER_FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+/// Milliseconds per frame. The event loop polls on a 100 ms timeout and
+/// redraws each pass, so anything at or above that turns over every frame.
+pub const SPINNER_INTERVAL_MS: u128 = 100;

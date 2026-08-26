@@ -261,7 +261,7 @@ Then:
 | `n` | Toggle **needs-attention** filter (failing CI / conflicts / interrupted op) |
 | `S` | **Cross-repo commit message search** |
 | `M` | Open **Global Cross-Repo Team Analytics** |
-| `p` / `f` | `git pull` / `git fetch` selected repo |
+| `p` / `f` | `git pull` / `git fetch` selected repo. While one runs, the repository's Sync cell shows a spinner and the operation name, and the title bar counts the jobs still going |
 | `P` / `F` | Bulk `git pull` / `git fetch` across all filtered repos |
 | `r` | Reload all repository rows |
 | `t` / `T` | Open `$SHELL` in selected repository |

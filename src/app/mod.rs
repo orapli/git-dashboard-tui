@@ -87,6 +87,16 @@ pub struct App {
     pub contributor_time_span: TimeSpan,
     pub global_members: Vec<GlobalMember>,
     pub global_members_loading: bool,
+    /// What is currently running against each repository, keyed by index.
+    ///
+    /// Keyed rather than counted on purpose: a stale or duplicated message
+    /// can only remove an entry that is already gone, so the map cannot drift
+    /// into a spinner that never stops — which a bare counter can.
+    pub busy: HashMap<usize, Activity>,
+    /// Fixed point for the spinner's phase. Driving it off elapsed time rather
+    /// than a per-draw counter keeps the rate steady no matter how often the
+    /// screen happens to be redrawn.
+    started: std::time::Instant,
     global_gen: u64,
     pub global_member_selected: usize,
     pub global_member_repo_selected: usize,
@@ -195,6 +205,8 @@ impl App {
             contributor_time_span: TimeSpan::All,
             global_members: Vec::new(),
             global_members_loading: false,
+            busy: HashMap::new(),
+            started: std::time::Instant::now(),
             global_gen: 0,
             global_member_selected: 0,
             global_member_repo_selected: 0,
@@ -259,6 +271,45 @@ impl App {
 
     pub fn members(&self) -> &[Member] {
         &self.members
+    }
+
+    /// The current spinner frame. Advances with wall-clock time, so every
+    /// spinner on screen turns in step.
+    pub fn spinner(&self) -> &'static str {
+        let n = self.started.elapsed().as_millis() / SPINNER_INTERVAL_MS;
+        SPINNER_FRAMES[(n as usize) % SPINNER_FRAMES.len()]
+    }
+
+    /// Wording for the title-bar indicator. Singular/plural in English, and
+    /// a counter suffix in Japanese, which has neither.
+    pub fn busy_label(&self, n: usize) -> String {
+        match self.lang() {
+            Language::Japanese => format!("実行中 {n} 件"),
+            Language::English if n == 1 => "1 job running".to_string(),
+            Language::English => format!("{n} jobs running"),
+        }
+    }
+
+    /// What is running against this repository, if anything.
+    pub fn activity(&self, repo_index: usize) -> Option<Activity> {
+        self.busy.get(&repo_index).copied()
+    }
+
+    /// How many background operations are in flight, counting the per-repo
+    /// ones and the screens that track their own load state.
+    pub fn busy_count(&self) -> usize {
+        let flags = [
+            self.repo_loading,
+            self.global_members_loading,
+            self.diff.as_ref().is_some_and(|d| d.loading),
+            self.diff.as_ref().is_some_and(|d| d.blame_loading),
+            self.commit_search.as_ref().is_some_and(|s| s.loading),
+        ];
+        self.busy.len() + flags.iter().filter(|f| **f).count()
+    }
+
+    pub fn is_busy(&self) -> bool {
+        self.busy_count() > 0
     }
 
     pub fn lang(&self) -> Language {
@@ -1653,6 +1704,20 @@ impl App {
     /// Queue a job on the worker that owns its kind, surfacing the (terminal)
     /// case where that worker has died instead of dropping the job silently.
     fn send_job(&mut self, job: Job) {
+        match &job {
+            Job::LoadHome { index, .. } => {
+                self.busy.insert(*index, Activity::Refresh);
+            }
+            Job::Pull { index, .. } => {
+                self.busy.insert(*index, Activity::Pull);
+            }
+            Job::Fetch { index, .. } => {
+                self.busy.insert(*index, Activity::Fetch);
+            }
+            // Everything else is tracked by the screen that owns it
+            // (`repo_loading`, `diff.loading`, ...), already maintained.
+            _ => {}
+        }
         let tx = if job.is_secondary_worker() {
             &self.bulk_tx
         } else {
@@ -3249,7 +3314,27 @@ impl App {
         self.persist_prefs();
     }
 
+    #[cfg(test)]
+    pub fn apply_msg_for_test(&mut self, msg: Msg) {
+        self.apply_msg(msg);
+    }
+
     fn apply_msg(&mut self, msg: Msg) {
+        // Clear the per-repo marker first: a superseded result still means
+        // that job is no longer running, and returning early below would
+        // otherwise leave the row spinning forever.
+        match &msg {
+            Msg::HomeLoaded { index, .. } => {
+                self.busy.remove(index);
+            }
+            Msg::OpDone {
+                repo_index: Some(index),
+                ..
+            } => {
+                self.busy.remove(index);
+            }
+            _ => {}
+        }
         match msg {
             Msg::HomeLoaded {
                 generation,

@@ -86,7 +86,7 @@ fn draw_title(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             .map(|l| l.title.clone())
             .unwrap_or_else(|| app.tt("Log", "ログ")),
     };
-    let bar = Paragraph::new(Line::from(vec![
+    let mut spans = vec![
         Span::styled(
             format!(" {title} "),
             Style::default()
@@ -95,7 +95,18 @@ fn draw_title(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled("  git-dashboard-tui", Style::default().fg(pal.muted)),
-    ]));
+    ];
+    // Work started from Home keeps running while the user moves elsewhere, so
+    // the "still working" indicator lives in the title bar, which every screen
+    // has, rather than on the screen that started it.
+    let busy = app.busy_count();
+    if busy > 0 {
+        spans.push(Span::styled(
+            format!("   {} {}", app.spinner(), app.busy_label(busy)),
+            Style::default().fg(pal.yellow).add_modifier(Modifier::BOLD),
+        ));
+    }
+    let bar = Paragraph::new(Line::from(spans));
     frame.render_widget(bar, area);
 }
 
@@ -203,6 +214,13 @@ fn draw_footer(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     } else {
         ("", pal.muted)
     };
+    // A status line reading "Fetching..." looks the same whether the fetch is
+    // running or wedged. The spinner is the difference.
+    let msg = if app.is_busy() && !msg.is_empty() {
+        format!("{} {msg}", app.spinner())
+    } else {
+        msg.to_string()
+    };
     frame.render_widget(
         Paragraph::new(msg).style(Style::default().fg(color).bg(pal.surface)),
         rows[wrapped.len()],
@@ -300,10 +318,17 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     0,
                 ),
             };
-            let sync_style = if ahead + behind > 0 {
-                Style::default().fg(pal.yellow)
-            } else {
-                Style::default().fg(pal.muted)
+            // A running pull/fetch/refresh takes over the Sync cell: that is
+            // the value the operation is about to change, so replacing it with
+            // a spinner says both "working" and "this number is being
+            // recomputed" in the space of one cell.
+            let (sync, sync_style) = match app.activity(i) {
+                Some(act) => (
+                    format!("{} {}", app.spinner(), act.label()),
+                    Style::default().fg(pal.accent),
+                ),
+                None if ahead + behind > 0 => (sync, Style::default().fg(pal.yellow)),
+                None => (sync, Style::default().fg(pal.muted)),
             };
             let dirty_style = if dirty_n > 0 {
                 Style::default().fg(pal.red)
@@ -547,13 +572,17 @@ fn draw_repo(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
 
     if app.repo_loading && app.repo_data.is_none() {
         frame.render_widget(
-            Paragraph::new(app.t("analyzing_repo_data"))
-                .style(Style::default().fg(pal.yellow))
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(pal.border)),
-                ),
+            Paragraph::new(format!(
+                "{} {}",
+                app.spinner(),
+                app.t("analyzing_repo_data")
+            ))
+            .style(Style::default().fg(pal.yellow))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(pal.border)),
+            ),
             chunks[1],
         );
         return;
@@ -1417,7 +1446,7 @@ fn draw_diff(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         vec![Line::styled(err.clone(), Style::default().fg(pal.red))]
     } else if diff.loading {
         vec![Line::styled(
-            app.t("fetching_diff"),
+            format!("{} {}", app.spinner(), app.t("fetching_diff")),
             Style::default().fg(pal.yellow),
         )]
     } else if diff.files.is_empty() {
@@ -1745,14 +1774,18 @@ fn draw_commit_search(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     };
     if search.loading && search.hits.is_empty() {
         frame.render_widget(
-            Paragraph::new(app.tt("Searching commits...", "コミットを検索中..."))
-                .style(Style::default().fg(pal.yellow))
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title(format!("\"{}\"", search.query))
-                        .border_style(Style::default().fg(pal.border)),
-                ),
+            Paragraph::new(format!(
+                "{} {}",
+                app.spinner(),
+                app.tt("Searching commits...", "コミットを検索中...")
+            ))
+            .style(Style::default().fg(pal.yellow))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(format!("\"{}\"", search.query))
+                    .border_style(Style::default().fg(pal.border)),
+            ),
             area,
         );
         return;
@@ -1803,13 +1836,17 @@ fn draw_global_members(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     // the screen opens before any results exist.
     if app.global_members_loading && app.global_members.is_empty() {
         frame.render_widget(
-            Paragraph::new(app.tt("Aggregating members...", "メンバーを集計しています..."))
-                .style(Style::default().fg(pal.subtext))
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(pal.border)),
-                ),
+            Paragraph::new(format!(
+                "{} {}",
+                app.spinner(),
+                app.tt("Aggregating members...", "メンバーを集計しています...")
+            ))
+            .style(Style::default().fg(pal.subtext))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(pal.border)),
+            ),
             area,
         );
         return;
@@ -3990,5 +4027,144 @@ mod polish_tests {
             frame_contains(&text, "[Alltime]─"),
             "expected the border to follow the period label directly:\n{text}"
         );
+    }
+}
+
+#[cfg(test)]
+mod activity_tests {
+    use super::footer_and_help_tests::frame_contains;
+    use super::tests::render_to_text;
+    use super::*;
+    use crate::app::{Activity, SPINNER_FRAMES};
+    use crate::config::Language;
+
+    fn app_with(n: usize) -> App {
+        let mut app = App::new();
+        app.repos = (0..n)
+            .map(|i| crate::config::Repository {
+                name: format!("repo-{i}"),
+                path: std::path::PathBuf::from(format!("/tmp/r{i}")),
+                group: None,
+            })
+            .collect();
+        app.screen = Screen::Home;
+        app.busy.clear();
+        app
+    }
+
+    #[test]
+    fn a_busy_repository_shows_a_spinner_and_the_operation() {
+        let mut app = app_with(3);
+        app.busy.insert(1, Activity::Fetch);
+        let text = render_to_text(&app, 120, 16);
+        let row = row_region(&text, 120, 4..5);
+        assert!(row.contains("repo-1"), "wrong region: {row:?}");
+        assert!(
+            row.contains("fetch"),
+            "no operation label in the row: {row:?}"
+        );
+        assert!(
+            SPINNER_FRAMES.iter().any(|f| row.contains(f)),
+            "no spinner frame in the row: {row:?}"
+        );
+    }
+
+    #[test]
+    fn each_operation_names_itself() {
+        for (act, label) in [
+            (Activity::Pull, "pull"),
+            (Activity::Fetch, "fetch"),
+            (Activity::Refresh, "refresh"),
+        ] {
+            let mut app = app_with(2);
+            app.busy.insert(0, act);
+            let text = render_to_text(&app, 120, 16);
+            let row = row_region(&text, 120, 3..4);
+            assert!(row.contains(label), "{label} missing from the row: {row:?}");
+        }
+    }
+
+    /// Scoped to the table rows: the footer legitimately carries a
+    /// `P/F pull/fetch all` hint, and matching on the whole frame would find
+    /// that instead of a row and pass regardless.
+    fn row_region(text: &str, width: usize, rows: std::ops::Range<usize>) -> String {
+        rows.map(|r| text.chars().skip(r * width).take(width).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn an_idle_repository_shows_no_operation_in_its_row() {
+        let app = app_with(2);
+        let text = render_to_text(&app, 120, 16);
+        let rows = row_region(&text, 120, 3..5);
+        assert!(rows.contains("repo-0"), "wrong region: {rows:?}");
+        for label in ["pull", "fetch", "refresh"] {
+            assert!(!rows.contains(label), "{label} shown while idle: {rows:?}");
+        }
+    }
+
+    #[test]
+    fn the_title_bar_counts_running_jobs_in_both_languages() {
+        let mut app = app_with(3);
+        app.busy.insert(0, Activity::Pull);
+        app.busy.insert(2, Activity::Pull);
+        let en = render_to_text(&app, 120, 16);
+        assert!(en.contains("2 jobs running"), "{en}");
+
+        app.set_language_for_test(Language::Japanese);
+        let ja = render_to_text(&app, 120, 16);
+        assert!(frame_contains(&ja, "実行中2件"), "{ja}");
+    }
+
+    #[test]
+    fn english_says_one_job_not_one_jobs() {
+        let mut app = app_with(2);
+        app.busy.insert(0, Activity::Fetch);
+        let text = render_to_text(&app, 120, 16);
+        assert!(text.contains("1 job running"), "{text}");
+        assert!(!text.contains("1 jobs"), "{text}");
+    }
+
+    #[test]
+    fn nothing_is_shown_when_nothing_is_running() {
+        let app = app_with(2);
+        let text = render_to_text(&app, 120, 16);
+        assert!(!text.contains("running"), "{text}");
+        assert_eq!(app.busy_count(), 0);
+    }
+
+    /// Screens that already track their own load state must count too, or the
+    /// title bar would claim idle while a diff is still being fetched.
+    #[test]
+    fn screen_level_loads_count_towards_the_running_total() {
+        let mut app = app_with(1);
+        assert_eq!(app.busy_count(), 0);
+        app.repo_loading = true;
+        assert_eq!(app.busy_count(), 1);
+        app.global_members_loading = true;
+        assert_eq!(app.busy_count(), 2);
+        app.busy.insert(0, Activity::Pull);
+        assert_eq!(app.busy_count(), 3);
+    }
+
+    /// Driven by elapsed time, so it keeps turning at a steady rate however
+    /// often the screen is redrawn.
+    #[test]
+    fn the_spinner_advances_with_time() {
+        let app = app_with(1);
+        let first = app.spinner();
+        std::thread::sleep(std::time::Duration::from_millis(
+            crate::app::SPINNER_INTERVAL_MS as u64 + 30,
+        ));
+        assert_ne!(first, app.spinner(), "spinner did not advance");
+    }
+
+    #[test]
+    fn every_spinner_frame_is_one_column_wide() {
+        use unicode_width::UnicodeWidthStr;
+        for f in SPINNER_FRAMES {
+            assert_eq!(f.width(), 1, "{f:?} would shift the cell it sits in");
+        }
     }
 }

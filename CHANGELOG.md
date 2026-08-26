@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The help screen scrolls** (`j`/`k`, PageUp/PageDown, `g`/`G`, mouse wheel) and its
   title shows the visible range. It is 59 lines rendered into whatever height the
   terminal had: on 30 rows, 33 of them could not be reached by any means.
+- **Running operations are now visible.** A `pull`, `fetch` or row refresh replaces the
+  repository's Sync cell with a spinner and the operation's name — that cell holds the
+  value the operation is about to change — and the title bar shows a spinner with the
+  number of jobs still running, on every screen, since work started from Home keeps
+  going while you move elsewhere. The status line and the "analyzing"/"fetching diff"/
+  "searching" screens carry the same spinner, so a message that has been sitting there
+  is visibly still live rather than possibly wedged. A completed pull hands straight
+  over to the row reload it triggers, so the indicator does not blink off in between.
 - **Pick comparison targets in Commits and Tags by clicking the `[ ]` marker**, not only
   with `space`. Clicking a marked row again clears it, so a mis-picked base is fixable
   by mouse. Clicking a row anywhere else selects it, and clicking the already-selected
