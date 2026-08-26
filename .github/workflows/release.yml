@@ -42,7 +42,7 @@ jobs:
             asset_name: git-dashboard-tui-x86_64-pc-windows-msvc.zip
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -67,11 +67,11 @@ jobs:
         shell: bash
         run: sha256sum "${{ matrix.asset_name }}" > "${{ matrix.asset_name }}.sha256"
       - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ matrix.asset_name }}
       - name: Upload checksum artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sha256-${{ matrix.target }}
           path: ${{ matrix.asset_name }}.sha256
@@ -81,13 +81,13 @@ jobs:
     needs: build-release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: sha256-*
           merge-multiple: true
       - name: Combine
         run: cat ./*.sha256 | sort -k2 > SHA256SUMS && cat SHA256SUMS
       - name: Upload SHA256SUMS
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: SHA256SUMS
