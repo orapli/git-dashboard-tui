@@ -56,7 +56,38 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           7z a ${{ matrix.asset_name }} target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+      # One checksum file per asset, merged into a single SHA256SUMS below.
+      # install.sh verifies against it, so a tampered or truncated download is
+      # refused rather than installed.
+      - name: Checksum (Unix)
+        if: runner.os != 'Windows'
+        run: shasum -a 256 "${{ matrix.asset_name }}" > "${{ matrix.asset_name }}.sha256"
+      - name: Checksum (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: sha256sum "${{ matrix.asset_name }}" > "${{ matrix.asset_name }}.sha256"
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.asset_name }}
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sha256-${{ matrix.target }}
+          path: ${{ matrix.asset_name }}.sha256
+
+  checksums:
+    name: Publish SHA256SUMS
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sha256-*
+          merge-multiple: true
+      - name: Combine
+        run: cat ./*.sha256 | sort -k2 > SHA256SUMS && cat SHA256SUMS
+      - name: Upload SHA256SUMS
+        uses: softprops/action-gh-release@v2
+        with:
+          files: SHA256SUMS

@@ -19,13 +19,14 @@ which have a failing CI run, and which someone left mid-rebase. Then jump into a
 a diff, or a commit — and do the actual work with whatever tool you already use.
 
 ```bash
-# Grab the binary for your platform (Linux x86_64 shown) and run it
-curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-x86_64-unknown-linux-gnu.tar.gz | tar xz
-./git-dashboard-tui
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh
+git-dashboard-tui
 ```
 
-No Rust toolchain required — see [Installation](#installation) for other platforms,
-or `cargo install --git https://github.com/orapli/git-dashboard-tui --locked` if you prefer.
+That is the whole quickstart — Linux and macOS, no Rust toolchain required. The
+installer picks the right binary for your platform and verifies its checksum. See
+[Installation](#installation) for Windows, other options, and how to review the script
+before running it.
 
 Press `a` to add a repository, or `A` to scan a folder and import every Git repo under it.
 
@@ -135,7 +136,27 @@ hunk 1/1  n/p hunk  tab pane  [/] file  w ignore ws  f full file  b blame  t she
 
 ## Installation
 
-### Pre-built binary (no Rust toolchain needed)
+### One-line install (Linux & macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh
+```
+
+Detects your platform, downloads the matching binary, verifies its SHA-256 checksum
+against the one published with the release, and installs to `~/.local/bin` (or
+`/usr/local/bin` if that is already writable and on your `PATH`). It never uses `sudo`.
+
+```bash
+# Install somewhere specific, or pin a version
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | INSTALL_DIR=~/bin sh
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.1.0 sh
+```
+
+> Piping a script into a shell means trusting it. The script is short and dependency-free —
+> read it first if you prefer: [`install.sh`](install.sh), or
+> `curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | less`
+
+### Pre-built binary, by hand
 
 One self-contained binary, nothing else to install. Pick your platform:
 

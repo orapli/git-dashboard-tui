@@ -19,13 +19,13 @@ git-dashboard-tui は、ターミナル向けの**読み取り専用マルチリ
 飛んで、実際の作業は普段お使いのツールで行ってください。
 
 ```bash
-# お使いのプラットフォーム向けバイナリを取得して実行（例: Linux x86_64）
-curl -sSL https://github.com/orapli/git-dashboard-tui/releases/latest/download/git-dashboard-tui-x86_64-unknown-linux-gnu.tar.gz | tar xz
-./git-dashboard-tui
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh
+git-dashboard-tui
 ```
 
-Rust ツールチェーンは不要です。他のプラットフォームは[インストール](#インストール)を参照するか、
-お好みで `cargo install --git https://github.com/orapli/git-dashboard-tui --locked` も使えます。
+これだけです（Linux / macOS、Rust ツールチェーン不要）。インストーラがプラットフォームを判定し、
+チェックサムを検証したうえで導入します。Windows やその他の方法、スクリプトを事前に確認する手順は
+[インストール](#インストール)を参照してください。
 
 `a` でリポジトリを追加、`A` でフォルダを走査して配下の Git リポジトリを一括取り込みします。
 
@@ -133,7 +133,27 @@ hunk 1/1  n/p hunk  tab pane  [/] file  w ignore ws  f full file  b blame  t she
 
 ## インストール
 
-### ビルド済みバイナリ（Rust ツールチェーン不要）
+### 1行インストール（Linux / macOS）
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh
+```
+
+プラットフォームを自動判定し、対応するバイナリをダウンロードして、リリースに公開された
+SHA-256 チェックサムと照合したうえで `~/.local/bin`（すでに `PATH` にあり書き込み可能なら
+`/usr/local/bin`）へインストールします。`sudo` は一切使いません。
+
+```bash
+# インストール先を指定する / バージョンを固定する
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | INSTALL_DIR=~/bin sh
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.1.0 sh
+```
+
+> スクリプトをシェルにパイプするのは、そのスクリプトを信頼することを意味します。本スクリプトは
+> 短く依存もないので、事前に目を通すことをおすすめします: [`install.sh`](install.sh) または
+> `curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | less`
+
+### ビルド済みバイナリを手動で
 
 単体で動くバイナリ 1 つだけです。お使いのプラットフォームを選んでください:
 

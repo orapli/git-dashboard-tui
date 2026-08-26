@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **One-line installer** (`install.sh`): `curl -fsSL .../install.sh | sh` detects the
+  platform, downloads the matching release binary, verifies its SHA-256 against the
+  checksum file published with the release, and installs without ever using `sudo`.
+  `INSTALL_DIR` and `VERSION` override the defaults.
+- **`SHA256SUMS` published with each release**, so downloads (by the installer or by
+  hand) can be verified.
+- **`--version` / `--help` flags.** The binary previously ignored all arguments and
+  tried to start the TUI, which panics when stdout is not a terminal — so
+  `git-dashboard-tui --version` failed in scripts and CI. Unknown arguments now exit
+  with status 2 and a pointer to `--help` instead of launching the dashboard.
+
 ## [0.1.0] - 2026-08-26
 
 First release. Everything below shipped in it — the repository had no tagged
