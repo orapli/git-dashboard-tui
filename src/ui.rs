@@ -1,6 +1,6 @@
 use crate::app::{
-    App, CiOutcome, FocusPane, RepoTab, Screen, classify_ci_status, column_for_sort_mode,
-    short_hash, sort_is_ascending,
+    App, CiOutcome, FocusPane, ListViewport, RepoTab, Screen, classify_ci_status,
+    column_for_sort_mode, short_hash, sort_is_ascending,
 };
 use crate::colors::Palette;
 use crate::git::{CommitRef, DiffRowKind, GitOpState};
@@ -13,8 +13,8 @@ use ratatui::widgets::{
     Tabs, Wrap,
 };
 
-/// Selection marker used by the Home table. Its width shifts every column
-/// right, so the click hit-test has to account for it too.
+/// Selection marker used by the Home table and every item list. Its width
+/// shifts everything on the row right, so click hit-tests must account for it.
 const HIGHLIGHT_SYMBOL: &str = "▸ ";
 
 pub fn draw(frame: &mut Frame, app: &App) {
@@ -800,17 +800,27 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             ListItem::new(Line::from(line_spans))
         })
         .collect();
+    let label = app.tt("Commits", "コミット");
     let title = match (&app.commit_base, &app.commit_target) {
-        (Some(b), Some(t)) => format!("Commits  {b}...{t}  (enter to compare)"),
-        (Some(b), None) => format!("Commits  base={b}  (space to pick target)"),
+        (Some(b), Some(t)) => format!(
+            "{label}  {b}...{t}  {}",
+            app.tt("(enter to compare)", "(enter で比較)")
+        ),
+        (Some(b), None) => format!(
+            "{label}  {}={b}  {}",
+            app.tt("base", "基準"),
+            app.tt("(pick a target)", "(比較対象を選択)")
+        ),
+        // The `[ ]` at the start of each row is the affordance, so name it —
+        // "space to mark" alone never told anyone the marker was clickable.
         _ => format!(
-            "{} ({}/{})",
-            app.tt("Commits", "コミット"),
+            "{label} ({}/{})  {}",
             vis.len(),
-            data.commits.len()
+            data.commits.len(),
+            app.tt("(click [ ] or space)", "([ ] クリック / space)")
         ),
     };
-    render_items(
+    app.list_viewport.set(render_items(
         frame,
         split[0],
         pal,
@@ -819,7 +829,7 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         title,
         app.list_error(),
         &app.tt("No commits to show.", "表示するコミットがありません。"),
-    );
+    ));
 
     let mut preview_lines: Vec<Line> = Vec::new();
     if let Some(sel) = vis
@@ -937,7 +947,7 @@ fn draw_contributors(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             String::new()
         }
     );
-    render_items(
+    app.list_viewport.set(render_items(
         frame,
         area,
         pal,
@@ -946,7 +956,7 @@ fn draw_contributors(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         title,
         app.list_error(),
         &app.tt("No contributors.", "貢献者がいません。"),
-    );
+    ));
 }
 
 fn draw_branches(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
@@ -972,7 +982,7 @@ fn draw_branches(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             })
         })
         .collect();
-    render_items(
+    app.list_viewport.set(render_items(
         frame,
         area,
         pal,
@@ -981,7 +991,7 @@ fn draw_branches(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         format!("{} ({})", app.t("tab_branches"), vis.len()),
         app.list_error(),
         &app.tt("No branches.", "ブランチがありません。"),
-    );
+    ));
 }
 
 fn draw_tags(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
@@ -1006,12 +1016,24 @@ fn draw_tags(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             ))
         })
         .collect();
+    let label = app.tt("Tags", "タグ");
     let title = match (&app.tag_base, &app.tag_target) {
-        (Some(b), Some(t)) => format!("Tags  {b}...{t}  (enter to diff)"),
-        (Some(b), None) => format!("Tags  base={b}  (space to pick target)"),
-        _ => format!("Tags ({})  (space to mark base/target)", vis.len()),
+        (Some(b), Some(t)) => format!(
+            "{label}  {b}...{t}  {}",
+            app.tt("(enter to diff)", "(enter で比較)")
+        ),
+        (Some(b), None) => format!(
+            "{label}  {}={b}  {}",
+            app.tt("base", "基準"),
+            app.tt("(pick a target)", "(比較対象を選択)")
+        ),
+        _ => format!(
+            "{label} ({})  {}",
+            vis.len(),
+            app.tt("(click [ ] or space)", "([ ] クリック / space)")
+        ),
     };
-    render_items(
+    app.list_viewport.set(render_items(
         frame,
         area,
         pal,
@@ -1020,7 +1042,7 @@ fn draw_tags(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         title,
         app.list_error(),
         &app.tt("No tags.", "タグがありません。"),
-    );
+    ));
 }
 
 fn draw_stash(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
@@ -1038,7 +1060,7 @@ fn draw_stash(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             ))
         })
         .collect();
-    render_items(
+    app.list_viewport.set(render_items(
         frame,
         area,
         pal,
@@ -1047,7 +1069,7 @@ fn draw_stash(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         format!("Stash ({})", vis.len()),
         app.list_error(),
         &app.tt("No stashes.", "stash はありません。"),
-    );
+    ));
 }
 
 fn draw_worktrees(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
@@ -1140,6 +1162,15 @@ fn draw_worktrees(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         state.select(Some(app.list_selected.min(vis.len().saturating_sub(1))));
     }
     frame.render_stateful_widget(table, area, &mut state);
+    // This tab is a Table, not a List, and it has a header row — so the first
+    // item sits one row lower than in the other tabs.
+    let inner = area.inner(Margin::new(1, 1));
+    app.list_viewport.set(ListViewport {
+        y: inner.y.saturating_add(1),
+        height: inner.height.saturating_sub(1),
+        x: inner.x,
+        offset: state.offset(),
+    });
 }
 
 fn draw_diff(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
@@ -2007,6 +2038,8 @@ fn draw_help(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         Line::from(
             "  space          mark commit/tag base+target, or toggle active in Contributors",
         ),
+        Line::from("  click [ ]      same as space: pick the compare base, then the target"),
+        Line::from("  click a row    select it; click the selected row again to open it"),
         Line::from("  w              cycle time span filter (All / 1w / 1m / 3m)"),
         Line::from("  m              filter active members only (in Contributors tab)"),
         Line::from("  i              always open builtin TUI diff"),
@@ -2101,7 +2134,7 @@ fn render_path_list(
             .style(status_style(&f.status, pal))
         })
         .collect();
-    render_items(
+    app.list_viewport.set(render_items(
         frame,
         area,
         pal,
@@ -2110,9 +2143,13 @@ fn render_path_list(
         title,
         app.list_error(),
         &empty,
-    );
+    ));
 }
 
+/// Returns where the list ended up on screen, for callers that need to map a
+/// mouse click back to an item. Callers that don't simply drop it — recording
+/// it inside here instead would mean whichever list happened to draw last won,
+/// and the Diff and Settings screens draw lists too.
 #[allow(clippy::too_many_arguments)]
 fn render_items(
     frame: &mut Frame,
@@ -2123,7 +2160,7 @@ fn render_items(
     title: String,
     error: Option<&str>,
     empty: &str,
-) {
+) -> ListViewport {
     if let Some(err) = error {
         frame.render_widget(
             Paragraph::new(err)
@@ -2136,7 +2173,7 @@ fn render_items(
                 ),
             area,
         );
-        return;
+        return ListViewport::default();
     }
     if items.is_empty() {
         frame.render_widget(
@@ -2151,7 +2188,7 @@ fn render_items(
                 ),
             area,
         );
-        return;
+        return ListViewport::default();
     }
     let n = items.len();
     let list = List::new(items)
@@ -2167,10 +2204,20 @@ fn render_items(
                 .bg(pal.overlay)
                 .add_modifier(Modifier::BOLD),
         )
-        .highlight_symbol("▸ ");
+        .highlight_symbol(HIGHLIGHT_SYMBOL);
     let mut state = ListState::default();
     state.select(Some(selected.min(n.saturating_sub(1))));
     frame.render_stateful_widget(list, area, &mut state);
+    // Read the offset back *after* rendering: ratatui picks it while drawing,
+    // to keep the selection on screen. Computing it here instead would be a
+    // second implementation of that scrolling rule, free to disagree.
+    let inner = area.inner(Margin::new(1, 1));
+    ListViewport {
+        y: inner.y,
+        height: inner.height,
+        x: inner.x,
+        offset: state.offset(),
+    }
 }
 
 fn status_style(status: &str, pal: Palette) -> Style {
@@ -2738,20 +2785,15 @@ mod sort_tests {
             ("Dirty", 3),
             ("Updated", 4),
         ] {
-            let found = header
-                .find(label)
+            let found = super::commit_click_tests::column_of(&header, label)
                 .unwrap_or_else(|| panic!("header {label:?} not rendered in: {header:?}"));
             let (start, end) = bounds[col];
             assert!(
-                found as u16 >= start && (found as u16) < end,
+                found >= start && found < end,
                 "{label} renders at x={found} but column {col} was recorded as {start}..{end}"
             );
             // And the hit-test agrees for that x.
-            assert_eq!(
-                app.home_column_at(found as u16),
-                Some(col),
-                "hit-test for {label}"
-            );
+            assert_eq!(app.home_column_at(found), Some(col), "hit-test for {label}");
         }
     }
 
@@ -2799,5 +2841,241 @@ mod sort_tests {
         app.handle_mouse_click(bounds[0].0, 2); // Name descending
         let text = render_to_text(&app, 120, 12);
         assert!(text.contains("Name▼"), "expected descending marker: {text}");
+    }
+}
+
+#[cfg(test)]
+mod commit_click_tests {
+    use super::tests::render_to_text;
+    use super::*;
+    use crate::app::RepoSnapshot;
+    use crate::git::{CommitSummary, Summary, TagInfo};
+
+    /// Screen column (not byte offset) where `needle` starts in `line`.
+    ///
+    /// `str::find` returns a byte index, and these lines begin with multi-byte
+    /// box-drawing glyphs — comparing that against an x-coordinate silently
+    /// compares two different units, and happens to agree often enough to let
+    /// a wrong hit-test pass.
+    pub(super) fn column_of(line: &str, needle: &str) -> Option<u16> {
+        let chars: Vec<char> = line.chars().collect();
+        let pat: Vec<char> = needle.chars().collect();
+        (0..=chars.len().saturating_sub(pat.len()))
+            .find(|&i| chars[i..i + pat.len()] == pat[..])
+            .map(|i| i as u16)
+    }
+
+    fn commit(n: usize) -> CommitSummary {
+        CommitSummary {
+            hash: format!("c{n:06}"),
+            author: format!("author{n}"),
+            date: "2026-08-26".to_string(),
+            message: format!("commit number {n}"),
+            graph: "* ".to_string(),
+            refs: vec![],
+        }
+    }
+
+    fn app_on_commits(n: usize) -> App {
+        let mut app = App::new();
+        app.repos = vec![crate::config::Repository {
+            name: "r".to_string(),
+            path: std::path::PathBuf::from("/tmp/repo"),
+            group: None,
+        }];
+        app.repo_index = Some(0);
+        app.screen = Screen::Repo;
+        app.repo_tab = RepoTab::Commits;
+        app.repo_data = Some(RepoSnapshot {
+            summary: Summary::default(),
+            commits: (0..n).map(commit).collect(),
+            commits_err: None,
+            branches: vec![],
+            branches_err: None,
+            tags: (0..n)
+                .map(|i| TagInfo {
+                    name: format!("v0.{i}.0"),
+                    date: "2026-08-26".to_string(),
+                    message: String::new(),
+                    hash: format!("c{i:06}"),
+                })
+                .collect(),
+            tags_err: None,
+            stashes: vec![],
+            stashes_err: None,
+            working_files: vec![],
+            working_err: None,
+            contributors: vec![],
+            contributors_err: None,
+            worktrees: vec![],
+            worktrees_err: None,
+        });
+        app
+    }
+
+    /// The marker hit region is expressed as two constants in the click
+    /// handler, while the row itself is drawn by the renderer. Check the two
+    /// against a real frame: the `[` of every visible row must fall inside the
+    /// region the handler treats as the marker, and the region must not spill
+    /// onto the graph/hash text that follows.
+    #[test]
+    fn the_marker_hit_region_covers_exactly_where_the_marker_renders() {
+        let app = app_on_commits(5);
+        let width = 120usize;
+        let text = render_to_text(&app, width as u16, 20);
+        let vp = app.list_viewport.get();
+        assert!(vp.height > 0, "list did not render");
+
+        let marker_start = vp.x + 2; // App::HIGHLIGHT_WIDTH
+        let marker_end = marker_start + 3; // App::MARKER_WIDTH
+        for r in 0..5u16 {
+            let line: String = text
+                .chars()
+                .skip((vp.y + r) as usize * width)
+                .take(width)
+                .collect();
+            let open = column_of(&line, "[").unwrap_or_else(|| panic!("no marker: {line:?}"));
+            let close = column_of(&line, "]").unwrap();
+            assert_eq!(open, marker_start, "row {r}: {line:?}");
+            assert_eq!(close, marker_end - 1, "row {r}: {line:?}");
+        }
+    }
+
+    #[test]
+    fn clicking_the_marker_picks_base_then_target() {
+        let mut app = app_on_commits(5);
+        render_to_text(&app, 120, 20);
+        let vp = app.list_viewport.get();
+        let marker_x = vp.x + 2;
+
+        app.handle_mouse_click(marker_x, vp.y); // first row
+        assert_eq!(app.commit_base.as_deref(), Some("c000000"));
+        assert_eq!(app.commit_target, None);
+
+        app.handle_mouse_click(marker_x, vp.y + 2); // third row
+        assert_eq!(app.commit_base.as_deref(), Some("c000000"));
+        assert_eq!(app.commit_target.as_deref(), Some("c000002"));
+    }
+
+    /// Clicking a marked row again must clear it. Without this, picking the
+    /// wrong commit would be unfixable by mouse — base is already set, so a
+    /// further click would only ever overwrite the target.
+    #[test]
+    fn clicking_a_marked_row_again_clears_it() {
+        let mut app = app_on_commits(5);
+        render_to_text(&app, 120, 20);
+        let vp = app.list_viewport.get();
+        let marker_x = vp.x + 2;
+
+        app.handle_mouse_click(marker_x, vp.y);
+        app.handle_mouse_click(marker_x, vp.y + 1);
+        assert_eq!(app.commit_base.as_deref(), Some("c000000"));
+        assert_eq!(app.commit_target.as_deref(), Some("c000001"));
+
+        app.handle_mouse_click(marker_x, vp.y);
+        assert_eq!(app.commit_base, None);
+        assert_eq!(app.commit_target.as_deref(), Some("c000001"));
+
+        app.handle_mouse_click(marker_x, vp.y + 1);
+        assert_eq!(app.commit_target, None);
+    }
+
+    /// The marker click must also move the selection there. Otherwise the row
+    /// highlighted and the row marked disagree, and the next keypress acts on
+    /// a commit the user is not looking at.
+    #[test]
+    fn clicking_a_marker_also_selects_that_row() {
+        let mut app = app_on_commits(5);
+        render_to_text(&app, 120, 20);
+        let vp = app.list_viewport.get();
+        app.handle_mouse_click(vp.x + 2, vp.y + 3);
+        assert_eq!(app.list_selected, 3);
+    }
+
+    /// Clicking the row body is plain selection — marking is the marker's job.
+    #[test]
+    fn clicking_the_row_body_selects_without_marking() {
+        let mut app = app_on_commits(5);
+        render_to_text(&app, 120, 20);
+        let vp = app.list_viewport.get();
+        app.handle_mouse_click(vp.x + 40, vp.y + 2);
+        assert_eq!(app.list_selected, 2);
+        assert_eq!(app.commit_base, None);
+        assert_eq!(app.commit_target, None);
+    }
+
+    #[test]
+    fn tags_mark_by_click_too() {
+        let mut app = app_on_commits(4);
+        app.repo_tab = RepoTab::Tags;
+        render_to_text(&app, 120, 20);
+        let vp = app.list_viewport.get();
+        app.handle_mouse_click(vp.x + 2, vp.y);
+        app.handle_mouse_click(vp.x + 2, vp.y + 1);
+        assert_eq!(app.tag_base.as_deref(), Some("v0.0.0"));
+        assert_eq!(app.tag_target.as_deref(), Some("v0.1.0"));
+    }
+
+    /// Tabs with no comparison have no marker, so a click in the same columns
+    /// must fall through to selection rather than doing nothing.
+    #[test]
+    fn a_tab_without_markers_still_selects_from_a_left_edge_click() {
+        let mut app = app_on_commits(4);
+        app.repo_tab = RepoTab::Branches;
+        app.repo_data.as_mut().unwrap().branches = (0..4)
+            .map(|i| crate::git::BranchInfo {
+                name: format!("branch-{i}"),
+                is_remote: false,
+                author: "a".to_string(),
+                date: "2026-08-26".to_string(),
+                date_unix: 0,
+                message: "m".to_string(),
+            })
+            .collect();
+        render_to_text(&app, 120, 20);
+        let vp = app.list_viewport.get();
+        app.handle_mouse_click(vp.x + 2, vp.y + 2);
+        assert_eq!(app.list_selected, 2);
+    }
+
+    /// Clicks land on screen rows; the list scrolls. A click after scrolling
+    /// must mark the row under the cursor, not the same ordinal from the top.
+    #[test]
+    fn a_click_after_the_list_scrolls_marks_the_row_under_the_cursor() {
+        let mut app = app_on_commits(200);
+        app.list_selected = 150;
+        render_to_text(&app, 120, 20);
+        let vp = app.list_viewport.get();
+        assert!(
+            vp.offset > 0,
+            "list should have scrolled, offset={}",
+            vp.offset
+        );
+
+        app.handle_mouse_click(vp.x + 2, vp.y);
+        let expected = format!("c{:06}", vp.offset);
+        assert_eq!(app.commit_base.as_deref(), Some(expected.as_str()));
+    }
+
+    /// A click below the last row is empty space, not the last row.
+    #[test]
+    fn a_click_past_the_last_row_does_nothing() {
+        let mut app = app_on_commits(3);
+        render_to_text(&app, 120, 20);
+        let vp = app.list_viewport.get();
+        app.list_selected = 0;
+        app.handle_mouse_click(vp.x + 2, vp.y + 8);
+        assert_eq!(app.commit_base, None);
+        assert_eq!(app.list_selected, 0);
+    }
+
+    /// The tab bar sits above the list; a click there must still switch tabs
+    /// rather than being swallowed by the new row handling.
+    #[test]
+    fn the_tab_bar_still_switches_tabs() {
+        let mut app = app_on_commits(3);
+        render_to_text(&app, 120, 20);
+        app.handle_mouse_click(30, 1);
+        assert_eq!(app.repo_tab, RepoTab::Branches);
     }
 }

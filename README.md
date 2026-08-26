@@ -245,6 +245,8 @@ Then:
 | **Mouse wheel** | Scroll lists, commit logs, and diff views |
 | **Mouse click** | Switch tabs or select items directly |
 | **Click a column header** | Sort the Home list by that column; click again to reverse |
+| **Click a list row** | Select it; click the selected row again to open it |
+| **Click the `[ ]` marker** | In Commits and Tags, pick the compare base, then the target (same as `space`). Clicking a marked row again clears it |
 
 ### 1. Home (multi-repo hub)
 

@@ -104,6 +104,51 @@ impl App {
         }
     }
 
+    /// Width of the `[ ]` comparison marker at the start of a Commits or Tags
+    /// row, as `draw_commits`/`draw_tags` render it. Clicking it is the mouse
+    /// equivalent of pressing space on that row.
+    const MARKER_WIDTH: u16 = 3;
+    /// Width of the `▸ ` selection indicator every list reserves, marker or no.
+    const HIGHLIGHT_WIDTH: u16 = 2;
+
+    /// Which item in the repository-detail list a click row lands on, or
+    /// `None` if the click was outside the list (tab bar, border, blank space
+    /// past the last row).
+    fn repo_list_index_at(&self, row: u16) -> Option<usize> {
+        let idx = self.list_viewport.get().index_at(row)?;
+        (idx < self.visible_indices().len()).then_some(idx)
+    }
+
+    /// A click on a row of the repository-detail list.
+    ///
+    /// On Commits and Tags the `[ ]` marker at the start of the row is its own
+    /// target: clicking it picks the comparison base/target, exactly as space
+    /// does. Clicking anywhere else selects the row, and clicking the row that
+    /// is already selected activates it — the same select-then-open rhythm the
+    /// Home list already has.
+    fn click_repo_item(&mut self, index: usize, col: u16) {
+        let vp = self.list_viewport.get();
+        let marker_start = vp.x.saturating_add(Self::HIGHLIGHT_WIDTH);
+        let on_marker = col >= marker_start && col < marker_start + Self::MARKER_WIDTH;
+
+        if on_marker {
+            // Select first: the marker toggle and everything else in this tab
+            // read the selection, and leaving it on the previous row after a
+            // click is how "I marked the wrong commit" happens.
+            self.list_selected = index;
+            self.after_list_move();
+            if self.toggle_marker_at(index) {
+                return;
+            }
+        }
+        if self.list_selected == index {
+            self.activate_repo_item();
+        } else {
+            self.list_selected = index;
+            self.after_list_move();
+        }
+    }
+
     pub fn handle_mouse_click(&mut self, col: u16, row: u16) {
         if self.confirm.is_some() || self.input.is_some() {
             return;
@@ -132,6 +177,10 @@ impl App {
                 }
             }
             Screen::Repo => {
+                if let Some(idx) = self.repo_list_index_at(row) {
+                    self.click_repo_item(idx, col);
+                    return;
+                }
                 // Tab bar click (usually row 1). Route through switch_tab so the
                 // selection and filter are reset: a stale list_selected from a
                 // longer tab leaves Enter/d/space silently doing nothing.

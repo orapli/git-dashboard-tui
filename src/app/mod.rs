@@ -59,6 +59,11 @@ pub struct App {
     /// renderer. Click-to-sort hit-tests against these rather than recomputing
     /// the layout, so the two can never disagree about where a column is.
     pub home_col_bounds: std::cell::RefCell<Vec<(u16, u16)>>,
+    /// Where the repository-detail item list is on screen and how far it has
+    /// scrolled, recorded by the renderer. Same reason as `home_offset`: a
+    /// click carries screen coordinates, and only the renderer knows what row
+    /// they landed on.
+    pub list_viewport: std::cell::Cell<ListViewport>,
     pub home_rows: HashMap<usize, HomeRow>,
     pub repo_tab: RepoTab,
     pub repo_index: Option<usize>,
@@ -164,6 +169,7 @@ impl App {
             home_selected: 0,
             home_offset: std::cell::Cell::new(0),
             home_col_bounds: std::cell::RefCell::new(Vec::new()),
+            list_viewport: std::cell::Cell::new(ListViewport::default()),
             home_rows: HashMap::new(),
             repo_tab: RepoTab::Commits,
             repo_index: None,
@@ -2106,6 +2112,53 @@ impl App {
         }
     }
 
+    /// Cycle one name through base -> target -> unmarked.
+    ///
+    /// Shared by tags and commits so the two can't drift: the rule that an
+    /// already-marked entry clears rather than re-marking is what makes a
+    /// second press (or click) undo a mistake instead of doing nothing.
+    fn toggle_marker(base: &mut Option<String>, target: &mut Option<String>, name: String) {
+        if base.as_deref() == Some(name.as_str()) {
+            *base = None;
+        } else if target.as_deref() == Some(name.as_str()) {
+            *target = None;
+        } else if base.is_none() {
+            *base = Some(name);
+        } else {
+            *target = Some(name);
+        }
+    }
+
+    /// Mark the item at `index` (an index into the visible/filtered list) as
+    /// the comparison base or target, if the current tab has such a thing.
+    /// Returns whether anything was marked, so a click can fall through to
+    /// plain selection on tabs that don't compare.
+    pub fn toggle_marker_at(&mut self, index: usize) -> bool {
+        let Some(data) = self.repo_data.as_ref() else {
+            return false;
+        };
+        let Some(&item) = self.visible_indices().get(index) else {
+            return false;
+        };
+        match self.repo_tab {
+            RepoTab::Commits => {
+                let Some(hash) = data.commits.get(item).map(|c| c.hash.clone()) else {
+                    return false;
+                };
+                Self::toggle_marker(&mut self.commit_base, &mut self.commit_target, hash);
+                true
+            }
+            RepoTab::Tags => {
+                let Some(name) = data.tags.get(item).map(|t| t.name.clone()) else {
+                    return false;
+                };
+                Self::toggle_marker(&mut self.tag_base, &mut self.tag_target, name);
+                true
+            }
+            _ => false,
+        }
+    }
+
     fn toggle_tag_marker(&mut self) {
         let Some(data) = self.repo_data.as_ref() else {
             return;
@@ -2117,15 +2170,7 @@ impl App {
             return;
         };
         let name = tag.name.clone();
-        if self.tag_base.as_deref() == Some(name.as_str()) {
-            self.tag_base = None;
-        } else if self.tag_target.as_deref() == Some(name.as_str()) {
-            self.tag_target = None;
-        } else if self.tag_base.is_none() {
-            self.tag_base = Some(name);
-        } else {
-            self.tag_target = Some(name);
-        }
+        Self::toggle_marker(&mut self.tag_base, &mut self.tag_target, name);
     }
 
     fn toggle_commit_marker(&mut self) {
@@ -2139,15 +2184,7 @@ impl App {
             return;
         };
         let name = c.hash.clone();
-        if self.commit_base.as_deref() == Some(name.as_str()) {
-            self.commit_base = None;
-        } else if self.commit_target.as_deref() == Some(name.as_str()) {
-            self.commit_target = None;
-        } else if self.commit_base.is_none() {
-            self.commit_base = Some(name);
-        } else {
-            self.commit_target = Some(name);
-        }
+        Self::toggle_marker(&mut self.commit_base, &mut self.commit_target, name);
     }
 
     fn cycle_sort(&mut self) {

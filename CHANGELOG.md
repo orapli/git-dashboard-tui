@@ -5,6 +5,22 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Pick comparison targets in Commits and Tags by clicking the `[ ]` marker**, not only
+  with `space`. Clicking a marked row again clears it, so a mis-picked base is fixable
+  by mouse. Clicking a row anywhere else selects it, and clicking the already-selected
+  row opens it — until now a click anywhere in a repository's list did nothing at all.
+
+### Fixed
+
+- **The Commits and Tags comparison headers were English-only**, even with the UI set to
+  Japanese: `base=abc1234  (space to pick target)` never went through translation. They
+  are now bilingual, and say that the `[ ]` marker is clickable — "space to mark" gave no
+  hint that the thing at the start of the row was a control.
+
 ## [0.2.1] - 2026-08-26
 
 No change to the application itself — the binaries are the 0.2.0 ones rebuilt.

@@ -464,3 +464,35 @@ pub enum Msg {
         list: Vec<GlobalMember>,
     },
 }
+
+/// Where the repository-detail item list was drawn, and how far it had
+/// scrolled, as of the last frame.
+///
+/// A mouse click arrives as raw screen coordinates. Turning those back into
+/// an item index needs the list's inner rectangle and its scroll offset, and
+/// only the renderer knows either — the offset in particular is chosen by
+/// ratatui while drawing, not by us. Recording it is the same approach
+/// `home_offset` already uses for the Home table.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ListViewport {
+    /// Screen y of the first item row (inside the border).
+    pub y: u16,
+    /// How many item rows are visible.
+    pub height: u16,
+    /// Screen x of the first item cell (inside the border).
+    pub x: u16,
+    /// Index, within the visible/filtered list, of the item drawn at `y`.
+    pub offset: usize,
+}
+
+impl ListViewport {
+    /// The index this screen row refers to, or `None` if the row is outside
+    /// the list. Returns an index into the *filtered* list, the same space
+    /// `list_selected` lives in.
+    pub fn index_at(&self, row: u16) -> Option<usize> {
+        if self.height == 0 || row < self.y || row >= self.y.saturating_add(self.height) {
+            return None;
+        }
+        Some(self.offset + (row - self.y) as usize)
+    }
+}
