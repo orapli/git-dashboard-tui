@@ -3576,7 +3576,14 @@ impl App {
                     self.status.clear();
                     self.log = Some(LogView {
                         title,
-                        body: strip_ansi(&raw),
+                        // The oneline log keeps git's colours, so it is not
+                        // tab-expanded upstream; a tabbed commit subject would
+                        // otherwise skew the whole pane.
+                        body: strip_ansi(&raw)
+                            .lines()
+                            .map(|l| crate::git::expand_tabs(l, crate::git::TAB_WIDTH))
+                            .collect::<Vec<_>>()
+                            .join("\n"),
                         scroll: 0,
                     });
                     self.screen = Screen::Log;

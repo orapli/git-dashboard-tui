@@ -522,6 +522,17 @@ pub fn get_file_diff(
     if truncated {
         rows.truncate(limit);
     }
+    // Expand tabs before tokenizing, so the highlighter and the renderer agree
+    // on every column. Doing it here rather than at each `DiffRow`
+    // construction keeps it to one place that no future row kind can bypass.
+    for row in &mut rows {
+        if let Some(text) = row.left_text.take() {
+            row.left_text = Some(super::exec::expand_tabs(&text, super::exec::TAB_WIDTH));
+        }
+        if let Some(text) = row.right_text.take() {
+            row.right_text = Some(super::exec::expand_tabs(&text, super::exec::TAB_WIDTH));
+        }
+    }
     let ext = std::path::Path::new(file_path)
         .extension()
         .and_then(|s| s.to_str())

@@ -545,3 +545,104 @@ fn test_integration_pull_fetch_report_missing_remote_and_upstream() {
     let err = pull_repository(&repo.path, Language::English).unwrap_err();
     assert!(err.contains("upstream"), "unexpected pull error: {err}");
 }
+
+/// A registered repository is not trusted, and its *content* reaches the
+/// screen: file text, commit messages, author names. ratatui writes strings to
+/// the terminal as given, so an escape sequence committed to a file would be
+/// executed by the terminal — clearing the display, repainting it, or on
+/// terminals that support OSC 52, writing the system clipboard.
+#[test]
+fn test_integration_repository_content_cannot_drive_the_terminal() {
+    let repo = TempRepo::new("escape_injection");
+    repo.write_file("payload.txt", "harmless first line\n");
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-m", "baseline"]);
+
+    repo.write_file(
+        "payload.txt",
+        "harmless first line\n\
+         clear:\x1b[2J\n\
+         colour:\x1b[31mRED\x1b[0m\n\
+         clipboard:\x1b]52;c;cGF5bG9hZA==\x07\n\
+         cursor:\x1b[10;10Hmoved\n\
+         carriage:before\rafter\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-m", "content with terminal escapes"]);
+
+    let diff = git_dashboard_tui::git::get_file_diff(
+        &repo.path,
+        None,
+        "HEAD",
+        "payload.txt",
+        false,
+        false,
+        false,
+    )
+    .expect("diff should load");
+
+    let text: String = diff
+        .rows
+        .iter()
+        .filter_map(|r| r.right_text.clone().or_else(|| r.left_text.clone()))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(
+        !text.contains('\u{1b}'),
+        "an escape survived into displayed text: {text:?}"
+    );
+    assert!(!text.contains('\r'), "a carriage return survived: {text:?}");
+    // The clipboard payload must not merely lose its introducer and show up
+    // as text — the whole sequence goes.
+    assert!(
+        !text.contains("cGF5bG9hZA=="),
+        "OSC payload leaked as text: {text:?}"
+    );
+    // The readable parts of each line are still there: this sanitises, it
+    // does not blank the file out.
+    for kept in ["harmless first line", "RED", "moved", "before", "after"] {
+        assert!(text.contains(kept), "{kept:?} was lost: {text:?}");
+    }
+}
+
+/// Go, Make and C indent with tabs. ratatui writes a tab to the terminal
+/// verbatim and the terminal jumps to its own next tab stop, which the layout
+/// knows nothing about — so the diff pane drew over the one beside it.
+#[test]
+fn test_integration_tab_indented_files_are_expanded_for_display() {
+    let repo = TempRepo::new("tab_expansion");
+    repo.write_file("main.go", "package main\n\nfunc main() {\n}\n");
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-m", "baseline"]);
+
+    repo.write_file(
+        "main.go",
+        "package main\n\nfunc main() {\n\tx := 1\n\t\ty := 2\n\t_ = x + y\n}\n",
+    );
+    repo.git(&["add", "-A"]);
+    repo.git(&["commit", "-m", "tab indented body"]);
+
+    let diff = git_dashboard_tui::git::get_file_diff(
+        &repo.path, None, "HEAD", "main.go", false, false, false,
+    )
+    .expect("diff should load");
+
+    let lines: Vec<String> = diff
+        .rows
+        .iter()
+        .filter_map(|r| r.right_text.clone())
+        .collect();
+    assert!(
+        lines.iter().all(|l| !l.contains('\t')),
+        "a tab reached the display layer: {lines:?}"
+    );
+    assert!(
+        lines.iter().any(|l| l.starts_with("    x := 1")),
+        "one tab should indent to column 4: {lines:?}"
+    );
+    assert!(
+        lines.iter().any(|l| l.starts_with("        y := 2")),
+        "two tabs should indent to column 8: {lines:?}"
+    );
+}

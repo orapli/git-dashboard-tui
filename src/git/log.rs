@@ -1,4 +1,4 @@
-use super::exec::{check_safe_ref, run_git_cmd};
+use super::exec::{check_safe_ref, run_git_cmd, run_git_cmd_ansi};
 use super::types::{BlameEntry, CommitHit, CommitRef, CommitSummary};
 use std::collections::HashMap;
 use std::path::Path;
@@ -155,7 +155,7 @@ fn parse_commit_hit(line: &str) -> Option<CommitHit> {
 }
 
 pub fn get_recent_commits(repo_path: &Path) -> Result<Vec<CommitSummary>, String> {
-    let output = run_git_cmd(
+    let output = run_git_cmd_ansi(
         repo_path,
         &[
             "log",
@@ -179,7 +179,7 @@ pub fn get_recent_commits(repo_path: &Path) -> Result<Vec<CommitSummary>, String
 }
 
 pub fn get_commits_for_diff(repo_path: &Path) -> Result<Vec<CommitSummary>, String> {
-    let output = run_git_cmd(
+    let output = run_git_cmd_ansi(
         repo_path,
         &[
             "log",
@@ -199,7 +199,15 @@ pub fn get_commit_show(repo_path: &Path, hash: &str) -> Result<String, String> {
     check_safe_ref(hash)?;
     // `--` keeps a ref that looks like a path (or an option) from being read
     // as one; the ref itself is already checked above.
-    run_git_cmd(repo_path, &["show", "-s", hash, "--"])
+    // A commit message is free text and may contain tabs; the preview pane
+    // draws it as-is, and a raw tab would move the terminal's cursor rather
+    // than indent.
+    run_git_cmd(repo_path, &["show", "-s", hash, "--"]).map(|s| {
+        s.lines()
+            .map(|l| super::exec::expand_tabs(l, super::exec::TAB_WIDTH))
+            .collect::<Vec<_>>()
+            .join("\n")
+    })
 }
 
 // Get branch commits in oneline format with graph and colors (git log --graph --oneline --decorate --color=always)
@@ -210,7 +218,7 @@ pub fn get_branch_oneline_log(
 ) -> Result<String, String> {
     check_safe_ref(branch_name)?;
     let limit_s = limit.to_string();
-    run_git_cmd(
+    run_git_cmd_ansi(
         repo_path,
         &[
             "log",

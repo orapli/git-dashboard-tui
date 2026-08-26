@@ -5,6 +5,29 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- **Repository content could drive the terminal.** Nothing sanitised what git
+  returned, and ratatui writes strings to the terminal as given — so a line committed
+  to a file could contain `ESC[2J` to clear the screen, SGR sequences to repaint
+  arbitrary regions, or `ESC]52;c;<base64>BEL`, which writes the system clipboard on
+  terminals that support OSC 52. Confirmed against a real repository: the escapes were
+  emitted byte for byte. This is the threat model the tool already assumes elsewhere —
+  a registered repository is untrusted, which is why `core.fsmonitor` and friends are
+  neutralised — but content was not covered, and it is attacker-chosen too: file text,
+  commit messages, branch names, author names. Escape sequences are now removed at the
+  single point where git output becomes a string, so no call site can bypass it; other
+  control characters become a visible mark rather than vanishing silently.
+
+### Fixed
+
+- **Tab-indented files broke the diff layout.** A tab reaching the terminal moves the
+  cursor to the terminal's own next tab stop, which the layout knows nothing about, so
+  any Go, Make or C file drew over the pane beside it. Tabs are expanded to 4-column
+  stops wherever file content is displayed.
+
 ## [0.3.0] - 2026-08-26
 
 ### Added

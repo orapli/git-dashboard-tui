@@ -259,15 +259,143 @@ pub fn run_with_timeout(
     })
 }
 
+/// Strip terminal control sequences from anything git hands back.
+///
+/// A registered repository is not trusted — that is the whole reason this
+/// module neutralises `core.fsmonitor` and friends — and its *content* reaches
+/// the screen too. File contents, commit messages, branch names and author
+/// names are all attacker-chosen text, and ratatui writes strings to the
+/// terminal as given. A line containing `ESC[2J` therefore clears the screen;
+/// `ESC]52;c;...BEL` writes the system clipboard on terminals that support it;
+/// SGR sequences repaint arbitrary regions. None of that should be reachable
+/// by committing a file.
+///
+/// `\t` and `\n` survive: porcelain formats use tabs as field separators
+/// (`git diff --name-status`, `git ls-tree --long`), so removing them here
+/// would break parsing. Tabs are expanded where *content* is displayed
+/// instead — see `expand_tabs`.
+///
+/// Every other C0 control, DEL, and the C1 range are replaced by a visible
+/// placeholder rather than dropped: a line that silently loses characters
+/// misrepresents the file, whereas a dot says "something unprintable is here".
+pub fn strip_control_sequences(input: &str, keep_sgr: bool) -> String {
+    const PLACEHOLDER: char = '·';
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\t' | '\n' => out.push(c),
+            '\u{1b}' => match chars.peek() {
+                // CSI: parameters, then a final byte in @..~.
+                Some('[') => {
+                    chars.next();
+                    let mut seq = String::from("\u{1b}[");
+                    for x in chars.by_ref() {
+                        seq.push(x);
+                        if ('\u{40}'..='\u{7e}').contains(&x) {
+                            break;
+                        }
+                    }
+                    // Only colour/attribute sequences may be kept, and only
+                    // where the caller asked git for them (`--color=always`,
+                    // whose output the graph renderer parses itself).
+                    if keep_sgr && seq.ends_with('m') {
+                        out.push_str(&seq);
+                    }
+                }
+                // OSC: runs until BEL or ST, and carries the payload that
+                // makes clipboard and hyperlink injection possible. Consume
+                // the terminator too, or the payload leaks out as text.
+                Some(']') => {
+                    chars.next();
+                    while let Some(x) = chars.next() {
+                        if x == '\u{7}' {
+                            break;
+                        }
+                        if x == '\u{1b}' && chars.peek() == Some(&'\\') {
+                            chars.next();
+                            break;
+                        }
+                    }
+                }
+                // Two-character escapes (ESC c resets the terminal), and a
+                // trailing lone ESC.
+                Some(_) => {
+                    chars.next();
+                }
+                None => {}
+            },
+            c if (c as u32) < 0x20 || c == '\u{7f}' => out.push(PLACEHOLDER),
+            c if ('\u{80}'..='\u{9f}').contains(&c) => out.push(PLACEHOLDER),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// Expand tabs to the next `width` column, for text shown as file content.
+///
+/// ratatui writes a tab to the terminal verbatim, and the terminal moves the
+/// cursor to its own next tab stop — which the layout knows nothing about, so
+/// a tab-indented file (Go, Make, C) drew over the pane beside it.
+pub fn expand_tabs(line: &str, width: usize) -> String {
+    if !line.contains('\t') {
+        return line.to_string();
+    }
+    let mut out = String::with_capacity(line.len() + width);
+    let mut col = 0usize;
+    for c in line.chars() {
+        if c == '\t' {
+            let n = width - (col % width);
+            out.extend(std::iter::repeat_n(' ', n));
+            col += n;
+        } else {
+            out.push(c);
+            col += 1;
+        }
+    }
+    out
+}
+
+/// Columns per tab when showing file content. Four rather than eight because
+/// the diff panes are narrow and every level of indentation costs width.
+pub const TAB_WIDTH: usize = 4;
+
 // Helper to run git commands
 pub fn run_git_cmd(repo_path: &Path, args: &[&str]) -> Result<String, String> {
     let output = run_with_timeout(git_command_for(repo_path, args), GIT_TIMEOUT)?;
 
     if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        return Err(strip_control_sequences(
+            &String::from_utf8_lossy(&output.stderr),
+            false,
+        ));
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    Ok(strip_control_sequences(
+        &String::from_utf8_lossy(&output.stdout),
+        false,
+    ))
+}
+
+/// As [`run_git_cmd`], but keeps the SGR colour sequences produced by
+/// `--color=always`. Used only by the commit-graph commands, whose output the
+/// renderer parses for git's own per-lane colours; every other escape is still
+/// removed.
+pub fn run_git_cmd_ansi(repo_path: &Path, args: &[&str]) -> Result<String, String> {
+    let output = run_with_timeout(git_command_for(repo_path, args), GIT_TIMEOUT)?;
+
+    if !output.status.success() {
+        return Err(strip_control_sequences(
+            &String::from_utf8_lossy(&output.stderr),
+            false,
+        ));
+    }
+
+    Ok(strip_control_sequences(
+        &String::from_utf8_lossy(&output.stdout),
+        true,
+    ))
 }
 
 /// Build the sentinel delimiting per-command output when several git commands
@@ -336,8 +464,10 @@ pub fn run_git_batch(repo_path: &Path, commands: &[&[&str]]) -> Vec<Result<Strin
     let timeout = (GIT_TIMEOUT * commands.len().max(1) as u32).min(GIT_NETWORK_TIMEOUT);
     match run_with_timeout(ssh, timeout) {
         Ok(out) => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            let stderr = String::from_utf8_lossy(&out.stderr);
+            // Same reasoning as `run_git_cmd`: this output is repository
+            // content, and it reaches the screen.
+            let stdout = strip_control_sequences(&String::from_utf8_lossy(&out.stdout), false);
+            let stderr = strip_control_sequences(&String::from_utf8_lossy(&out.stderr), false);
             split_batch_output(&stdout, &sep, commands.len(), stderr.trim())
         }
         Err(e) => commands.iter().map(|_| Err(e.clone())).collect(),
@@ -388,4 +518,105 @@ pub fn split_batch_output(
         }));
     }
     results
+}
+
+#[cfg(test)]
+mod sanitize_tests {
+    use super::*;
+
+    /// The reason this exists: repository content reaches the terminal, and a
+    /// terminal executes what it is sent. `ESC[2J` clears the screen.
+    #[test]
+    fn a_file_cannot_clear_the_screen() {
+        let hostile = "before\u{1b}[2Jafter";
+        assert_eq!(strip_control_sequences(hostile, false), "beforeafter");
+    }
+
+    /// OSC carries a payload — `ESC]52;c;<base64>BEL` writes the system
+    /// clipboard on terminals that support it. Dropping only the introducer
+    /// would leave the payload on screen as text; the terminator has to go too.
+    #[test]
+    fn osc_sequences_are_consumed_payload_and_all() {
+        assert_eq!(
+            strip_control_sequences("a\u{1b}]52;c;cGF5bG9hZA==\u{7}b", false),
+            "ab"
+        );
+        // String Terminator form.
+        assert_eq!(
+            strip_control_sequences("a\u{1b}]0;title\u{1b}\\b", false),
+            "ab"
+        );
+    }
+
+    #[test]
+    fn colour_sequences_are_dropped_unless_the_caller_asked_git_for_them() {
+        let coloured = "\u{1b}[31mred\u{1b}[0m";
+        assert_eq!(strip_control_sequences(coloured, false), "red");
+        assert_eq!(strip_control_sequences(coloured, true), coloured);
+    }
+
+    /// Even when SGR is kept for the commit graph, nothing else may pass.
+    #[test]
+    fn keeping_colour_still_blocks_cursor_and_erase_sequences() {
+        let mixed = "\u{1b}[32m*\u{1b}[0m\u{1b}[2J\u{1b}[10;10Hx\u{1b}]52;c;p\u{7}";
+        let out = strip_control_sequences(mixed, true);
+        assert_eq!(out, "\u{1b}[32m*\u{1b}[0mx");
+    }
+
+    /// Porcelain formats separate fields with tabs (`git diff --name-status`,
+    /// `git ls-tree --long`), so stripping them here would break parsing.
+    /// They are expanded where content is displayed instead.
+    #[test]
+    fn tabs_and_newlines_survive_for_the_parsers() {
+        assert_eq!(
+            strip_control_sequences("M\tsrc/a.rs\nA\tsrc/b.rs\n", false),
+            "M\tsrc/a.rs\nA\tsrc/b.rs\n"
+        );
+    }
+
+    /// A dropped character would misrepresent the file; a visible mark says
+    /// something unprintable is there.
+    #[test]
+    fn other_control_characters_become_a_visible_mark() {
+        assert_eq!(
+            strip_control_sequences("a\u{0}b\u{7}c\u{7f}d", false),
+            "a·b·c·d"
+        );
+        // Lone CR would rewind the cursor over what was already drawn.
+        assert_eq!(strip_control_sequences("a\rb", false), "a·b");
+    }
+
+    #[test]
+    fn c1_controls_are_marked_too() {
+        assert_eq!(strip_control_sequences("a\u{9b}b\u{85}c", false), "a·b·c");
+    }
+
+    #[test]
+    fn a_truncated_escape_at_end_of_input_does_not_leak() {
+        assert_eq!(strip_control_sequences("text\u{1b}", false), "text");
+        assert_eq!(strip_control_sequences("text\u{1b}[", false), "text");
+        assert_eq!(strip_control_sequences("text\u{1b}[31", false), "text");
+    }
+
+    #[test]
+    fn ordinary_text_is_untouched() {
+        for s in ["", "plain", "日本語のテキスト", "emoji 🎉 ok", "a\nb\n"] {
+            assert_eq!(strip_control_sequences(s, false), s);
+        }
+    }
+
+    #[test]
+    fn tabs_expand_to_the_next_stop_not_a_fixed_run() {
+        assert_eq!(expand_tabs("\tx", 4), "    x");
+        assert_eq!(expand_tabs("a\tx", 4), "a   x");
+        assert_eq!(expand_tabs("abc\tx", 4), "abc x");
+        assert_eq!(expand_tabs("abcd\tx", 4), "abcd    x");
+        assert_eq!(expand_tabs("\t\tx", 4), "        x");
+    }
+
+    #[test]
+    fn expanding_leaves_tab_free_lines_alone() {
+        assert_eq!(expand_tabs("no tabs here", 4), "no tabs here");
+        assert_eq!(expand_tabs("", 4), "");
+    }
 }
