@@ -39,16 +39,16 @@ This is the ownership map implemented by `src/main.rs`, `src/lib.rs`, `src/app`,
 
 ## Task routing
 
-| Intent | Primary owner and symbols | Focused tests | Minimum validation |
-|---|---|---|---|
-| Add/change a Git command | [Git engine](git/engine.md): `run_git_cmd`, `git_command_for`, `run_with_timeout` | `src/git/tests.rs` | `cargo test --lib git::tests` |
-| Change Home rows, filters, or repository registration | [Dashboard workflow](workflows/dashboard-and-repositories.md): `refresh_home`, `filtered_home`, `open_repo_finder` | `src/app/tests.rs`, `tests/integration_tests.rs` | `cargo test --lib app::tests` |
-| Change screen/key/mouse behavior | [Navigation](application/navigation.md): `App`, `Screen`, handlers | `src/app/tests.rs` | `cargo test --lib app::tests` |
-| Change diff/range/blame behavior | [History and diffs](git/history-and-diffs.md): `get_file_diff`, `get_changed_files`, `get_file_blame` | Git and integration tests | `cargo test --test integration_tests` |
-| Add async workflow | [Background work](application/background-work.md): `Job`, `Msg`, `apply_msg` | `src/app/tests.rs` | `cargo test --lib app::tests` |
-| Add a setting or persisted field | [Persistence](configuration/persistence.md): `Preferences`, save/load methods | `src/config.rs` tests | `cargo test --lib config::tests` |
-| Alter UI/theme/translation/token display | [Presentation](presentation/ui-and-localization.md): `ui::draw`, `Palette`, `i18n::t`, `tokenize` | module tests plus manual TUI check | `cargo fmt --check && cargo test --lib` |
-| Change CI or release automation | [Quality automation](quality/testing-and-ci.md) | workflow review | `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test --all-targets` |
+| Change area or user intent | Relevant wiki page | Exact source entry points | Important symbols or types | Focused tests | Minimal validation command |
+|---|---|---|---|---|---|
+| Add/change a Git command or output safety | [Git engine](git/engine.md) | `src/git/exec.rs` | `run_git_cmd`, `run_git_cmd_ansi`, `git_command_for`, `run_with_timeout` | `src/git/exec.rs:sanitize_tests` | `cargo test --lib git::tests` |
+| Change Home rows, caching, filters, sorting, or registration | [Dashboard workflow](workflows/dashboard-and-repositories.md) | `src/app/mod.rs`, `src/app/helpers.rs`, `src/app/worker.rs` | `refresh_home`, `filtered_home`, `sort_repo_indices`, `load_home_cache` | `src/app/helpers.rs:sort_tests`, `src/app/tests.rs` | `cargo test --lib app::tests` |
+| Change screen, key, or mouse behavior | [Navigation](application/navigation.md) | `src/app/mod.rs`, `src/app/handlers.rs`, `src/ui.rs` | `App`, `Screen`, `ListViewport`, `handle_mouse_click` | `src/ui.rs:commit_click_tests`, `src/app/tests.rs` | `cargo test --lib app::tests` |
+| Change diff, range, blame, graph, or displayed file content | [History and diffs](git/history-and-diffs.md) | `src/git/diff.rs`, `src/git/log.rs` | `get_file_diff`, `get_changed_files`, `get_file_blame`, `expand_tabs` | `src/git/tests.rs`, `tests/integration_tests.rs` | `cargo test --test integration_tests` |
+| Add an async workflow or loading indicator | [Background work](application/background-work.md) | `src/app/types.rs`, `src/app/worker.rs`, `src/app/mod.rs` | `Job`, `Msg`, `Activity`, `apply_msg` | `src/app/tests.rs:activity_lifecycle`, `src/ui.rs:activity_tests` | `cargo test --lib app::tests` |
+| Add a setting or persisted field/cache | [Persistence](configuration/persistence.md) | `src/config.rs`, `src/app/worker.rs` | `Preferences`, `write_atomic`, `home_cache_path`, `tui_cache_path` | `src/config.rs` tests, worker cache tests | `cargo test --lib config::tests` |
+| Alter UI, theme, translation, token display, or layout | [Presentation](presentation/ui-and-localization.md) | `src/ui.rs`, `src/colors.rs`, `src/i18n.rs`, `src/syntax.rs` | `ui::draw`, `Palette`, `i18n::t`, `tokenize` | `src/ui.rs` rendered-buffer tests | `cargo fmt --check && cargo test --lib` |
+| Change CLI startup, CI, release assets, or installer | [Quality automation](quality/testing-and-ci.md) | `src/main.rs`, `.github/workflows/release.yml`, `install.sh` | `HELP`, `ExitCode`, `SHA256SUMS` | CLI/manual artifact smoke check | `cargo test --all-targets` |
 
 ## Baseline validation
 

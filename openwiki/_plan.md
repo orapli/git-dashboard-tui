@@ -32,3 +32,9 @@ openwiki:
 - Existing OpenWiki automation remains accurate except its Node runtime and pinned OpenWiki version; document only current workflow facts.
 - Uncommitted `AGENTS.md` and `docs/` are outside the documented Git range and are not source evidence for this update.
 - No area is evidence-blocked or deferred.
+
+## Reconciliation after drafting
+
+- Home cache/sort, mouse viewport, activity lifecycle, terminal-output safety, tab display, CLI startup, installer, release checksums, and CI matrix/action-runtime changes have substantive coverage in the planned canonical pages.
+- The implementation and focused test locations are reachable from the revised quickstart routing table.
+- No additional one-hop dependency exposed an undocumented independent system; no backlog entry is required.
