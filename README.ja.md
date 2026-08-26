@@ -146,7 +146,7 @@ SHA-256 チェックサムと照合したうえで `~/.local/bin`（すでに `P
 ```bash
 # インストール先を指定する / バージョンを固定する
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | INSTALL_DIR=~/bin sh
-curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.2.0 sh
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.2.1 sh
 ```
 
 > スクリプトをシェルにパイプするのは、そのスクリプトを信頼することを意味します。本スクリプトは

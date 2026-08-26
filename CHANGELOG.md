@@ -5,6 +5,19 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-08-26
+
+No change to the application itself — the binaries are the 0.2.0 ones rebuilt.
+
+### Changed
+
+- Every GitHub Actions step now runs on a Node 24 runtime. Node 20 is deprecated and
+  was only still working because the runner force-upgraded it; that fallback goes away.
+  Bumped `actions/checkout`, `actions/upload-artifact`, `actions/download-artifact`,
+  `actions/setup-node`, `softprops/action-gh-release`, and
+  `peter-evans/create-pull-request`. `Swatinem/rust-cache` already ran on Node 24, and
+  `dtolnay/rust-toolchain` is a composite action with no Node runtime.
+
 ## [0.2.0] - 2026-08-26
 
 ### Added
@@ -154,6 +167,7 @@ externally; no released version was affected, as none of this had shipped.
 - Integration test suite running against real temporary Git repositories, plus CI on Linux,
   macOS, and Windows.
 
-[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/orapli/git-dashboard-tui/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/orapli/git-dashboard-tui/releases/tag/v0.1.0
