@@ -2330,6 +2330,15 @@ impl App {
         self.set_sort(next);
     }
 
+    /// Start these tests from a known sort order. `App::new()` reads the
+    /// persisted `repo_sort`, and tests share one config directory, so a
+    /// concurrently-running test could otherwise decide which direction the
+    /// first header click produces.
+    #[cfg(test)]
+    pub fn set_sort_for_test(&mut self, mode: usize) {
+        self.prefs.repo_sort = mode;
+    }
+
     fn set_sort(&mut self, mode: usize) {
         self.prefs.repo_sort = mode;
         self.persist_prefs();

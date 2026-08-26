@@ -3237,6 +3237,9 @@ mod sort_tests {
             })
             .collect();
         app.screen = Screen::Home;
+        // Neither Name mode, so the first click on Name is unambiguously
+        // "sort ascending" rather than "reverse the current direction".
+        app.set_sort_for_test(crate::app::SORT_UPDATED_DESC);
         app
     }
 
