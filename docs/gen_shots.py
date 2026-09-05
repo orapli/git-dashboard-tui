@@ -102,6 +102,9 @@ class Session:
             LINES=str(rows),
         )
         env.update(extra_env or {})
+        # Automation commonly sets NO_COLOR. Reference captures must retain the
+        # application palette; only the captured child environment is changed.
+        env.pop("NO_COLOR", None)
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
             os.execve(str(binary), [str(binary)], env)

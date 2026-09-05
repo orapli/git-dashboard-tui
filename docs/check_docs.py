@@ -166,7 +166,11 @@ def main() -> int:
             check_links(path)
     for path in sorted((ROOT / 'docs/img').glob('*.svg')):
         try:
-            ET.parse(path)
+            tree = ET.parse(path)
+            text_colors = {node.get('fill') for node in tree.iter('{http://www.w3.org/2000/svg}text')}
+            # Ignore colored window decorations: NO_COLOR captures still have them.
+            if len(text_colors - {None}) < 3:
+                error(path, 'missing application text colors; recapture with NO_COLOR removed')
         except ET.ParseError as exc:
             error(path, f'invalid SVG XML: {exc}')
         partner = path.with_name(path.name.replace('.ja.svg', '.svg') if '.ja.svg' in path.name else path.stem + '.ja.svg')

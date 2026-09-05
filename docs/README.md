@@ -28,7 +28,7 @@ python3 -m unittest discover -s docs -p 'test_check_docs.py'
 
 The checker resolves repository-relative links plus this project's GitHub Pages,
 GitHub `blob/main` and raw `main` URLs against the checkout, including fragments.
-It checks SVG XML, paired image names, HTML alt text, generated-file freshness, and
+It checks SVG XML, paired image names, application text colors (excluding window decorations), HTML alt text, generated-file freshness, and
 README/reference heading, table, code-block and link structure across languages.
 It does not check external websites' availability or translation meaning. Review
 wording in both languages and open external links changed by your edit.
@@ -59,7 +59,8 @@ python3 docs/check_docs.py
 For a custom `CARGO_TARGET_DIR`, pass that build's absolute binary path to `--bin`.
 Use `gen_shots.py --only <scene>` to recapture one scene in each language.
 Captures set an isolated `GIT_DASHBOARD_CONFIG_DIR` and do not use your real TUI
-configuration. The tour's final tool is a plain shell.
+configuration. They remove inherited `NO_COLOR` only from the captured child process,
+so an automation environment cannot silently produce monochrome reference images. The tour's final tool is a plain shell.
 
 Fixed demo commit timestamps do **not** guarantee byte-identical screenshots.
 Home records actual local/GitHub check times; terminal size, fonts, build version

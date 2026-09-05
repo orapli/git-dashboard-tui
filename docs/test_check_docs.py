@@ -42,6 +42,15 @@ class DocumentationGateTests(unittest.TestCase):
         (self.root / 'docs/img/home.ja.svg').unlink()
         self.check_failure('missing bilingual image partner')
 
+    def test_monochrome_capture(self):
+        import xml.etree.ElementTree as ET
+        path = self.root / 'docs/img/home.svg'
+        tree = ET.parse(path)
+        for node in tree.iter('{http://www.w3.org/2000/svg}text'):
+            node.set('fill', '#cdd6f4')
+        tree.write(path, encoding='unicode')
+        self.check_failure('missing application text colors')
+
     def test_language_structure_drift(self):
         with (self.root / 'docs/reference.ja.md').open('a') as file:
             file.write('\n## 日本語のみの追加\n')
