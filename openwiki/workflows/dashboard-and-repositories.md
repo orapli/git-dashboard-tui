@@ -1,8 +1,16 @@
 ---
-type: workflow
+type: Workflow Guide
 title: Repository dashboard lifecycle
-description: Register, discover, inspect, filter, operate on, and open registered Git repositories.
+description: Register, inspect, filter, operate on, and open registered Git repositories from the Home dashboard.
 tags: [workflow, dashboard, repositories, git]
+openwiki:
+  roles: [workflow, domain]
+  change_kinds: [dashboard, repository-operations]
+  source_paths: [src/app/home.rs, src/app/handlers.rs, src/app/worker.rs, src/config.rs]
+  symbols: [App::home_counts, App::home_context, App::open_home_ci]
+  test_paths: [src/app/home.rs, src/app/tests.rs, tests/integration_tests.rs]
+  invariants: [Needs attention is limited to failed CI, unresolved conflicts, or an interrupted operation.]
+  validation_commands: [cargo test --lib app::tests]
 ---
 
 # Repository dashboard lifecycle
@@ -22,11 +30,11 @@ This is the primary fleet-to-detail lifecycle.
 
 ## Registration, filtering, and refresh
 
-The add prompt sanitizes quoted/escaped paths and supports directory-only Tab completion. `open_repo_finder` calls `find_git_repos(root, 4)`; scanning skips dot directories, `node_modules`, `target`, and `vendor`, and a discovered path is tagged if already registered so imports can avoid duplication. Repository aliases and groups persist via guarded writers.
+The add prompt sanitizes quoted/escaped paths and supports directory-only Tab completion. `A` opens the incremental Repository Finder: its dedicated worker scans to depth 4, streams directories containing `.git`, supports cancellation and generation-based stale-result rejection, and skips dot directories, `node_modules`, `target`, and `vendor`. A discovered path is tagged if already registered so imports can avoid duplication. Repository aliases and groups persist via guarded writers. See [first-use import, tools, and worktrees](first-use-tools-and-worktrees.md) for the full discovery and workspace contracts.
 
 `filtered_home` combines case-insensitive name/path/group text filtering, group cycling, and `attention_only`; `sort_repo_indices` supports name, last update, branch, dirty-count, and ahead-plus-behind ordering in both directions. `o` cycles all ten modes; clicking a sortable header chooses its primary ordering and reverses the active column on a second click. Renderer-recorded header bounds, rather than duplicated layout arithmetic, drive the click hit test. Modes 0–3 retain their historical meaning because `prefs.json` is shared with the sibling GUI; unknown values fall back to newest-first, and rows that have not loaded sort last for row-derived modes. Needs-attention deliberately means only failed CI, unresolved conflicts, or an interrupted operation—not a dirty tree or behind upstream. Rows with incomplete loading data remain usable and selection is reclamped on asynchronous changes.
 
-Home rows are read from their per-path cache before refresh jobs are queued, then overwritten as fresh results land; this improves first-frame usefulness without treating cached state as truth. Auto refresh runs only on Home and cycles 0/30/60/300 seconds. The default is off because every cycle may invoke two GitHub CLI calls for each GitHub repository. [Background work](../application/background-work.md) owns the cache and stale-result lifecycle.
+Home rows are read from their per-path cache before refresh jobs are queued, then overwritten as fresh results land; this improves first-frame usefulness without treating cached state as truth. The Home summary separates attention, dirty, sync, and unverified-data counts. GitHub data is independently cached for five minutes after a healthy read and retried after one minute following a failed/unavailable/authentication read; it reports the repository-wide latest CI run rather than claiming it belongs to the checked-out branch. Auto refresh runs only on Home and cycles 0/30/60/300 seconds. The default is off because every cycle may invoke two GitHub CLI calls for each GitHub repository. [Background work](../application/background-work.md) owns the cache and stale-result lifecycle.
 
 ## Detail and operations
 

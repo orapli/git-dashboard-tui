@@ -1,8 +1,16 @@
 ---
-type: domain-api
+type: Domain API
 title: Repository inspection and enrichment
 description: Summary, files, technology, worktree, and GitHub metadata derived from a registered repository.
 tags: [git, repository-analysis, github, worktrees]
+openwiki:
+  roles: [domain, integration]
+  change_kinds: [repository-inspection, github-enrichment]
+  source_paths: [src/git/status.rs, src/git/github.rs, src/git/types.rs]
+  symbols: [get_summary, get_github_status, get_worktrees]
+  test_paths: [src/git/tests.rs, src/git/github.rs, tests/integration_tests.rs]
+  invariants: [GitHub enrichment cannot fail the mandatory local repository summary.]
+  validation_commands: [cargo test --lib git::tests]
 ---
 
 # Repository inspection and enrichment
@@ -13,7 +21,7 @@ tags: [git, repository-analysis, github, worktrees]
 
 `count_conflicts` recognizes Git porcelain's seven unmerged XY states. `GitOpState` is observation-only: merge, rebase, cherry-pick, and revert were started outside this application. Local rebase detection checks resolved worktree-aware `rebase-merge`/`rebase-apply` directories, because `REBASE_HEAD` can remain after a successful continue; SSH falls back to that imperfect pseudo-ref heuristic. Optional GitHub enrichment cannot fail the core summary.
 
-`get_github_status` only runs when `remote -v` mentions `github.com`. It invokes `gh pr list` and `gh run list` separately, each with a two-second timeout, and returns `RemoteCiPrInfo` only when at least one datum exists. The dashboard’s attention filter treats failure, failed, cancelled, timed_out, and action_required as failure; successful/passing is good and other states are neither.
+`get_github_status` only runs when `remote -v` mentions `github.com`. It invokes `gh pr list` and `gh run list` separately, each with a two-second timeout. Its in-process cache key combines canonical repository path with the complete remote listing, so changing a remote cannot reuse metadata for the prior remote. Healthy PR/CI reads are reused for five minutes; unavailable, unauthenticated, unsupported, or failed reads retry after one minute while retaining prior successfully fetched fields. SSH locators return an explicit unsupported state. The dashboard’s attention filter treats failure, failed, cancelled, timed_out, and action_required as failure; successful/passing is good and other states are neither.
 
 ## Additional metadata APIs
 

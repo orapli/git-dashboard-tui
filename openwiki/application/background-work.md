@@ -1,8 +1,16 @@
 ---
-type: concurrency
+type: Concurrency Design
 title: Background work and result consistency
-description: Job and Msg orchestration that keeps Git analysis and cross-repository work off the terminal thread.
+description: Job and Msg orchestration that keeps Git analysis, discovery, and cross-repository work off the terminal thread.
 tags: [application, concurrency, workers, caching]
+openwiki:
+  roles: [architecture, workflow]
+  change_kinds: [background-jobs, stale-result-protection]
+  source_paths: [src/app/types.rs, src/app/worker.rs, src/app/finder.rs, src/app/workspace.rs]
+  symbols: [Job, Msg, Job::is_secondary_worker, spawn_worker]
+  test_paths: [src/app/tests.rs, src/app/finder.rs, src/app/workspace.rs]
+  invariants: [A result carrying an obsolete generation or sequence cannot overwrite current UI state.]
+  validation_commands: [cargo test --lib app::tests]
 ---
 
 # Background work and result consistency
@@ -27,9 +35,9 @@ The separate queues prevent long network/fan-out jobs from blocking single-repos
 
 ## Queue policy and stale results
 
-`Job::is_secondary_worker` routes `Pull`, `Fetch`, `SearchCommits`, and `LoadGlobalMembers` to `bulk_tx`. These can execute one operation per repository or wait up to the network timeout. Repo, file, diff, blame, preview, stash, and branch-log work uses the primary worker.
+`Job::is_secondary_worker` routes `LoadWorkspace`, `Pull`, `Fetch`, `SearchCommits`, and `LoadGlobalMembers` to `bulk_tx`. These can execute one operation per repository or wait up to the network timeout. `ScanRepos` uses the dedicated Finder worker and performs filesystem traversal rather than one Git subprocess per directory. Repo, file, diff, blame, preview, stash, and branch-log work uses the primary worker.
 
-Home reloads carry `generation`; `refresh_home` advances the atomic generation, while the worker drops queued older `LoadHome` jobs before analysis and `apply_msg` ignores stale replies. Diff, blame, files, and commit metadata carry `diff_seq`; previews and search have independent sequences; global members have `global_gen`. A result must not overwrite a newer screen selection. `RepoLoaded` additionally checks its repository index.
+Home reloads carry `generation`; `refresh_home` advances the atomic generation, while the worker drops queued older `LoadHome` jobs before analysis and `apply_msg` ignores stale replies. Diff, blame, files, and commit metadata carry `diff_seq`; previews and search have independent sequences; Finder and workspace collection each use their own atomic generation; global members have `global_gen`. Finder/workspace workers check that generation cooperatively between filesystem or per-repository operations and stream individual rows. A result must not overwrite a newer screen selection. `RepoLoaded` additionally checks its repository index.
 
 `App::busy` is a per-repository `Activity` map, not a counter: `send_job` records `LoadHome`, `Pull`, and `Fetch`; `apply_msg` removes the marker before stale-result guards, since an obsolete job has still ended. A successful pull/fetch may immediately queue `LoadHome`, changing its marker to Refresh rather than briefly reporting idle. Screen-owned loading flags (repo, diff, blame, search, global members) join the title-bar count. The elapsed-time spinner is presentation, but this lifecycle is owned here and rendered by [presentation](../presentation/ui-and-localization.md).
 

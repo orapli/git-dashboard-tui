@@ -1,8 +1,16 @@
 ---
-type: configuration
+type: Configuration Reference
 title: Persistent configuration and caches
-description: User-owned JSON schemas, safe writes, migration behavior, and per-repository cache boundaries.
+description: User-owned JSON schemas, safe writes, migration behavior, editor and worktree preferences, and per-repository cache boundaries.
 tags: [configuration, persistence, json, caching]
+openwiki:
+  roles: [operations, domain]
+  change_kinds: [persistence, compatibility]
+  source_paths: [src/config.rs, src/app/worker.rs]
+  symbols: [Preferences, WorktreeNote, write_atomic]
+  test_paths: [src/config.rs, src/app/tests.rs]
+  invariants: [A failed configuration load disables writes to that file for the process so corrupt user data is not replaced by defaults.]
+  validation_commands: [cargo test --lib config::tests]
 ---
 
 # Persistent configuration and caches
@@ -15,7 +23,7 @@ tags: [configuration, persistence, json, caching]
 |---|---|
 | `config.json` | `Vec<Repository>`: display name, path, optional group. |
 | `members.json` | `Vec<Member>`: canonical name, aliases, active status. |
-| `prefs.json` | `Preferences`: theme/language, UI values, diff toggles/command, sort, auto-refresh, recent comparisons. |
+| `prefs.json` | `Preferences`: onboarding state, theme/language, UI values, editor command/wait, worktree notes/favorites, diff toggles/command, sort, auto-refresh, and recent comparisons. |
 | `tech_rules.json` | `Vec<TechRule>` used by local technology detection. |
 | `cache/repo-*.json` / `cache/home-*.json` / `cache/tui-*.json` | hashes of repository paths; repository inspection, Home-row, and TUI-snapshot cache formats respectively live in `app/worker.rs`. |
 
