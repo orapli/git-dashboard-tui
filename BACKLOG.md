@@ -51,7 +51,7 @@ Shell launch and per-repository Worktree inspection/jump are implemented. Editor
 See [the product improvement proposal](docs/product-improvement-proposal.ja.md) for scope and acceptance criteria.
 
 - [x] 1–2: Updated positioning, captured walkthrough, bulk-first onboarding and dismissible guide.
-- [ ] 3: Attention summary and reasons.
-- [ ] 4: Freshness and GitHub status context.
+- [x] 3: Attention summary and reasons.
+- [x] 4: Freshness and GitHub status context.
 - [ ] 5: External editor and Git client launch.
 - [ ] 6: Cross-repository Worktree workspace.

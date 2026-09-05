@@ -228,6 +228,7 @@ fn draw_footer(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
 }
 
 fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    app.home_table_bounds.set((0, 0));
     if app.repos.is_empty() {
         let body = vec![
             Line::from(""),
@@ -285,6 +286,47 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     } else {
         area
     };
+
+    let area = if area.height >= 15 && area.width >= 72 {
+        let parts = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Min(5),
+            Constraint::Length(7),
+        ])
+        .split(area);
+        let counts = app.home_counts();
+        frame.render_widget(
+            Paragraph::new(format!(
+                "{} {}  {} {}  {} {}  {} {}",
+                app.tt("Attention", "要対応"),
+                counts.attention,
+                app.tt("Dirty", "未コミット"),
+                counts.dirty,
+                app.tt("Sync delta", "同期差分"),
+                counts.sync,
+                app.tt("Not fetched", "未取得"),
+                counts.unknown
+            ))
+            .style(Style::default().fg(pal.accent)),
+            parts[0],
+        );
+        frame.render_widget(
+            Paragraph::new(
+                app.home_context()
+                    .into_iter()
+                    .map(Line::from)
+                    .collect::<Vec<_>>(),
+            )
+            .block(Block::bordered().title(app.tt("Selected repository", "選択リポジトリ")))
+            .style(Style::default().fg(pal.subtext)),
+            parts[2],
+        );
+        parts[1]
+    } else {
+        area
+    };
+    app.home_table_bounds
+        .set((area.y.saturating_add(1), area.bottom().saturating_sub(1)));
 
     let indices = app.filtered_home();
     // The sorted column carries the direction marker, so the current sort is
@@ -404,7 +446,7 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 if let Some(prs) = row_data.open_prs {
                     branch_spans.push(Span::raw(" "));
                     branch_spans.push(Span::styled(
-                        format!("[PR:{prs}]"),
+                        format!("[PR:{prs}{}]", if prs >= 100 { "+" } else { "" }),
                         Style::default().fg(pal.accent),
                     ));
                 }
@@ -720,7 +762,10 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                         Style::default().fg(pal.muted),
                     ));
                     spans.push(Span::styled(
-                        format!("{:<10}", format!("{} open", prs)),
+                        format!(
+                            "{:<10}",
+                            format!("{prs}{} open", if prs >= 100 { "+" } else { "" })
+                        ),
                         Style::default().fg(pal.accent),
                     ));
                 }
@@ -731,10 +776,19 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                         CiOutcome::Other => (ci.as_str(), Style::default().fg(pal.yellow)),
                     };
                     spans.push(Span::styled(
-                        format!("  {:<6}", "CI:"),
+                        format!("  CI({}): ", ci_pr.ci_branch.as_deref().unwrap_or("all")),
                         Style::default().fg(pal.muted),
                     ));
-                    spans.push(Span::styled(ci_icon, ci_style));
+                    spans.push(Span::styled(
+                        format!(
+                            "{ci_icon} {}",
+                            app.tt(
+                                "(repo latest; Home: context)",
+                                "（全体最新・Homeに取得状態）"
+                            )
+                        ),
+                        ci_style,
+                    ));
                 }
             }
             spans
@@ -2306,6 +2360,13 @@ fn draw_help(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             ),
         ),
         row(
+            "C",
+            app.tt(
+                "open the selected repository's latest CI run (Home)",
+                "選択リポジトリ全体の最新CI実行を開く（Home）",
+            ),
+        ),
+        row(
             "o / e",
             app.tt("sort repos / rename alias", "並び替え / 表示名の変更"),
         ),
@@ -2868,6 +2929,7 @@ pub(crate) mod tests {
                 ci_status: Some("failure".to_string()),
                 op_state: crate::git::GitOpState::None,
                 conflicts: 5,
+                ..Default::default()
             },
         );
         let text = render_to_text(&app, 100, 20);
@@ -3305,6 +3367,24 @@ mod sort_tests {
             // And the hit-test agrees for that x.
             assert_eq!(app.home_column_at(found), Some(col), "hit-test for {label}");
         }
+    }
+
+    #[test]
+    fn home_mouse_tracks_summary_layout_and_ignores_context() {
+        let mut app = app_with_repos(10);
+        render_to_text(&app, 120, 24);
+        let (header, end) = app.home_table_bounds.get();
+        assert_eq!(header, 3);
+        let x = app.home_col_bounds.borrow()[0].0;
+        app.handle_mouse_click(x, header);
+        assert_eq!(app.sort_mode(), crate::app::SORT_NAME_ASC);
+        app.handle_mouse_click(5, header + 2);
+        assert_eq!(app.home_selected, 1);
+        app.handle_mouse_click(5, end + 2);
+        assert_eq!(app.screen, Screen::Home);
+        assert_eq!(app.home_selected, 1);
+        render_to_text(&app, 60, 24);
+        assert_eq!(app.home_table_bounds.get().0, 2);
     }
 
     #[test]

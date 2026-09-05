@@ -1,8 +1,6 @@
 use super::contributors::process_contributor_log;
 use super::diff::unquote_path;
-use super::exec::{
-    check_safe_ref, parse_ssh_repo, quiet_command, run_git_batch, run_git_cmd, run_with_timeout,
-};
+use super::exec::{check_safe_ref, parse_ssh_repo, run_git_batch, run_git_cmd};
 use super::types::{
     BranchInfo, FileExtInfo, FileInfo, FilesReport, GitOpState, RemoteCiPrInfo, Summary,
     SyncStatus, TagInfo, TechInfo, TechRule, VersionFileRule, WorktreeInfo,
@@ -902,61 +900,5 @@ pub fn parse_gh_runs(json: &str) -> (Option<String>, Option<String>) {
 }
 
 pub fn get_github_status(repo_path: &Path) -> Option<RemoteCiPrInfo> {
-    use std::time::Duration;
-
-    // Fast check: is this a git repo with a github.com remote?
-    let remote_out = run_git_cmd(repo_path, &["remote", "-v"]).ok()?;
-    if !remote_out.contains("github.com") {
-        return None;
-    }
-
-    // Try gh pr list with 2 second timeout
-    let mut pr_cmd = quiet_command("gh");
-    pr_cmd
-        .args(["pr", "list", "--json", "number", "--limit", "100"])
-        .current_dir(repo_path);
-    let pr_out = run_with_timeout(pr_cmd, Duration::from_millis(2000)).ok();
-    let pr_json = pr_out.and_then(|o| {
-        if o.status.success() {
-            String::from_utf8(o.stdout).ok()
-        } else {
-            None
-        }
-    });
-    let open_prs = pr_json.as_deref().and_then(parse_gh_prs);
-
-    // Try gh run list with 2 second timeout
-    let mut run_cmd = quiet_command("gh");
-    run_cmd
-        .args([
-            "run",
-            "list",
-            "--json",
-            "conclusion,status,url",
-            "--limit",
-            "1",
-        ])
-        .current_dir(repo_path);
-    let run_out = run_with_timeout(run_cmd, Duration::from_millis(2000)).ok();
-    let run_json = run_out.and_then(|o| {
-        if o.status.success() {
-            String::from_utf8(o.stdout).ok()
-        } else {
-            None
-        }
-    });
-    let (ci_status, last_run_url) = run_json
-        .as_deref()
-        .map(parse_gh_runs)
-        .unwrap_or((None, None));
-
-    if open_prs.is_some() || ci_status.is_some() {
-        Some(RemoteCiPrInfo {
-            open_prs,
-            ci_status,
-            last_run_url,
-        })
-    } else {
-        None
-    }
+    super::github::get_status(repo_path)
 }

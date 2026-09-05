@@ -205,9 +205,9 @@ pub struct Preferences {
     /// Seconds between automatic Home refreshes; 0 disables it (the
     /// default). Cycled with `i` in Settings through `AUTO_REFRESH_OPTIONS`.
     ///
-    /// Off by default because a refresh cycle re-runs `get_github_status`
-    /// (an uncached `gh pr list` + `gh run list` per GitHub repo) for every
-    /// repository on Home: opting an existing prefs.json into this on
+    /// Off by default: local analysis can still be expensive. GitHub has a
+    /// separate five-minute cache and a one-minute failure retry delay.
+    /// Opting an existing prefs.json into automatic refresh on
     /// upgrade would silently turn an idle screen into a background API
     /// consumer — 25 GitHub repos at the default 60s interval is ~3000
     /// requests/hour, ~60% of the 5000/hr authenticated rate limit.

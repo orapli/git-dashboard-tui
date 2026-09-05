@@ -294,6 +294,8 @@ pub fn load_home_row(path: &std::path::Path, members: &[Member]) -> Result<HomeR
         (None, None)
     };
     Ok(HomeRow {
+        fetched_at: chrono::Utc::now().timestamp(),
+        github: summary.remote_ci_pr.clone(),
         branch: summary.current_branch,
         ahead: summary.ahead,
         behind: summary.behind,
@@ -511,6 +513,7 @@ mod home_cache_tests {
             ci_status: Some("success".into()),
             op_state: GitOpState::None,
             conflicts: 0,
+            ..Default::default()
         }
     }
 

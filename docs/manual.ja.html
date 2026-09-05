@@ -203,7 +203,7 @@ footer a{color:var(--muted)}
 <tr><td class="k"><code>tech_rules.json</code></td><td>言語・フレームワークのバージョン検出ルール。</td></tr>
 <tr><td class="k"><code>cache/</code></td><td>ダッシュボード行とリポジトリ解析結果のキャッシュ。削除しても次回更新時に再生成されます。</td></tr>
 </tbody></table>
-<div class="aside">自動更新は既定でオフです。1周ごとにリポジトリ1つにつき GitHub API を叩くため、25リポジトリを60秒間隔にすると毎時およそ3000リクエスト — 認証済みレート制限の約60%になります。アップグレードで勝手に有効になるのではなく、明示的に選ぶべき設定という位置づけです。</div>
+<div class="aside">自動更新は既定でオフです。ローカルの再読み込みではリモートのGit参照をfetchしません。GitHub情報は5分間キャッシュし、取得失敗後は1分待って再試行します。Homeにはローカル取得時刻、リポジトリ全体の最新CI実行のブランチ、未認証・取得失敗・古いキャッシュを表示します。<kbd>C</kbd> でCI実行ページを開けます。PRを100件取得した場合は <code>100+</code> と表示します。</div>
 </section>
 <section id="trust">
 <h2>信頼できないリポジトリの扱い<a href="#trust" aria-label="link">#</a></h2>

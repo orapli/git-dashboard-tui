@@ -354,14 +354,16 @@ SECTIONS = [
                              "削除しても次回更新時に再生成されます。")),
             ]),
             ("note", t(
-                "Auto-refresh is off by default. Each cycle re-queries the GitHub API once per "
-                "repository, so 25 repositories on a 60-second interval is roughly 3000 requests "
-                "an hour — about 60% of the authenticated rate limit. Turning it on should be a "
-                "decision, not something an upgrade does to you.",
-                "自動更新は既定でオフです。1周ごとにリポジトリ1つにつき GitHub API を叩くため、"
-                "25リポジトリを60秒間隔にすると毎時およそ3000リクエスト — "
-                "認証済みレート制限の約60%になります。"
-                "アップグレードで勝手に有効になるのではなく、明示的に選ぶべき設定という位置づけです。")),
+                "Auto-refresh is off by default. Local reload does not fetch remote Git refs. "
+                "GitHub information is cached for five minutes, with a one-minute retry delay after failure. "
+                "Home shows the selected repository's local check time, latest repository-wide CI branch, "
+                "authentication/fetch state and stale cache. Press <kbd>C</kbd> to open its CI run. "
+                "PR counts of 100 or more are shown as <code>100+</code>.",
+                "自動更新は既定でオフです。ローカルの再読み込みではリモートのGit参照をfetchしません。"
+                "GitHub情報は5分間キャッシュし、取得失敗後は1分待って再試行します。"
+                "Homeにはローカル取得時刻、リポジトリ全体の最新CI実行のブランチ、未認証・取得失敗・"
+                "古いキャッシュを表示します。<kbd>C</kbd> でCI実行ページを開けます。"
+                "PRを100件取得した場合は <code>100+</code> と表示します。")),
         ],
     ),
     (

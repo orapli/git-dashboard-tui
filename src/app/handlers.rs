@@ -158,15 +158,16 @@ impl App {
 
         match self.screen {
             Screen::Home => {
-                // Row 2 is the column header: clicking one sorts by it, and
-                // clicking the active one again reverses the direction.
-                if row == 2 {
+                // Use the table bounds recorded by rendering: the summary
+                // and compact layouts put headers on different rows.
+                let (header_y, end_y) = self.home_table_bounds.get();
+                if row == header_y {
                     if let Some(col) = self.home_column_at(col) {
                         self.sort_by_column(col);
                     }
-                } else if row >= 3 {
+                } else if row > header_y && row < end_y {
                     // The table scrolls, so the top visible row is not index 0
-                    let row_idx = self.home_offset.get() + (row - 3) as usize;
+                    let row_idx = self.home_offset.get() + (row - header_y - 1) as usize;
                     let indices = self.filtered_home();
                     if row_idx < indices.len() {
                         if self.home_selected == row_idx {

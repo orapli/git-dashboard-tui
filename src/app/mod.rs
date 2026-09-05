@@ -1,6 +1,7 @@
 pub mod finder;
 pub mod handlers;
 pub mod helpers;
+pub mod home;
 pub mod types;
 pub mod worker;
 
@@ -55,6 +56,7 @@ pub struct App {
     /// First table row currently on screen, recorded by the renderer so a
     /// mouse click can be mapped back to a repository once the list scrolls.
     pub home_offset: std::cell::Cell<usize>,
+    pub home_table_bounds: std::cell::Cell<(u16, u16)>,
     /// Screen x-range of each Home table column header, recorded by the
     /// renderer. Click-to-sort hit-tests against these rather than recomputing
     /// the layout, so the two can never disagree about where a column is.
@@ -187,6 +189,7 @@ impl App {
             home_filter: String::new(),
             home_selected: 0,
             home_offset: std::cell::Cell::new(0),
+            home_table_bounds: std::cell::Cell::new((2, u16::MAX)),
             home_col_bounds: std::cell::RefCell::new(Vec::new()),
             list_viewport: std::cell::Cell::new(ListViewport::default()),
             tab_bounds: std::cell::RefCell::new(Vec::new()),
@@ -644,6 +647,7 @@ impl App {
                 pair("M", "members", "横断メンバー"),
                 pair("S", "search commits", "コミット検索"),
                 pair("n", "needs attention", "要対応"),
+                pair("C", "CI run", "CI実行"),
                 pair("o", "sort", "並替"),
                 pair("s", "settings", "設定"),
                 pair("?", "help", "ヘルプ"),
@@ -1109,6 +1113,7 @@ impl App {
 
     fn handle_home(&mut self, key: KeyEvent) {
         match key.code {
+            KeyCode::Char('C') => self.open_home_ci(),
             KeyCode::Esc if !self.home_filter.is_empty() => {
                 self.home_filter.clear();
                 self.home_selected = 0;

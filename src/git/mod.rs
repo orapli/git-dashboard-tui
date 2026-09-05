@@ -1,6 +1,7 @@
 pub mod contributors;
 pub mod diff;
 pub mod exec;
+pub mod github;
 pub mod log;
 pub mod ops;
 pub mod status;

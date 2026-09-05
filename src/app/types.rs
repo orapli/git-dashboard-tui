@@ -150,6 +150,8 @@ impl FocusPane {
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct HomeRow {
+    pub fetched_at: i64,
+    pub github: Option<crate::git::RemoteCiPrInfo>,
     pub branch: String,
     pub ahead: usize,
     pub behind: usize,

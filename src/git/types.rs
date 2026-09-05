@@ -293,8 +293,27 @@ pub struct WorktreeInfo {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+#[serde(default)]
 pub struct RemoteCiPrInfo {
+    pub ci_state: GithubState,
+    pub pr_state: GithubState,
+    pub ci_branch: Option<String>,
+    pub ci_fetched_at: i64,
+    pub pr_fetched_at: i64,
+    pub checked_at: i64,
     pub open_prs: Option<usize>,
     pub ci_status: Option<String>, // "success" | "failure" | "pending"
     pub last_run_url: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum GithubState {
+    #[default]
+    Unknown,
+    Ready,
+    NoRuns,
+    Unauthenticated,
+    Failed,
+    Unavailable,
+    Unsupported,
 }

@@ -814,6 +814,7 @@ fn sort_repo_indices_by_name_and_date() {
             ci_status: None,
             op_state: crate::git::GitOpState::None,
             conflicts: 0,
+            ..Default::default()
         },
     );
     rows.insert(
@@ -828,6 +829,7 @@ fn sort_repo_indices_by_name_and_date() {
             ci_status: None,
             op_state: crate::git::GitOpState::None,
             conflicts: 0,
+            ..Default::default()
         },
     );
     let mut idx = vec![0, 1];
@@ -852,6 +854,7 @@ fn home_row(
         ci_status: ci_status.map(str::to_string),
         op_state,
         conflicts,
+        ..Default::default()
     }
 }
 
