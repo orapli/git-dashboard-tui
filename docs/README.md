@@ -86,3 +86,8 @@ all images for a prose-only edit just to change their timestamps.
 OpenWiki is separate generated architecture context. Its workflow is manual-only;
 check `openwiki/.last-update.json` for the source commit and refresh via its workflow
 when needed. Do not hand-edit generated wiki pages.
+
+## Product evaluation
+
+- [v0.4.0 reassessment (Japanese)](product-reassessment.ja.md): improvements, release verification, evidence and remaining limitations.
+- [First-use study kit (Japanese)](usability-study.ja.md): tasks and recording sheet for a future participant study; no participant results yet.
