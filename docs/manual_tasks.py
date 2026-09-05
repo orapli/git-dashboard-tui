@@ -5,13 +5,13 @@ def sections(t):
     return [
         ("versions", t("Release or development version?", "リリース版と開発版"), [
             ("p", t(
-                'This manual follows <code>main</code>, including unreleased changes. The installer downloads the latest published release, even though the installer script comes from main. The first-run guide, detailed Home freshness context, O tool menu and W workspace were added after v0.3.1. See <a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">Unreleased in the changelog</a>. For an older version, read the README at its release tag.',
-                'このマニュアルは未リリースの変更を含む <code>main</code> を対象とします。インストーラのスクリプトはmainから取得しますが、導入するバイナリは最新リリースです。初回登録ガイド、Homeの詳細な取得状態、Oメニュー、W一覧はv0.3.1以降の開発版機能です。<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴のUnreleased</a>を参照してください。過去版の説明はそのリリースタグのREADMEで確認できます。')),
+                'This manual describes v0.4.0. The installer downloads the latest published release. First-run guidance, Home freshness context, the O tool menu, W workspace, untracked-file diffs and cancellable discovery are included in v0.4.0. See the <a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">changelog</a>. For older releases, read the README at the corresponding tag. Development main may contain later unreleased changes.',
+                'このマニュアルはv0.4.0を説明します。インストーラは最新の公開リリースを取得します。初回ガイド、Homeの取得状態、Oメニュー、W一覧、未追跡ファイルの差分、中止できる走査はv0.4.0に含まれます。<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴</a>を参照してください。過去版は対応タグのREADMEで確認できます。開発用mainにはその後の未リリース変更が含まれる場合があります。')),
             ("code", t(
                 'cargo install --git https://github.com/orapli/git-dashboard-tui --branch main --locked',
                 'cargo install --git https://github.com/orapli/git-dashboard-tui --branch main --locked')),
-            ("p", t('Building main requires Rust 1.88 or later and a native linker/toolchain. Pre-built release binaries do not require Rust. To pin a release with the installer, use <code>VERSION=v0.3.1 sh</code> in place of <code>sh</code>.',
-                    'mainのビルドにはRust 1.88以上とネイティブのリンカ・ビルド環境が必要です。配布バイナリにはRustは不要です。インストーラでバージョンを固定する場合は <code>sh</code> を <code>VERSION=v0.3.1 sh</code> に置き換えます。')),
+            ("p", t('Building main requires Rust 1.88 or later and a native linker/toolchain. Pre-built release binaries do not require Rust. To pin a release with the installer, use <code>VERSION=v0.4.0 sh</code> in place of <code>sh</code>.',
+                    'mainのビルドにはRust 1.88以上とネイティブのリンカ・ビルド環境が必要です。配布バイナリにはRustは不要です。インストーラでバージョンを固定する場合は <code>sh</code> を <code>VERSION=v0.4.0 sh</code> に置き換えます。')),
         ]),
         ("tasks", t("Task walkthroughs", "目的別の操作手順"), [
             ("cols", [

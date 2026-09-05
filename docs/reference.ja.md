@@ -1,6 +1,6 @@
 # 操作・設定リファレンス
 
-main の開発版を対象とします。[利用マニュアル](manual.ja.html) · [README](../README.ja.md)
+v0.4.0 を対象とします。[利用マニュアル](manual.ja.html) · [README](../README.ja.md)
 
 ## キーバインド
 

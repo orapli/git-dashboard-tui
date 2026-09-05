@@ -1,6 +1,6 @@
 # Keyboard and configuration reference
 
-Covers the development version on main. [User manual](manual.html) · [README](../README.md)
+Covers v0.4.0. [User manual](manual.html) · [README](../README.md)
 
 ## Keybindings
 

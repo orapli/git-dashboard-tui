@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-These entries describe development on `main`, not the latest release binary.
+No changes yet.
+
+## [0.4.0] - 2026-09-05
+
+A multi-repository workspace release with clearer status, tool launch and cancellable discovery.
 
 ### Added
 

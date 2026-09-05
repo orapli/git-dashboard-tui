@@ -76,11 +76,10 @@ all images for a prose-only edit just to change their timestamps.
    code blocks at desktop and narrow mobile widths.
 3. When changing tour assets, check the animation and the `prefers-reduced-motion`
    still image. Record the binary commit, OS and verification in the change description.
-4. Commit generated HTML with its source changes. The site and main README describe
-   development main; the installer fetches a release binary. Keep unreleased features
+4. Commit generated HTML with its source changes. The site and README state the version they describe; keep it aligned with the
+   published binary, and label features only on main as unreleased. Keep unreleased features
    under `Unreleased` in `CHANGELOG.md` and retain a visible version note on the site.
-5. At release time, move shipped changelog entries to the new version, adjust the
-   “after v0.3.1” feature notes to the actual shipping release, and confirm the published
+5. At release time, move shipped changelog entries to the new version, update the documented version to the actual shipping release, and confirm the published
    site matches the intended branch in GitHub Pages settings. A documentation commit
    alone does not create a release binary.
 
