@@ -331,9 +331,9 @@ SECTIONS = [
          ("p", t(
             "Press <kbd>W</kbd> on Home for a local worktree workspace. Each path appears once, "
             "even when both a parent and its linked worktree are registered. The table shows the first "
-            "registered parent, branch, dirty count, HEAD commit date and path. SSH entries are skipped and counted.",
+            "registered parent, branch, dirty count, HEAD commit date and directory name; the selected row’s full path appears below. SSH entries are skipped and counted.",
             "Homeの <kbd>W</kbd> でローカルWorktreeを横断表示します。親リポジトリとそのWorktreeを両方登録しても"
-            "同じパスは1行です。最初に登録された親、ブランチ、未コミット数、HEADのコミット日時、パスを表示し、"
+            "同じパスは1行です。最初に登録された親、ブランチ、未コミット数、HEADのコミット日時、ディレクトリ名を表示し、選択行のフルパスは詳細欄で確認できます。"
             "SSHは対象外として件数を示します。")),
          ("p", t(
             "Use <kbd>/</kbd> to search paths, branches and purpose notes. <kbd>m</kbd> edits your note; "

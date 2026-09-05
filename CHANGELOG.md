@@ -32,6 +32,7 @@ These entries describe development on `main`, not the latest release binary.
 
 ### Changed
 
+- Show distinct Worktree directory names in the cross-repository table while keeping the full selected path in its detail panel.
 - Shortened READMEs; moved complete keyboard/configuration tables to `docs/reference*.md`.
 - Declared Rust 1.88 as the minimum supported version and added an MSRV CI check.
   The previous Rust 1.85 claim did not match current language features and locked dependencies.

@@ -291,7 +291,10 @@ fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             r.branch.clone(),
             r.dirty.map(|n| n.to_string()).unwrap_or_else(|| "?".into()),
             r.last_commit.chars().take(16).collect(),
-            r.path.display().to_string(),
+            r.path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| r.path.display().to_string()),
             note.note,
         ])
         .style(Style::default().fg(if r.error.is_some() {
@@ -3073,6 +3076,29 @@ pub(crate) mod tests {
             .iter()
             .map(|cell| cell.symbol())
             .collect()
+    }
+
+    #[test]
+    fn workspace_names_remain_distinct_under_a_long_common_parent() {
+        let mut app = App::new();
+        app.screen = Screen::Workspace;
+        for name in ["review-one", "review-two"] {
+            app.workspace.rows.push(crate::app::WorkspaceRow {
+                parent: "project".into(),
+                path: format!("/very/long/shared/workspace/project/{name}").into(),
+                branch: "main".into(),
+                dirty: Some(0),
+                last_commit: String::new(),
+                checked_at: 1,
+                locked: false,
+                prunable: false,
+                error: None,
+            });
+        }
+        let text = render_to_text(&app, 120, 30);
+        assert!(text.contains("review-one"));
+        assert!(text.contains("review-two"));
+        assert!(text.contains("/very/long/shared/workspace/project/review-one"));
     }
 
     #[test]
