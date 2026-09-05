@@ -2,7 +2,7 @@
 
 # 🚀 git-dashboard-tui
 
-**Watch every repository you own from one terminal — without touching a single one of them.**
+**Find your next task across repositories, from one terminal.**
 
 [![CI](https://github.com/orapli/git-dashboard-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/orapli/git-dashboard-tui/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-14B8A6)](LICENSE)
@@ -11,14 +11,19 @@
 
 [Quick start](#quick-start) · [User manual](https://orapli.github.io/git-dashboard-tui/manual.html) · [Keybindings](#keybindings) · [日本語 README](README.ja.md)
 
-<img src="docs/img/home.svg" alt="The dashboard: five repositories with their branch, sync state, uncommitted changes and last commit" width="100%">
-
 </div>
 
-git-dashboard-tui is a **read-only, multi-repository Git dashboard** for the terminal.
-Point it at a dozen repositories and see, in one screen, which are dirty, which are behind,
-which have a failing CI run, and which someone left mid-rebase. Then jump into a shell,
-a diff, or a commit — and do the actual work with whatever tool you already use.
+git-dashboard-tui brings **uncommitted changes, sync state, and failing CI runs** into
+one multi-repository dashboard. Start your day or return to a project: find the
+repository that needs you, inspect its diff, and open a shell there.
+
+**A 30-second walkthrough:** scan a folder → focus on a conflict → inspect the diff → open a shell.
+The demo uses synthetic local repositories and the running application.
+
+<img src="docs/img/quick-tour.svg" alt="Four steps: import repositories with A, filter with n, inspect a diff, and open a shell with t" width="100%">
+
+Viewing status is observation-first. Explicit `pull`, `fetch`, `stash apply`, and
+`stash drop` actions can change repositories; `pull` follows your Git configuration.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh
@@ -32,19 +37,7 @@ installer picks the right binary for your platform and verifies its checksum. Se
 [Installation](#installation) for Windows, other options, and how to review the script
 before running it.
 
-Press `a` to add a repository, or `A` to scan a folder and import every Git repo under it.
-
-```text
- Repositories   git-dashboard-tui
-┌Repositories (4/4) [Group: All] updated ↓───────────────────────────────────────────────────────────────────────────┐
-│  Name                       Branch                         Sync       Dirty    Updated            Path             │
-│▸ [frontend] web-frontend    main ⚠MERGE ⚠1conflict         ↑0 ↓0      1        2026-08-26 06:39   /work/web-front… │
-│  [backend] billing-service  main                           ↑0 ↓0      1        2026-08-26 06:37   /work/billing-s… │
-│  [backend] api-gateway      main                           ↑0 ↓0      0        2026-08-26 06:35   /work/api-gatew… │
-│  [infra] infra-terraform    main                           ↑0 ↓0      0        2026-08-26 06:35   /work/infra-ter… │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-j/k move  enter open  [/] group  / filter  t shell  P/F pull/fetch all  M members  S search commits  n needs attention
-```
+Press `A`, enter a work folder, then select repositories to import. Use `a` to add one repository.
 
 ## Who this helps
 
@@ -79,16 +72,15 @@ treat repository content as untrusted:
   terminator, so a host is accepted only if it can't be read as a flag.
 - **It runs entirely locally.** No telemetry and no external service. The only network
   traffic is Git talking to your own remotes, plus `gh` if you have it installed.
-- **It won't rewrite your history, because it can't.** The only write operations that
-  exist are `pull`, `fetch`, `stash apply`, and `stash drop` (see
-  [Scope](#scope-what-this-tool-does-not-do)).
+- **Repository changes are explicit actions.** The available Git write operations are `pull`, `fetch`, `stash apply`, and `stash drop` (see
+  [Scope](#scope-what-this-tool-does-not-do)). `pull` can merge or rebase according to your Git configuration.
 
 See [SECURITY.md](SECURITY.md) for the threat model and how to report an issue.
 
 ## Scope: what this tool does *not* do
 
 git-dashboard-tui is deliberately **observation-first**. There is no staging, committing,
-branching, checkout, merge, rebase, cherry-pick, or push. When you want to change
+branch creation, checkout, standalone merge/rebase, cherry-pick, or push. When you want to change
 something, press `t` to drop into `$SHELL` in that repository — or `c` in Settings to wire
 up an external diff tool — and use whatever you already use.
 
@@ -227,11 +219,14 @@ git-dashboard-tui
 
 Then:
 
-1. `a` — add one repository by path (`Tab` autocompletes)
-2. `A` — or scan a whole folder and batch-import every Git repo under it
+1. `A` — scan your work folder, select repositories, then press `Enter` to register
+2. `a` — or add one repository by path (`Tab` autocompletes)
 3. `Enter` — open a repository; `1`–`7` switch tabs
 4. `t` — drop into `$SHELL` there when you want to actually change something
 5. `?` — the full keybinding help, in-app and context-aware
+
+After your first registration, a short guide introduces `n`, `Enter`, `t`, and `?`.
+Press `Esc` on Home to dismiss it. Use `n` to show repositories needing attention.
 
 ## Keybindings
 
@@ -427,3 +422,5 @@ the git execution boundary, or the diff pipeline.
 ## License
 
 [MIT](LICENSE)
+
+For an isolated configuration (for example a demo), set `GIT_DASHBOARD_CONFIG_DIR` to an absolute directory path.

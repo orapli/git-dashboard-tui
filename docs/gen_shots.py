@@ -18,6 +18,7 @@ Requires `pyte` (pip install pyte). Build the binary first.
 from __future__ import annotations
 
 import argparse
+import codecs
 import fcntl
 import json
 import os
@@ -43,8 +44,8 @@ except ImportError:  # pragma: no cover - a setup problem, not a code path
 DEFAULT_BG = "1e1e2e"
 DEFAULT_FG = "cdd6f4"
 
-# 0.6 em is the advance of every mainstream monospace face, so ASCII runs need
-# no per-glyph correction; double-width glyphs are placed individually.
+# Keep the terminal cell grid stable across browser font fallbacks.
+# SVG textLength below also constrains box-drawing characters to their cells.
 FONT_SIZE = 15.0
 CELL_W = FONT_SIZE * 0.6
 CELL_H = FONT_SIZE * 1.32
@@ -86,19 +87,20 @@ def resolve(colour: str, default: str) -> str:
 class Session:
     """A live TUI in a pty, driven key by key."""
 
-    def __init__(self, binary: Path, home: Path, cols: int, rows: int):
+    def __init__(self, binary: Path, home: Path, cols: int, rows: int, extra_env=None):
         self.cols, self.rows = cols, rows
         self.screen = pyte.Screen(cols, rows)
         self.stream = pyte.Stream(self.screen)
+        self.decoder = codecs.getincrementaldecoder("utf-8")("replace")
         env = dict(
             os.environ,
-            HOME=str(home),
-            XDG_CONFIG_HOME=str(home / ".config"),
+            GIT_DASHBOARD_CONFIG_DIR=str(home / ".config" / "git-dashboard"),
             TERM="xterm-256color",
             COLORTERM="truecolor",
             COLUMNS=str(cols),
             LINES=str(rows),
         )
+        env.update(extra_env or {})
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
             os.execve(str(binary), [str(binary)], env)
@@ -120,7 +122,7 @@ class Session:
                 return
             if not data:
                 return
-            self.stream.feed(data.decode("utf-8", "replace"))
+            self.stream.feed(self.decoder.decode(data))
 
     def send(self, keys: str, wait: float = 0.7) -> None:
         os.write(self.fd, keys.encode())
@@ -143,10 +145,17 @@ class Session:
         except OSError:
             pass
         try:
-            os.waitpid(self.pid, 0)
-            os.close(self.fd)
+            # macOS can defer reaping a pty child; never hang the generator
+            # after all frames have already been captured.
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline:
+                if os.waitpid(self.pid, os.WNOHANG)[0]:
+                    break
+                time.sleep(0.05)
         except OSError:
             pass
+        finally:
+            os.close(self.fd)
 
     # -- rendering ------------------------------------------------------
     def to_svg(self, title: str) -> str:
@@ -231,13 +240,15 @@ class Session:
                     for c in run:
                         out.append(
                             f'<text x="{PAD + col * CELL_W:.2f}" y="{base:.2f}" '
-                            f'fill="#{fg}"{weight}>{xml_escape(c)}</text>'
+                            f'fill="#{fg}"{weight} textLength="{char_width(c) * CELL_W:.2f}" '
+                            f'lengthAdjust="spacingAndGlyphs">{xml_escape(c)}</text>'
                         )
                         col += char_width(c)
                 else:
                     out.append(
                         f'<text x="{PAD + run_start * CELL_W:.2f}" y="{base:.2f}" '
-                        f'fill="#{fg}"{weight} xml:space="preserve">'
+                        f'fill="#{fg}"{weight} textLength="{(x - run_start) * CELL_W:.2f}" '
+                        f'lengthAdjust="spacingAndGlyphs" xml:space="preserve">'
                         f"{xml_escape(''.join(run))}</text>"
                     )
         out.append("</svg>")

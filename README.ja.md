@@ -2,7 +2,7 @@
 
 # 🚀 git-dashboard-tui
 
-**手元のすべてのリポジトリを、1つのターミナルから — どれ一つ触ることなく。**
+**散らばったリポジトリから、次に取りかかる場所が見える。**
 
 [![CI](https://github.com/orapli/git-dashboard-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/orapli/git-dashboard-tui/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-14B8A6)](LICENSE)
@@ -11,14 +11,19 @@
 
 [クイックスタート](#クイックスタート) · [ユーザーマニュアル](https://orapli.github.io/git-dashboard-tui/manual.ja.html) · [キーバインド](#キーバインド) · [English README](README.md)
 
-<img src="docs/img/home.ja.svg" alt="ダッシュボード: 5つのリポジトリのブランチ・同期状態・未コミット・最終コミットを一覧" width="100%">
-
 </div>
 
-git-dashboard-tui は、ターミナル向けの**読み取り専用マルチリポジトリ Git ダッシュボード**です。
-十数個のリポジトリを登録すれば、どれが未コミットで、どれが遅れていて、どれの CI が落ちていて、
-どれが rebase の途中で放置されているかが 1 画面で分かります。そこからシェル・差分・コミットへ
-飛んで、実際の作業は普段お使いのツールで行ってください。
+git-dashboard-tui は、**未コミットの変更・同期状態・CI の失敗**をひとつの画面で確認できる
+マルチリポジトリ Git ダッシュボードです。朝の作業開始や、別の案件に戻るときに、
+気になるリポジトリを見つけて差分を確認し、その場からシェルへ移動できます。
+
+**30秒で見る使い方:** フォルダを一括登録 → コンフリクトを見つける → 差分を確認 → シェルで作業。
+デモは架空のローカルリポジトリを使い、実際のアプリから取得しています。
+
+<img src="docs/img/quick-tour.ja.svg" alt="Aで一括登録、nで要対応を抽出、差分を確認、tでシェルへ移動する4ステップ" width="100%">
+
+状態確認を中心としたツールです。明示的に実行する `pull`・`fetch`・`stash apply`・`stash drop` は
+リポジトリを変更します。`pull` は利用者の Git 設定に従って動作します。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh
@@ -31,19 +36,7 @@ git-dashboard-tui
 チェックサムを検証したうえで導入します。Windows やその他の方法、スクリプトを事前に確認する手順は
 [インストール](#インストール)を参照してください。
 
-`a` でリポジトリを追加、`A` でフォルダを走査して配下の Git リポジトリを一括取り込みします。
-
-```text
- Repositories   git-dashboard-tui
-┌Repositories (4/4) [Group: All] updated ↓───────────────────────────────────────────────────────────────────────────┐
-│  Name                       Branch                         Sync       Dirty    Updated            Path             │
-│▸ [frontend] web-frontend    main ⚠MERGE ⚠1conflict         ↑0 ↓0      1        2026-08-26 06:39   /work/web-front… │
-│  [backend] billing-service  main                           ↑0 ↓0      1        2026-08-26 06:37   /work/billing-s… │
-│  [backend] api-gateway      main                           ↑0 ↓0      0        2026-08-26 06:35   /work/api-gatew… │
-│  [infra] infra-terraform    main                           ↑0 ↓0      0        2026-08-26 06:35   /work/infra-ter… │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-j/k move  enter open  [/] group  / filter  t shell  P/F pull/fetch all  M members  S search commits  n needs attention
-```
+`A` で作業フォルダを入力し、検出したリポジトリを選んで一括登録します。1件だけ追加する場合は `a` を使います。
 
 ## こんな人に効きます
 
@@ -77,15 +70,16 @@ j/k move  enter open  [/] group  / filter  t shell  P/F pull/fetch all  M member
   フラグとして解釈されうるホストは受け付けません。
 - **完全にローカルで動作します。** テレメトリも外部サービスもありません。通信は git が自分の
   リモートと話す分と、インストールされていれば `gh` の分だけです。
-- **履歴を書き換えません。そもそも機能がありません。** 書き込み系は `pull` / `fetch` /
-  `stash apply` / `stash drop` のみです（[スコープ](#スコープ-このツールがやらないこと)参照）。
+- **リポジトリの変更は明示的な操作で行います。** 書き込み系は `pull` / `fetch` /
+  `stash apply` / `stash drop` です。`pull` は Git 設定に応じて merge / rebase を行う場合があります
+  （[スコープ](#スコープ-このツールがやらないこと)参照）。
 
 脅威モデルと報告方法は [SECURITY.md](SECURITY.md) を参照してください。
 
 ## スコープ: このツールが「やらないこと」
 
-git-dashboard-tui は意図的に**観測専用**です。ステージング・コミット・ブランチ作成・checkout・
-merge・rebase・cherry-pick・push はありません。何かを変更したくなったら `t` でそのリポジトリの
+git-dashboard-tui は**状態確認を中心に設計**しています。ステージング・コミット・ブランチ作成・checkout・
+単独の merge・rebase・cherry-pick・push はありません。何かを変更したくなったら `t` でそのリポジトリの
 `$SHELL` に降りるか、Settings の `c` で外部 diff ツールを設定し、普段お使いのツールで作業して
 ください。
 
@@ -223,11 +217,14 @@ git-dashboard-tui
 
 そのあとは:
 
-1. `a` — パスを指定してリポジトリを 1 つ追加（`Tab` で補完）
-2. `A` — またはフォルダを走査して配下の Git リポジトリを一括取り込み
+1. `A` — 作業フォルダを走査し、リポジトリを選んで `Enter` で一括登録
+2. `a` — またはパスを指定して 1 件だけ追加（`Tab` で補完）
 3. `Enter` — リポジトリを開く。`1`〜`7` でタブ切り替え
 4. `t` — 実際に何か変更したくなったら `$SHELL` に降りる
 5. `?` — 画面ごとのキーバインドヘルプ
+
+初回登録後は `n`・`Enter`・`t`・`?` の短い案内が表示されます。Home で `Esc` を押すと閉じます。
+`n` で要対応のリポジトリだけに絞り込めます。
 
 ## キーバインド
 
@@ -256,7 +253,7 @@ git-dashboard-tui
 | `a` / `A` | パス指定で追加 / **Repository Finder**（フォルダ走査）を起動 |
 | `d` | 選択したリポジトリを削除 |
 | `e` | 表示名を変更 |
-| `o` | ソート順を切替 — 名前・ブランチ・同期・変更数・更新日時の各↑↓。ソート中の列はヘッダに ▲ / ▼ で表示され、クリックでも切替可能 |
+| `o` | ソート順を切替 — 名前・ブランチ・同期・変更数・最終コミット日時の各↑↓。ソート中の列はヘッダに ▲ / ▼ で表示され、クリックでも切替可能 |
 | `[` / `]` | グループフィルタを切替 |
 | `n` | **要対応フィルタ**（CI 失敗 / コンフリクト / 中断中の操作）の切替 |
 | `S` | **リポジトリ横断コミット検索** |
@@ -421,3 +418,5 @@ src/
 ## ライセンス
 
 [MIT](LICENSE)
+
+デモなどで設定を分離する場合は、`GIT_DASHBOARD_CONFIG_DIR` に設定先ディレクトリの絶対パスを指定できます。

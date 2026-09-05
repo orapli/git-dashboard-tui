@@ -57,6 +57,9 @@ pub fn get_config_dir() -> PathBuf {
 
 #[cfg(not(test))]
 pub fn get_config_dir() -> PathBuf {
+    if let Some(path) = std::env::var_os("GIT_DASHBOARD_CONFIG_DIR").filter(|p| !p.is_empty()) {
+        return PathBuf::from(path);
+    }
     if let Some(proj_dirs) = ProjectDirs::from("com", "git-dashboard", "git-dashboard") {
         let path = proj_dirs.config_dir();
         if !path.exists() {
@@ -175,6 +178,7 @@ pub enum Language {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct Preferences {
+    pub onboarding_dismissed: bool,
     pub theme: String,
     pub language: Language,
     pub sidebar_collapsed: bool,
@@ -222,6 +226,7 @@ fn default_auto_refresh_secs() -> u64 {
 impl Default for Preferences {
     fn default() -> Self {
         Self {
+            onboarding_dismissed: false,
             theme: crate::colors::THEME_MOCHA.to_string(),
             language: Language::English,
             sidebar_collapsed: false,

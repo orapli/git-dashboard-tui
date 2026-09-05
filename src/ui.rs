@@ -237,14 +237,22 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             )),
             Line::from(Span::styled(
                 app.tt(
-                    "Press a  and enter a path  (e.g. ~/work/my-repo)",
-                    "a を押してパスを入力  (例: ~/work/my-repo)",
+                    "A  Add repositories from a folder (e.g. ~/work)",
+                    "A  作業フォルダからまとめて追加 (例: ~/work)",
                 ),
+                Style::default().fg(pal.accent),
+            )),
+            Line::from(Span::styled(
+                app.tt("a  Add a single repository", "a  リポジトリを1件だけ追加"),
                 Style::default().fg(pal.subtext),
+            )),
+            Line::from(app.tt(
+                "Choose a folder, select repositories, then press Enter to register.",
+                "フォルダを指定し、検出したリポジトリを選んで Enter で登録します。",
             )),
         ];
         frame.render_widget(
-            Paragraph::new(body).block(
+            Paragraph::new(body).wrap(Wrap { trim: false }).block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(pal.border))
@@ -254,6 +262,29 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         );
         return;
     }
+
+    let area = if app.onboarding_visible && area.height >= 12 && area.width >= 54 {
+        let parts = Layout::vertical([Constraint::Min(6), Constraint::Length(4)]).split(area);
+        frame.render_widget(
+            Paragraph::new(vec![
+                Line::from(app.tt(
+                    "n  Needs attention    Enter  Details",
+                    "n  要対応だけ見る    Enter  詳細",
+                )),
+                Line::from(app.tt(
+                    "t  Open shell    ?  Help    Esc  Dismiss guide",
+                    "t  シェルで作業    ?  ヘルプ    Esc  案内を閉じる",
+                )),
+            ])
+            .wrap(Wrap { trim: false })
+            .block(Block::bordered().title(app.tt("Start here", "まずはこの4つから")))
+            .style(Style::default().fg(pal.accent)),
+            parts[1],
+        );
+        parts[0]
+    } else {
+        area
+    };
 
     let indices = app.filtered_home();
     // The sorted column carries the direction marker, so the current sort is
@@ -269,7 +300,7 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         app.tt("Branch", "ブランチ"),
         app.tt("Sync", "同期"),
         app.tt("Dirty", "未コミット"),
-        app.tt("Updated", "更新"),
+        app.tt("Last commit", "最終コミット"),
         app.tt("Path", "パス"),
     ];
     let header_cells: Vec<Cell> = labels
@@ -3262,7 +3293,7 @@ mod sort_tests {
             ("Branch", 1),
             ("Sync", 2),
             ("Dirty", 3),
-            ("Updated", 4),
+            ("Last commit", 4),
         ] {
             let found = super::commit_click_tests::column_of(&header, label)
                 .unwrap_or_else(|| panic!("header {label:?} not rendered in: {header:?}"));
@@ -3825,6 +3856,25 @@ mod width_tests {
         app
     }
 
+    #[test]
+    fn onboarding_keeps_all_actions_visible_or_yields_to_the_table() {
+        for lang in [Language::English, Language::Japanese] {
+            let mut a = app(lang);
+            a.onboarding_visible = true;
+            let title = a.tt("Start here", "まずはこの4つから");
+            let text = render_to_text(&a, 110, 24);
+            assert!(frame_contains(&text, &title));
+            for key in ["Enter", "Esc", "?"] {
+                assert!(text.contains(key), "{text}");
+            }
+            for (width, height) in [(40, 24), (110, 10)] {
+                let text = render_to_text(&a, width, height);
+                assert!(!frame_contains(&text, &title), "{text}");
+                assert!(text.contains("alph"), "{text}");
+            }
+        }
+    }
+
     /// `未コミット` is 10 columns and the Dirty cell was a fixed 8, so the
     /// header rendered as `未コミッ` — a truncated word, with no ellipsis to
     /// say so.
@@ -3839,10 +3889,10 @@ mod width_tests {
                 "未コミット",
                 "Branch",
                 "ブランチ",
-                "Updated",
-                "更新",
+                "Last commit",
+                "最終コミット",
             ] {
-                let expected_in_this_lang = (lang == Language::Japanese) == !label.is_ascii();
+                let expected_in_this_lang = (lang == Language::Japanese) != label.is_ascii();
                 if !expected_in_this_lang {
                     continue;
                 }

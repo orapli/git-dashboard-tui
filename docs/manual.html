@@ -92,7 +92,7 @@ footer a{color:var(--muted)}
 <body>
 <header class="top"><div class="wrap">
 <h1>git-dashboard-tui <span class="dim">— User Manual</span></h1>
-<p class="tagline">A read-only terminal dashboard for every repository you have checked out.</p>
+<p class="tagline">Find your next task across repositories, from one terminal.</p>
 <div class="langbar">
 <a class="on" href="#">English</a>
 <a href="manual.ja.html">日本語</a>
@@ -116,7 +116,7 @@ footer a{color:var(--muted)}
 <section id="what">
 <h2>What this is<a href="#what" aria-label="link">#</a></h2>
 <p>A terminal dashboard for the repositories you already have checked out. It answers the question you ask before you start work — which of these has uncommitted changes, which is behind, which did I leave half-way through a merge — without cd-ing through a dozen directories.</p>
-<p>It is deliberately read-only about your history. It will fetch and pull, because those do not rewrite anything you have. It will not stage, commit, branch, checkout or push. That boundary is the point: you can leave it open next to your editor and never wonder whether it did something to your tree.</p>
+<p>Status viewing is observation-first. Explicit pull, fetch, stash apply and stash drop actions can change repositories. Pull follows your Git configuration and may merge or rebase. Use your usual tools for staging, committing and pushing.</p>
 <figure><img src="img/home.svg" loading="lazy" alt="Five repositories. api-gateway is clean, billing-service has two uncommitted changes, infra-terraform is two commits beh"><figcaption>Five repositories. api-gateway is clean, billing-service has two uncommitted changes, infra-terraform is two commits behind its upstream, and web-frontend was left in the middle of a merge with one unresolved conflict.</figcaption></figure>
 </section>
 <section id="install">
@@ -128,7 +128,8 @@ footer a{color:var(--muted)}
 </section>
 <section id="first-run">
 <h2>First run<a href="#first-run" aria-label="link">#</a></h2>
-<p>Start it with no arguments. The first screen is empty because nothing is registered yet: press <kbd>a</kbd> and type a path, or press <kbd>A</kbd> to scan a folder and pick out every git repository under it at once.</p>
+<p>Start it with no arguments. Press <kbd>A</kbd>, enter the folder to scan, then select repositories and register them with <kbd>Enter</kbd>. An empty path or <kbd>Esc</kbd> cancels the scan. Use <kbd>a</kbd> to add one repository.</p>
+<p>After registration, a short guide introduces <kbd>n</kbd> (needs attention), <kbd>Enter</kbd> (details), <kbd>t</kbd> (shell), and <kbd>?</kbd> (help). Dismiss it with <kbd>Esc</kbd>; it stays dismissed on subsequent launches.</p>
 <p>Rows fill in as each repository is analysed, and the result is cached — so the next launch shows the dashboard populated straight away rather than a screen of placeholders while it re-reads everything.</p>
 <figure><img src="img/progress.svg" loading="lazy" alt="Work in flight. The repository being refreshed shows a spinner in place of the value about to change, and the title bar "><figcaption>Work in flight. The repository being refreshed shows a spinner in place of the value about to change, and the title bar counts the jobs still running — from any screen, since work started here keeps going while you look elsewhere.</figcaption></figure>
 </section>
@@ -140,7 +141,7 @@ footer a{color:var(--muted)}
 <tr><td class="k"><code>Branch</code></td><td>Current branch, followed by badges: <b class='red'>⚠MERGE</b>, <b class='red'>⚠REBASE</b>, <b class='red'>⚠CHERRY-PICK</b> or <b class='red'>⚠REVERT</b> when an operation was left unfinished, and a conflict count. Badges are drawn first so they survive if the column is too narrow for everything.</td></tr>
 <tr><td class="k"><code>Sync</code></td><td>Commits ahead of and behind the upstream, <b class='yellow'>yellow</b> when either is non-zero. Replaced by a spinner while a pull or fetch runs.</td></tr>
 <tr><td class="k"><code>Dirty</code></td><td>Uncommitted changes — <b class='green'>green</b> at zero, <b class='red'>red</b> otherwise.</td></tr>
-<tr><td class="k"><code>Updated</code></td><td>Date of the most recent commit across all refs.</td></tr>
+<tr><td class="k"><code>Last commit</code></td><td>Date of the most recent commit across all refs.</td></tr>
 <tr><td class="k"><code>PR / CI</code></td><td>Open pull requests and the latest CI conclusion, for repositories with a GitHub remote and an authenticated <code>gh</code>. A failing, cancelled, timed-out or action-required run counts as needing attention.</td></tr>
 </tbody></table>
 <figure><img src="img/home-attention.svg" loading="lazy" alt="&lt;kbd&gt;n&lt;/kbd&gt; narrows the list to what actually needs a response: a failing CI run, an unresolved conflict, or an interru"><figcaption><kbd>n</kbd> narrows the list to what actually needs a response: a failing CI run, an unresolved conflict, or an interrupted operation. Uncommitted changes and being behind are normal working state, so they are deliberately not included.</figcaption></figure>

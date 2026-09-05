@@ -92,7 +92,7 @@ footer a{color:var(--muted)}
 <body>
 <header class="top"><div class="wrap">
 <h1>git-dashboard-tui <span class="dim">— ユーザーマニュアル</span></h1>
-<p class="tagline">手元の全リポジトリを一望する、読み取り専用のターミナルダッシュボード。</p>
+<p class="tagline">散らばったリポジトリから、次に取りかかる場所が見える。</p>
 <div class="langbar">
 <a class="on" href="#">日本語</a>
 <a href="manual.html">English</a>
@@ -116,7 +116,7 @@ footer a{color:var(--muted)}
 <section id="what">
 <h2>これは何か<a href="#what" aria-label="link">#</a></h2>
 <p>手元にチェックアウト済みのリポジトリを一覧するターミナルダッシュボードです。作業を始める前に知りたいこと — どれに未コミットの変更があるか、どれが遅れているか、どれを merge の途中で放置したか — を、ディレクトリを渡り歩かずに把握するためのものです。</p>
-<p>履歴に対しては意図的に読み取り専用です。fetch と pull は行います（手元のものを書き換えないため）が、stage・commit・branch・checkout・push は行いません。この線引きが本ツールの性格です。エディタの横に開きっぱなしにしても、作業ツリーに何かされたかを心配せずに済みます。</p>
+<p>状態確認を中心としたツールです。明示的に実行する pull・fetch・stash apply・stash drop はリポジトリを変更します。pull は Git 設定に従って merge / rebase を行う場合があります。ステージング・コミット・push は普段のツールで行ってください。</p>
 <figure><img src="img/home.ja.svg" loading="lazy" alt="5つのリポジトリ。api-gateway はクリーン、billing-service に未コミットが2件、infra-terraform は upstream から2コミット遅れ、web-frontend は merge 途中で未解決のコン"><figcaption>5つのリポジトリ。api-gateway はクリーン、billing-service に未コミットが2件、infra-terraform は upstream から2コミット遅れ、web-frontend は merge 途中で未解決のコンフリクトが1件残っています。</figcaption></figure>
 </section>
 <section id="install">
@@ -128,7 +128,8 @@ footer a{color:var(--muted)}
 </section>
 <section id="first-run">
 <h2>最初の起動<a href="#first-run" aria-label="link">#</a></h2>
-<p>引数なしで起動します。最初は何も登録されていないので空の画面が出ます。<kbd>a</kbd> でパスを入力するか、<kbd>A</kbd> でフォルダを走査して配下の git リポジトリをまとめて登録してください。</p>
+<p>引数なしで起動し、<kbd>A</kbd> で走査するフォルダを入力します。検出一覧でリポジトリを選び、<kbd>Enter</kbd> でまとめて登録します。空入力または <kbd>Esc</kbd> で走査を取り消せます。1件だけ追加する場合は <kbd>a</kbd> を使います。</p>
+<p>登録後の案内には <kbd>n</kbd>（要対応）、<kbd>Enter</kbd>（詳細）、<kbd>t</kbd>（シェル）、<kbd>?</kbd>（ヘルプ）を表示します。<kbd>Esc</kbd> で閉じると、次回からは表示しません。</p>
 <p>各リポジトリの解析が終わるごとに行が埋まり、結果はキャッシュされます。そのため次回の起動では、読み直しを待つ間の空欄ではなく、前回の内容が即座に表示されます。</p>
 <figure><img src="img/progress.ja.svg" loading="lazy" alt="処理中の様子。更新中のリポジトリは、これから変わる値の位置にスピナーを表示し、タイトルバーには残りジョブ数が出ます。ここで始めた処理は別の画面に移っても続くため、この表示は全画面共通です。"><figcaption>処理中の様子。更新中のリポジトリは、これから変わる値の位置にスピナーを表示し、タイトルバーには残りジョブ数が出ます。ここで始めた処理は別の画面に移っても続くため、この表示は全画面共通です。</figcaption></figure>
 </section>
@@ -140,7 +141,7 @@ footer a{color:var(--muted)}
 <tr><td class="k"><code>ブランチ</code></td><td>現在のブランチと、その後に付くバッジ。操作が中断されたままの場合に <b class='red'>⚠MERGE</b> / <b class='red'>⚠REBASE</b> / <b class='red'>⚠CHERRY-PICK</b> / <b class='red'>⚠REVERT</b> と、コンフリクト件数が出ます。列幅が足りない場合でも残るよう、バッジを先に描画しています。</td></tr>
 <tr><td class="k"><code>同期</code></td><td>upstream に対する先行・遅れのコミット数。どちらかが 0 でなければ<b class='yellow'>黄色</b>になります。pull / fetch 実行中はスピナーに変わります。</td></tr>
 <tr><td class="k"><code>未コミット</code></td><td>未コミットの変更数。0 なら<b class='green'>緑</b>、それ以外は<b class='red'>赤</b>。</td></tr>
-<tr><td class="k"><code>更新</code></td><td>全 ref のうち最新コミットの日時。</td></tr>
+<tr><td class="k"><code>最終コミット</code></td><td>全 ref のうち最新コミットの日時。</td></tr>
 <tr><td class="k"><code>PR / CI</code></td><td>GitHub リモートがあり <code>gh</code> が認証済みの場合の、オープン中の PR 数と最新の CI 結果。failure / cancelled / timed_out / action_required は「要対応」として扱われます。</td></tr>
 </tbody></table>
 <figure><img src="img/home-attention.ja.svg" loading="lazy" alt="&lt;kbd&gt;n&lt;/kbd&gt; で「本当に対応が要るもの」だけに絞り込みます — CI 失敗、未解決のコンフリクト、中断された操作。未コミットや遅れは通常の作業状態なので、意図的に含めていません。"><figcaption><kbd>n</kbd> で「本当に対応が要るもの」だけに絞り込みます — CI 失敗、未解決のコンフリクト、中断された操作。未コミットや遅れは通常の作業状態なので、意図的に含めていません。</figcaption></figure>

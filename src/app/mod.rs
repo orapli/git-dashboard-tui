@@ -116,6 +116,7 @@ pub struct App {
     /// Home filter: only repos with a failing CI run, an unresolved conflict,
     /// or a merge/rebase/etc. left mid-operation. Toggled with `n`.
     pub attention_only: bool,
+    pub onboarding_visible: bool,
     pub repo_finder: Option<RepoFinderState>,
     pub path_completions: Vec<String>,
     pub path_completion_idx: usize,
@@ -224,6 +225,7 @@ impl App {
             log: None,
             active_only: false,
             attention_only: false,
+            onboarding_visible: false,
             repo_finder: None,
             path_completions: Vec::new(),
             path_completion_idx: 0,
@@ -489,15 +491,15 @@ impl App {
         match self.prefs.repo_sort {
             SORT_NAME_ASC => self.tt("name ↑", "名前 ↑"),
             SORT_NAME_DESC => self.tt("name ↓", "名前 ↓"),
-            SORT_UPDATED_DESC => self.tt("updated ↓", "更新 ↓"),
-            SORT_UPDATED_ASC => self.tt("updated ↑", "更新 ↑"),
+            SORT_UPDATED_DESC => self.tt("last commit ↓", "最終コミット ↓"),
+            SORT_UPDATED_ASC => self.tt("last commit ↑", "最終コミット ↑"),
             SORT_BRANCH_ASC => self.tt("branch ↑", "ブランチ ↑"),
             SORT_BRANCH_DESC => self.tt("branch ↓", "ブランチ ↓"),
             SORT_DIRTY_DESC => self.tt("dirty ↓", "未コミット ↓"),
             SORT_DIRTY_ASC => self.tt("dirty ↑", "未コミット ↑"),
             SORT_SYNC_DESC => self.tt("sync ↓", "同期 ↓"),
             SORT_SYNC_ASC => self.tt("sync ↑", "同期 ↑"),
-            _ => self.tt("updated ↓", "更新 ↓"),
+            _ => self.tt("last commit ↓", "最終コミット ↓"),
         }
     }
 
@@ -831,6 +833,12 @@ impl App {
             self.error = None;
             return;
         }
+        if key.code == KeyCode::Esc && self.screen == Screen::Home && self.onboarding_visible {
+            self.onboarding_visible = false;
+            self.prefs.onboarding_dismissed = true;
+            self.persist_prefs();
+            return;
+        }
         match self.screen {
             Screen::Home => self.handle_home(key),
             Screen::Repo => self.handle_repo(key),
@@ -1022,6 +1030,9 @@ impl App {
                         self.run_commit_search(buf);
                     }
                     Some(InputKind::FinderScanPath) => {
+                        if buf.trim().is_empty() {
+                            return;
+                        }
                         let path = expand_user_path(&buf);
                         self.open_repo_finder(Some(path));
                     }
@@ -2411,6 +2422,7 @@ impl App {
     }
 
     fn finish_add_repo(&mut self, alias: String) {
+        let first_registration = self.repos.is_empty();
         let Some(path) = self.pending_add_path.take() else {
             return;
         };
@@ -2445,6 +2457,7 @@ impl App {
             members: self.members.clone(),
         });
         self.status = self.t("added_success");
+        self.show_onboarding(first_registration);
         if self.screen == Screen::Settings {
             self.settings_selected = index;
         }
@@ -2514,7 +2527,12 @@ impl App {
     }
 
     fn begin_bulk_add_repo(&mut self) {
-        self.open_repo_finder(None);
+        self.input = Some(InputKind::FinderScanPath);
+        self.input_buf.clear();
+        self.status = self.tt(
+            "Choose your work folder (Tab to complete)",
+            "作業フォルダを指定してください (Tabで補完)",
+        );
     }
 
     pub fn filtered_finder_repos(&self) -> Vec<usize> {
@@ -2668,32 +2686,45 @@ impl App {
             self.screen = Screen::Home;
             return;
         };
-        let mut added = 0usize;
-        for item in finder.repos {
+        let previous_len = self.repos.len();
+        for item in &finder.repos {
             if item.is_selected && !item.is_already_added {
                 self.repos.push(Repository {
-                    name: item.name,
+                    name: item.name.clone(),
                     path: item.path.clone(),
                     group: None,
                 });
-                let index = self.repos.len() - 1;
+            }
+        }
+        let added = self.repos.len() - previous_len;
+        if added > 0 {
+            if let Err(e) = self.try_persist_repos() {
+                self.repos.truncate(previous_len);
+                self.repo_finder = Some(finder);
+                self.error = Some(e);
+                return;
+            }
+            for index in previous_len..self.repos.len() {
                 self.send_job(Job::LoadHome {
                     generation: self.home_generation(),
                     index,
-                    path: item.path,
+                    path: self.repos[index].path.clone(),
                     members: self.members.clone(),
                 });
-                added += 1;
             }
-        }
-        if added > 0 {
-            self.persist_repos();
+            self.show_onboarding(previous_len == 0);
             self.status = match self.lang() {
                 Language::English => format!("Imported {added} repository(ies)"),
                 Language::Japanese => format!("{added}件のリポジトリを登録しました"),
             };
         }
         self.screen = Screen::Home;
+    }
+
+    fn show_onboarding(&mut self, first_registration: bool) {
+        if first_registration && !self.prefs.onboarding_dismissed {
+            self.onboarding_visible = true;
+        }
     }
 
     fn bulk_add_repos_from_path(&mut self, path_str: &str) {

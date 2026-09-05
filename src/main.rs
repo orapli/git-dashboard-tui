@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 const HELP: &str = "\
-git-dashboard-tui — a read-only, multi-repository Git dashboard for the terminal
+git-dashboard-tui — find your next task across repositories in one terminal
 
 USAGE:
     git-dashboard-tui [OPTIONS]
@@ -11,11 +11,15 @@ OPTIONS:
     -V, --version    Print the version and exit
 
 Run with no arguments to start the dashboard. Repositories are added from
-inside the app: press `a` for a single path, or `A` to scan a folder.
+inside the app: press `A` to scan a folder, or `a` for a single path.
 Press `?` at any time for the keybindings of the current screen.
+
+Status viewing is observation-first. Explicit pull, fetch, stash apply and
+stash drop actions can change repositories; pull follows your Git configuration.
 
 Configuration is stored under your platform's config directory and is shared
 with the git-dashboard GUI application.
+Set GIT_DASHBOARD_CONFIG_DIR to use a separate configuration directory.
 
 Docs and issues: https://github.com/orapli/git-dashboard-tui
 ";

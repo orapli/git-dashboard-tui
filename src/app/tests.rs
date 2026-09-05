@@ -1652,3 +1652,63 @@ mod activity_lifecycle {
         assert_eq!(app.busy_count(), 2);
     }
 }
+
+#[test]
+fn first_registration_guide_dismisses_without_clearing_filter() {
+    let mut app = App::new();
+    app.prefs.onboarding_dismissed = false;
+    app.screen = Screen::Home;
+    app.error = None;
+    app.home_filter = "alpha".into();
+    app.show_onboarding(false);
+    assert!(!app.onboarding_visible);
+    app.show_onboarding(true);
+    assert!(app.onboarding_visible);
+    app.handle_key(KeyEvent::from(KeyCode::Esc));
+    assert!(!app.onboarding_visible);
+    assert!(app.prefs.onboarding_dismissed);
+    assert_eq!(app.home_filter, "alpha");
+    app.show_onboarding(true);
+    assert!(!app.onboarding_visible);
+}
+
+#[test]
+fn bulk_registration_starts_with_folder_choice_and_can_cancel() {
+    let mut app = App::new();
+    app.screen = Screen::Home;
+    app.input = None;
+    app.confirm = None;
+    app.handle_key(KeyEvent::from(KeyCode::Char('A')));
+    assert!(matches!(app.input, Some(InputKind::FinderScanPath)));
+    assert_eq!(app.screen, Screen::Home);
+    app.handle_key(KeyEvent::from(KeyCode::Esc));
+    assert!(app.input.is_none());
+    assert_eq!(app.screen, Screen::Home);
+}
+
+#[test]
+fn failed_first_import_keeps_selection_and_does_not_show_success_guide() {
+    let mut app = App::new();
+    app.repos.clear();
+    app.onboarding_visible = false;
+    app.config_state.repos_failed = true;
+    app.screen = Screen::RepoFinder;
+    app.repo_finder = Some(RepoFinderState {
+        scan_root: PathBuf::from("/tmp"),
+        repos: vec![FoundRepo {
+            path: PathBuf::from("/tmp/sample"),
+            name: "sample".into(),
+            branch: "main".into(),
+            is_already_added: false,
+            is_selected: true,
+        }],
+        selected_idx: 0,
+        filter: String::new(),
+    });
+    app.import_finder_selected();
+    assert!(app.repos.is_empty());
+    assert!(app.error.is_some());
+    assert!(app.repo_finder.as_ref().unwrap().repos[0].is_selected);
+    assert_eq!(app.screen, Screen::RepoFinder);
+    assert!(!app.onboarding_visible);
+}

@@ -47,14 +47,12 @@ SECTIONS = [
                 "作業を始める前に知りたいこと — どれに未コミットの変更があるか、どれが遅れているか、"
                 "どれを merge の途中で放置したか — を、ディレクトリを渡り歩かずに把握するためのものです。")),
             ("p", t(
-                "It is deliberately read-only about your history. It will fetch and pull, "
-                "because those do not rewrite anything you have. It will not stage, commit, "
-                "branch, checkout or push. That boundary is the point: you can leave it open "
-                "next to your editor and never wonder whether it did something to your tree.",
-                "履歴に対しては意図的に読み取り専用です。fetch と pull は行います（手元のものを書き換えないため）が、"
-                "stage・commit・branch・checkout・push は行いません。"
-                "この線引きが本ツールの性格です。エディタの横に開きっぱなしにしても、"
-                "作業ツリーに何かされたかを心配せずに済みます。")),
+                "Status viewing is observation-first. Explicit pull, fetch, stash apply and "
+                "stash drop actions can change repositories. Pull follows your Git configuration "
+                "and may merge or rebase. Use your usual tools for staging, committing and pushing.",
+                "状態確認を中心としたツールです。明示的に実行する pull・fetch・stash apply・stash drop は"
+                "リポジトリを変更します。pull は Git 設定に従って merge / rebase を行う場合があります。"
+                "ステージング・コミット・push は普段のツールで行ってください。")),
             ("shot", "home", t(
                 "Five repositories. api-gateway is clean, billing-service has two uncommitted "
                 "changes, infra-terraform is two commits behind its upstream, and web-frontend "
@@ -103,12 +101,19 @@ SECTIONS = [
         t("First run", "最初の起動"),
         [
             ("p", t(
-                "Start it with no arguments. The first screen is empty because nothing is "
-                "registered yet: press <kbd>a</kbd> and type a path, or press <kbd>A</kbd> to "
-                "scan a folder and pick out every git repository under it at once.",
-                "引数なしで起動します。最初は何も登録されていないので空の画面が出ます。"
-                "<kbd>a</kbd> でパスを入力するか、<kbd>A</kbd> でフォルダを走査して"
-                "配下の git リポジトリをまとめて登録してください。")),
+                "Start it with no arguments. Press <kbd>A</kbd>, enter the folder to scan, "
+                "then select repositories and register them with <kbd>Enter</kbd>. "
+                "An empty path or <kbd>Esc</kbd> cancels the scan. Use <kbd>a</kbd> to add one repository.",
+                "引数なしで起動し、<kbd>A</kbd> で走査するフォルダを入力します。"
+                "検出一覧でリポジトリを選び、<kbd>Enter</kbd> でまとめて登録します。"
+                "空入力または <kbd>Esc</kbd> で走査を取り消せます。1件だけ追加する場合は <kbd>a</kbd> を使います。")),
+            ("p", t(
+                "After registration, a short guide introduces <kbd>n</kbd> (needs attention), "
+                "<kbd>Enter</kbd> (details), <kbd>t</kbd> (shell), and <kbd>?</kbd> (help). "
+                "Dismiss it with <kbd>Esc</kbd>; it stays dismissed on subsequent launches.",
+                "登録後の案内には <kbd>n</kbd>（要対応）、<kbd>Enter</kbd>（詳細）、"
+                "<kbd>t</kbd>（シェル）、<kbd>?</kbd>（ヘルプ）を表示します。"
+                "<kbd>Esc</kbd> で閉じると、次回からは表示しません。")),
             ("p", t(
                 "Rows fill in as each repository is analysed, and the result is cached — so the "
                 "next launch shows the dashboard populated straight away rather than a screen "
@@ -157,7 +162,7 @@ SECTIONS = [
                     "Uncommitted changes — <b class='green'>green</b> at zero, "
                     "<b class='red'>red</b> otherwise.",
                     "未コミットの変更数。0 なら<b class='green'>緑</b>、それ以外は<b class='red'>赤</b>。")),
-                (t("Updated", "更新"), t(
+                (t("Last commit", "最終コミット"), t(
                     "Date of the most recent commit across all refs.",
                     "全 ref のうち最新コミットの日時。")),
                 (t("PR / CI", "PR / CI"), t(
@@ -512,8 +517,8 @@ footer a{color:var(--muted)}
 STRINGS = {
     "title": t("git-dashboard-tui — User Manual", "git-dashboard-tui — ユーザーマニュアル"),
     "tagline": t(
-        "A read-only terminal dashboard for every repository you have checked out.",
-        "手元の全リポジトリを一望する、読み取り専用のターミナルダッシュボード。"),
+        "Find your next task across repositories, from one terminal.",
+        "散らばったリポジトリから、次に取りかかる場所が見える。"),
     "desc": t(
         "Install, run and drive git-dashboard-tui: the dashboard, the repository tabs, "
         "the diff viewer, cross-repository search, settings and keybindings.",
