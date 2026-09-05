@@ -5,6 +5,7 @@ pub mod home;
 pub mod tools;
 pub mod types;
 pub mod worker;
+pub mod workspace;
 
 pub use finder::*;
 pub use helpers::*;
@@ -136,6 +137,10 @@ pub struct App {
     pending_external: Option<ExternalDiff>,
     pending_terminal: Option<PathBuf>,
     pub tool_menu: Option<PathBuf>,
+    pub workspace: Workspace,
+    pub workspace_generation: Arc<AtomicU64>,
+    pub workspace_viewport: std::cell::Cell<ListViewport>,
+    pending_worktree_note: Option<String>,
     pending_work_tool: Option<WorkTool>,
     preview_seq: u64,
     job_tx: Sender<Job>,
@@ -248,6 +253,10 @@ impl App {
             pending_external: None,
             pending_terminal: None,
             tool_menu: None,
+            workspace: Workspace::default(),
+            workspace_generation: Arc::new(AtomicU64::new(0)),
+            workspace_viewport: std::cell::Cell::new(ListViewport::default()),
+            pending_worktree_note: None,
             pending_work_tool: None,
             preview_seq: 0,
             job_tx,
@@ -311,6 +320,7 @@ impl App {
         let flags = [
             self.repo_loading,
             self.global_members_loading,
+            self.workspace.loading,
             self.diff.as_ref().is_some_and(|d| d.loading),
             self.diff.as_ref().is_some_and(|d| d.blame_loading),
             self.commit_search.as_ref().is_some_and(|s| s.loading),
@@ -353,6 +363,8 @@ impl App {
                     | InputKind::AddMemberName
                     | InputKind::AddMemberAliases
                     | InputKind::EditMemberAliases
+                    | InputKind::WorkspaceQuery
+                    | InputKind::WorktreeNote
                     | InputKind::EditorCommand
                     | InputKind::DiffCommand
                     | InputKind::CommitSearchQuery
@@ -388,6 +400,11 @@ impl App {
                 "Edit member aliases / Git commit authors (comma separated)",
                 "メンバーの別名を編集 / Gitコミット名 (カンマ区切り)",
             ),
+            Some(InputKind::WorkspaceQuery) => self.tt(
+                "Find worktree / branch / note",
+                "Worktree・ブランチ・メモを検索",
+            ),
+            Some(InputKind::WorktreeNote) => self.tt("Worktree purpose note", "Worktreeの用途メモ"),
             Some(InputKind::EditorCommand) => self.tt(
                 "Editor command (quoted arguments supported)",
                 "エディタコマンド（引数の引用符に対応）",
@@ -424,6 +441,7 @@ impl App {
 
     pub fn current_work_path(&self) -> Option<PathBuf> {
         match self.screen {
+            Screen::Workspace => self.selected_workspace_row().map(|r| r.path.clone()),
             Screen::Home => {
                 let filtered = self.filtered_home();
                 filtered
@@ -637,6 +655,17 @@ impl App {
             ];
         }
         match self.screen {
+            Screen::Workspace => vec![
+                pair("j/k", "move", "移動"),
+                pair("/", "search", "検索"),
+                pair("*", "favorite", "お気に入り"),
+                pair("f", "favorites only", "お気に入りのみ"),
+                pair("m", "note", "メモ"),
+                pair("Enter/O", "open tools", "ツールで開く"),
+                pair("t", "shell", "シェル"),
+                pair("r", "reload", "再読込"),
+                pair("Esc", "Home", "Home"),
+            ],
             Screen::Home => vec![
                 pair("j/k", "move", "移動"),
                 pair("enter", "open", "開く"),
@@ -649,6 +678,7 @@ impl App {
                 pair("S", "search commits", "コミット検索"),
                 pair("n", "needs attention", "要対応"),
                 pair("C", "CI run", "CI実行"),
+                pair("W", "worktrees", "横断Worktree"),
                 pair("o", "sort", "並替"),
                 pair("s", "settings", "設定"),
                 pair("?", "help", "ヘルプ"),
@@ -809,7 +839,10 @@ impl App {
             return;
         }
         if key.code == KeyCode::Char('O')
-            && matches!(self.screen, Screen::Home | Screen::Repo | Screen::Diff)
+            && matches!(
+                self.screen,
+                Screen::Home | Screen::Repo | Screen::Diff | Screen::Workspace
+            )
         {
             if let Some(path) = self.current_work_path() {
                 self.open_tool_menu(path);
@@ -859,6 +892,7 @@ impl App {
         }
         match self.screen {
             Screen::Home => self.handle_home(key),
+            Screen::Workspace => self.handle_workspace(key),
             Screen::Repo => self.handle_repo(key),
             Screen::Diff => self.handle_diff(key),
             Screen::Settings => self.handle_settings(key),
@@ -1061,6 +1095,11 @@ impl App {
                     Some(InputKind::AddMemberName) => self.finish_add_member_name(buf),
                     Some(InputKind::AddMemberAliases) => self.finish_add_member_aliases(buf),
                     Some(InputKind::EditMemberAliases) => self.finish_edit_member_aliases(buf),
+                    Some(InputKind::WorkspaceQuery) => {
+                        self.workspace.filter = buf;
+                        self.workspace.selected = 0;
+                    }
+                    Some(InputKind::WorktreeNote) => self.finish_worktree_note(buf),
                     Some(InputKind::EditorCommand) => {
                         self.prefs.editor_command = buf.trim().to_string();
                         self.persist_prefs();
@@ -1132,6 +1171,10 @@ impl App {
     fn handle_home(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Char('C') => self.open_home_ci(),
+            KeyCode::Char('W') => {
+                self.screen = Screen::Workspace;
+                self.reload_workspace();
+            }
             KeyCode::Esc if !self.home_filter.is_empty() => {
                 self.home_filter.clear();
                 self.home_selected = 0;
@@ -1752,12 +1795,16 @@ impl App {
             // (`repo_loading`, `diff.loading`, ...), already maintained.
             _ => {}
         }
+        let workspace_job = matches!(&job, Job::LoadWorkspace { .. });
         let tx = if job.is_secondary_worker() {
             &self.bulk_tx
         } else {
             &self.job_tx
         };
         if tx.send(job).is_err() {
+            if workspace_job {
+                self.workspace.loading = false;
+            }
             self.error = Some(self.tt(
                 "Background worker stopped; restart the app.",
                 "バックグラウンド処理が停止しました。アプリを再起動してください。",
@@ -3399,6 +3446,8 @@ impl App {
             _ => {}
         }
         match msg {
+            Msg::WorkspaceRow { seq, row } => self.apply_workspace_row(seq, row),
+            Msg::WorkspaceDone { seq, errors } => self.finish_workspace(seq, errors),
             Msg::HomeLoaded {
                 generation,
                 index,

@@ -34,13 +34,7 @@ This backlog tracks planned, upcoming, and considered features for `git-dashboar
 
 ### Category C: Development Workflow Integration
 
-Shell launch and per-repository Worktree inspection/jump are implemented. Editor/client launch and a cross-repository Worktree view are the remaining extensions.
-- **C-1: Open in External Editor / Terminal (`o` / `t`)**
-  - Open the selected repository or changed file directly in `$EDITOR` (VS Code, Cursor, Neovim, IntelliJ) or open a new terminal in the repository directory.
-- **C-2: Git Worktree Inspection & Quick Jump**
-  - List all active git worktrees for the current repository and allow jumping directly between worktrees.
-- **C-3: Quick Jump to Interactive Client (Lazygit / GitUI)**
-  - Press `G` to launch `lazygit` or `gitui` on the selected repository, returning seamlessly to the dashboard upon exit.
+Implemented: `O` opens the shell/editor/lazygit/GitUI menu, with editor configuration and wait mode. `W` opens the local cross-repository Worktree workspace, with deduplication, purpose notes, favorites and tool launch. Per-repository Worktree inspection and shell jump remain available.
 
 ### Category D: Reporting & Export
 - **D-1: Markdown Report Generation for Daily/Weekly Standups (`y`)**
@@ -54,4 +48,4 @@ See [the product improvement proposal](docs/product-improvement-proposal.ja.md) 
 - [x] 3: Attention summary and reasons.
 - [x] 4: Freshness and GitHub status context.
 - [x] 5: External editor and Git client launch.
-- [ ] 6: Cross-repository Worktree workspace.
+- [x] 6: Cross-repository Worktree workspace.

@@ -32,6 +32,7 @@ import termios
 import time
 import unicodedata
 from pathlib import Path
+from wcwidth import wcswidth
 
 try:
     import pyte
@@ -318,6 +319,14 @@ def scenes(lang: str):
     open_repo = [s("/", 0.4), s("web-frontend", 0.4), s("\r", 0.6), s("\r", 2.0)]
     open_api = [s("/", 0.4), s("api-gateway", 0.4), s("\r", 0.6), s("\r", 2.0)]
 
+    def sort_home(t):
+        label = "最終コミット" if lang == "ja" else "Last commit"
+        for y, line in enumerate(t.screen.display):
+            if label in line and ("Branch" in line or "ブランチ" in line):
+                t.click(wcswidth(line[:line.index(label)]), y)
+                return
+        raise RuntimeError("Home header was not rendered")
+
     WIDE = (132, 17)
     TALL = (132, 26)
     return [
@@ -325,19 +334,19 @@ def scenes(lang: str):
             "home",
             "git-dashboard-tui — 5 repositories",
             [wait(3.0)],
-            WIDE,
+            TALL,
         ),
         (
             "home-attention",
             "git-dashboard-tui — needs attention (n)",
             [wait(3.0), s("n", 1.0)],
-            WIDE,
+            TALL,
         ),
         (
             "home-sorted",
             "git-dashboard-tui — sort by clicking a column header",
-            [wait(3.0), click(75, 2, 1.0)],
-            WIDE,
+            [wait(3.0), sort_home],
+            TALL,
         ),
         (
             "repo-status",
@@ -421,6 +430,20 @@ def scenes(lang: str):
             "global-members",
             "git-dashboard-tui — cross-repository contributors",
             [wait(3.0), s("M", 3.0)],
+            TALL,
+        ),
+        (
+            "open-tools",
+            "git-dashboard-tui — open in your work tools (O)",
+            [wait(3.0), s("O")],
+            TALL,
+        ),
+        (
+            "workspace",
+            "git-dashboard-tui — local worktrees, notes and favorites (W)",
+            [wait(3.0), s("W", 3.0), s("/"), s("design-system-2.0\r"), s("m"),
+             s(("明日のレビュー" if lang == "ja" else "Review tomorrow") + "\r"), s("*"),
+             s("/"), s("\x7f" * len("design-system-2.0") + "\r")],
             TALL,
         ),
         (

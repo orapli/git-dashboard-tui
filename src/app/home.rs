@@ -17,6 +17,19 @@ impl App {
                 counts.attention += usize::from(needs_attention(row));
                 counts.dirty += usize::from(row.dirty > 0);
                 counts.sync += usize::from(row.ahead > 0 || row.behind > 0);
+                let now = chrono::Utc::now().timestamp();
+                let unverified = row.github.as_ref().map_or(
+                    row.ci_status.is_some() || row.open_prs.is_some(),
+                    |info| {
+                        !matches!(info.ci_state, GithubState::Ready | GithubState::NoRuns)
+                            || info.pr_state != GithubState::Ready
+                            || info.ci_fetched_at == 0
+                            || info.pr_fetched_at == 0
+                            || now - info.ci_fetched_at >= git::github::REFRESH_SECS
+                            || now - info.pr_fetched_at >= git::github::REFRESH_SECS
+                    },
+                );
+                counts.unknown += usize::from(unverified);
             } else {
                 counts.unknown += 1;
             }
@@ -232,7 +245,7 @@ mod tests {
                 attention: 1,
                 dirty: 1,
                 sync: 1,
-                unknown: 1
+                unknown: 2
             }
         );
         assert_eq!(app.filtered_home(), vec![0]);

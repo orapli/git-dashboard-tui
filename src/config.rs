@@ -185,6 +185,7 @@ pub struct Preferences {
     pub sidebar_width: f32,
     pub editor_command: String,
     pub editor_wait: bool,
+    pub worktree_notes: std::collections::HashMap<String, WorktreeNote>,
     // Diff view toggles, persisted across sessions
     pub diff_ignore_whitespace: bool,
     pub diff_full_file: bool,
@@ -232,6 +233,7 @@ impl Default for Preferences {
             sidebar_width: 260.0,
             editor_command: "code".to_string(),
             editor_wait: false,
+            worktree_notes: Default::default(),
             diff_ignore_whitespace: false,
             diff_full_file: false,
             diff_show_blame: false,
@@ -310,4 +312,11 @@ mod tests {
         assert_eq!(decoded.repo_sort, 2);
         assert_eq!(decoded.auto_refresh_secs, 0);
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+#[serde(default)]
+pub struct WorktreeNote {
+    pub note: String,
+    pub favorite: bool,
 }

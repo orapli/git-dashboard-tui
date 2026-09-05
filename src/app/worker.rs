@@ -19,6 +19,20 @@ pub fn spawn_worker(job_rx: Receiver<Job>, msg_tx: Sender<Msg>, home_gen: Arc<At
     thread::spawn(move || {
         while let Ok(job) = job_rx.recv() {
             let msg = match job {
+                Job::LoadWorkspace {
+                    seq,
+                    generation,
+                    repos,
+                } => {
+                    let errors = super::workspace::collect_workspace(
+                        &repos,
+                        || generation.load(Ordering::Relaxed) != seq,
+                        |row| {
+                            let _ = msg_tx.send(Msg::WorkspaceRow { seq, row });
+                        },
+                    );
+                    Msg::WorkspaceDone { seq, errors }
+                }
                 Job::LoadHome {
                     generation,
                     index,

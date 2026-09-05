@@ -197,6 +197,9 @@ SECTIONS = [
                 (t("[ / ]", "[ / ]"), t("Cycle the group filter", "グループフィルタを切り替え")),
                 (t("/", "/"), t("Filter by name, path or group", "名前・パス・グループで絞り込み")),
                 (t("n", "n"), t("Toggle the needs-attention filter", "要対応フィルタの切り替え")),
+                (t("C", "C"), t("Open repository-wide latest CI run", "リポジトリ全体の最新CI実行を開く")),
+                (t("O", "O"), t("Open work tools", "作業ツールの起動メニュー")),
+                (t("W", "W"), t("Browse local worktrees across repositories", "ローカルWorktreeを横断表示")),
                 (t("o", "o"), t("Cycle the sort order", "並び順を切り替え")),
                 (t("p / f", "p / f"), t("Pull / fetch the selected repository", "選択リポジトリを pull / fetch")),
                 (t("P / F", "P / F"), t("Pull / fetch every filtered repository", "絞り込み中の全リポジトリを pull / fetch")),
@@ -322,9 +325,35 @@ SECTIONS = [
         ],
     ),
     (
+        "worktree-workspace",
+        t("Worktrees across repositories", "リポジトリを横断するWorktree"),
+        [("shot", "workspace", t("Local worktrees with personal notes and favorites.", "ローカルWorktreeと本人の用途メモ・お気に入り。")),
+         ("p", t(
+            "Press <kbd>W</kbd> on Home for a local worktree workspace. Each path appears once, "
+            "even when both a parent and its linked worktree are registered. The table shows the first "
+            "registered parent, branch, dirty count, HEAD commit date and path. SSH entries are skipped and counted.",
+            "Homeの <kbd>W</kbd> でローカルWorktreeを横断表示します。親リポジトリとそのWorktreeを両方登録しても"
+            "同じパスは1行です。最初に登録された親、ブランチ、未コミット数、HEADのコミット日時、パスを表示し、"
+            "SSHは対象外として件数を示します。")),
+         ("p", t(
+            "Use <kbd>/</kbd> to search paths, branches and purpose notes. <kbd>m</kbd> edits your note; "
+            "<kbd>*</kbd> toggles a favorite and <kbd>f</kbd> filters favorites. Notes and favorites are "
+            "stored in preferences by canonical local path. <kbd>Enter</kbd> or <kbd>O</kbd> opens the tool menu; "
+            "<kbd>t</kbd> starts a shell in that worktree. <kbd>r</kbd> refreshes in the background while "
+            "navigation remains available. Rows may show previous values until refreshed; errors stay distinct "
+            "from a clean worktree. These are Git states and personal notes, not AI agent activity.",
+            "<kbd>/</kbd> でパス・ブランチ・用途メモを検索し、<kbd>m</kbd> でメモを編集します。"
+            "<kbd>*</kbd> でお気に入りを切り替え、<kbd>f</kbd> で絞り込みます。メモとお気に入りは正規化した"
+            "ローカルパスをキーに設定へ保存します。<kbd>Enter</kbd> または <kbd>O</kbd> でツールメニュー、"
+            "<kbd>t</kbd> でそのWorktreeのシェルを開けます。<kbd>r</kbd> のバックグラウンド再取得中も操作できます。"
+            "取得中は前回値が残る場合があり、失敗はクリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、"
+            "AIエージェントの活動状況ではありません。"))],
+    ),
+    (
         "work-tools",
         t("Open your work tools", "普段の作業ツールで開く"),
-        [("p", t(
+        [("shot", "open-tools", t("Choose a local work tool; unavailable commands are marked.", "ローカルの作業ツールを選択。未導入コマンドも明示します。")),
+         ("p", t(
             "Press <kbd>O</kbd> on Home, Repo or Diff. Choose <kbd>t</kbd> for a shell, "
             "<kbd>e</kbd> for the editor, <kbd>l</kbd> for lazygit, or <kbd>g</kbd> for GitUI. "
             "Unavailable commands are marked; install clients on PATH. SSH repositories do not support local tool launch.",

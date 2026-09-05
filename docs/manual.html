@@ -109,6 +109,7 @@ footer a{color:var(--muted)}
 <li><a href="#repository">Inside a repository</a></li>
 <li><a href="#diff">Reading a diff</a></li>
 <li><a href="#cross-repo">Across every repository</a></li>
+<li><a href="#worktree-workspace">Worktrees across repositories</a></li>
 <li><a href="#work-tools">Open your work tools</a></li>
 <li><a href="#settings">Settings and files</a></li>
 <li><a href="#trust">What it does with a repository you do not trust</a></li>
@@ -154,6 +155,9 @@ footer a{color:var(--muted)}
 <tr><td class="k"><kbd>[ / ]</kbd></td><td>Cycle the group filter</td></tr>
 <tr><td class="k"><kbd>/</kbd></td><td>Filter by name, path or group</td></tr>
 <tr><td class="k"><kbd>n</kbd></td><td>Toggle the needs-attention filter</td></tr>
+<tr><td class="k"><kbd>C</kbd></td><td>Open repository-wide latest CI run</td></tr>
+<tr><td class="k"><kbd>O</kbd></td><td>Open work tools</td></tr>
+<tr><td class="k"><kbd>W</kbd></td><td>Browse local worktrees across repositories</td></tr>
 <tr><td class="k"><kbd>o</kbd></td><td>Cycle the sort order</td></tr>
 <tr><td class="k"><kbd>p / f</kbd></td><td>Pull / fetch the selected repository</td></tr>
 <tr><td class="k"><kbd>P / F</kbd></td><td>Pull / fetch every filtered repository</td></tr>
@@ -193,8 +197,15 @@ footer a{color:var(--muted)}
 <figure><img src="img/commit-search.svg" loading="lazy" alt="&lt;kbd&gt;S&lt;/kbd&gt; searches commit messages in every registered repository at once — a case-insensitive substring, not a regex"><figcaption><kbd>S</kbd> searches commit messages in every registered repository at once — a case-insensitive substring, not a regex. <kbd>Enter</kbd> jumps straight into the matching commit's diff. A repository the search could not reach is reported as failed rather than silently counted as having no matches.</figcaption></figure>
 <figure><img src="img/global-members.svg" loading="lazy" alt="&lt;kbd&gt;M&lt;/kbd&gt; aggregates contributors across all repositories, merging aliases into one person. &lt;kbd&gt;Enter&lt;/kbd&gt; jumps in"><figcaption><kbd>M</kbd> aggregates contributors across all repositories, merging aliases into one person. <kbd>Enter</kbd> jumps into the repository under the cursor.</figcaption></figure>
 </section>
+<section id="worktree-workspace">
+<h2>Worktrees across repositories<a href="#worktree-workspace" aria-label="link">#</a></h2>
+<figure><img src="img/workspace.svg" loading="lazy" alt="Local worktrees with personal notes and favorites."><figcaption>Local worktrees with personal notes and favorites.</figcaption></figure>
+<p>Press <kbd>W</kbd> on Home for a local worktree workspace. Each path appears once, even when both a parent and its linked worktree are registered. The table shows the first registered parent, branch, dirty count, HEAD commit date and path. SSH entries are skipped and counted.</p>
+<p>Use <kbd>/</kbd> to search paths, branches and purpose notes. <kbd>m</kbd> edits your note; <kbd>*</kbd> toggles a favorite and <kbd>f</kbd> filters favorites. Notes and favorites are stored in preferences by canonical local path. <kbd>Enter</kbd> or <kbd>O</kbd> opens the tool menu; <kbd>t</kbd> starts a shell in that worktree. <kbd>r</kbd> refreshes in the background while navigation remains available. Rows may show previous values until refreshed; errors stay distinct from a clean worktree. These are Git states and personal notes, not AI agent activity.</p>
+</section>
 <section id="work-tools">
 <h2>Open your work tools<a href="#work-tools" aria-label="link">#</a></h2>
+<figure><img src="img/open-tools.svg" loading="lazy" alt="Choose a local work tool; unavailable commands are marked."><figcaption>Choose a local work tool; unavailable commands are marked.</figcaption></figure>
 <p>Press <kbd>O</kbd> on Home, Repo or Diff. Choose <kbd>t</kbd> for a shell, <kbd>e</kbd> for the editor, <kbd>l</kbd> for lazygit, or <kbd>g</kbd> for GitUI. Unavailable commands are marked; install clients on PATH. SSH repositories do not support local tool launch.</p>
 <p>Configure the editor with <kbd>c</kbd> in that menu. Quoted arguments and <code>{path}</code> are supported; without that placeholder the repository path is appended as one argument. Use <kbd>w</kbd> to enable waiting for terminal editors; GUI launch does not wait by default. After a terminal tool exits the dashboard restores input and reloads the selected repository. For subsequent GUI edits use <kbd>r</kbd> to reload. Commands must be absolute paths or names on PATH.</p>
 </section>

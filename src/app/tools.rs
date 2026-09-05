@@ -160,6 +160,9 @@ impl App {
     }
 
     pub fn after_external_work(&mut self, path: &Path) {
+        if self.screen == Screen::Workspace {
+            self.reload_workspace();
+        }
         if let Some(i) = self.repos.iter().position(|r| r.path == path) {
             self.refresh_home_row(i);
             if self.repo_index == Some(i) {

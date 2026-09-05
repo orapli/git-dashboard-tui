@@ -24,6 +24,7 @@ impl App {
             return;
         }
         match self.screen {
+            Screen::Workspace => self.move_workspace(delta.signum()),
             Screen::Home => {
                 let len = self.filtered_home().len();
                 if len > 0 {
@@ -160,6 +161,19 @@ impl App {
         }
 
         match self.screen {
+            Screen::Workspace => {
+                if let Some(i) = self.workspace_viewport.get().index_at(row)
+                    && i < self.filtered_workspace().len()
+                {
+                    if i == self.workspace.selected {
+                        if let Some(path) = self.selected_workspace_row().map(|r| r.path.clone()) {
+                            self.open_tool_menu(path);
+                        }
+                    } else {
+                        self.workspace.selected = i;
+                    }
+                }
+            }
             Screen::Home => {
                 // Use the table bounds recorded by rendering: the summary
                 // and compact layouts put headers on different rows.

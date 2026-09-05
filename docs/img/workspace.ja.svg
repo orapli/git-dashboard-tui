@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1216" height="569" viewBox="0 0 1216.00 568.80" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono','Noto Sans Mono CJK JP','Hiragino Kaku Gothic ProN','Yu Gothic',monospace" font-size="15.0">
+<title>git-dashboard-tui — local worktrees, notes and favorites (W)</title>
+<rect width="1216.00" height="568.80" rx="10" fill="#181825"/>
+<circle cx="20.0" cy="15.0" r="5" fill="#f38ba8"/>
+<circle cx="35.0" cy="15.0" r="5" fill="#f9e2af"/>
+<circle cx="50.0" cy="15.0" r="5" fill="#a6e3a1"/>
+<text x="608.0" y="19.0" fill="#7f849c" font-size="10.8" text-anchor="middle">git-dashboard-tui — local worktrees, notes and favorites (W)</text>
+<rect x="14.00" y="40.00" width="1188.00" height="514.80" fill="#1e1e2e"/>
+<text x="23.00" y="55.05" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ロ</text>
+<text x="41.00" y="55.05" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="59.00" y="55.05" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">カ</text>
+<text x="77.00" y="55.05" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
+<text x="95.00" y="55.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">W</text>
+<text x="104.00" y="55.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">o</text>
+<text x="113.00" y="55.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">r</text>
+<text x="122.00" y="55.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">k</text>
+<text x="131.00" y="55.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">t</text>
+<text x="140.00" y="55.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">r</text>
+<text x="149.00" y="55.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">e</text>
+<text x="158.00" y="55.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">e</text>
+<text x="167.00" y="55.05" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">一</text>
+<text x="185.00" y="55.05" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">覧</text>
+<text x="230.00" y="55.05" fill="#cdd6f4" textLength="153.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">git-dashboard-tui</text>
+<text x="14.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">6</text>
+<text x="32.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/</text>
+<text x="50.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">6</text>
+<text x="77.00" y="74.85" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">取</text>
+<text x="95.00" y="74.85" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">得</text>
+<text x="113.00" y="74.85" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">完</text>
+<text x="131.00" y="74.85" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">了</text>
+<text x="167.00" y="74.85" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">SSH:</text>
+<text x="212.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
+<text x="239.00" y="74.85" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">取</text>
+<text x="257.00" y="74.85" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">得</text>
+<text x="275.00" y="74.85" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">失</text>
+<text x="293.00" y="74.85" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">敗</text>
+<text x="311.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">:</text>
+<text x="329.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
+<text x="356.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/</text>
+<text x="14.00" y="94.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">┌</text>
+<text x="23.00" y="94.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">W</text>
+<text x="32.00" y="94.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">o</text>
+<text x="41.00" y="94.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">r</text>
+<text x="50.00" y="94.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">k</text>
+<text x="59.00" y="94.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">t</text>
+<text x="68.00" y="94.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">r</text>
+<text x="77.00" y="94.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">e</text>
+<text x="86.00" y="94.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs">e</text>
+<text x="95.00" y="94.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">（</text>
+<text x="113.00" y="94.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ロ</text>
+<text x="131.00" y="94.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="149.00" y="94.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">カ</text>
+<text x="167.00" y="94.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
+<text x="185.00" y="94.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">の</text>
+<text x="203.00" y="94.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">み</text>
+<text x="221.00" y="94.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">）</text>
+<text x="239.00" y="94.65" fill="#cdd6f4" textLength="963.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">──────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<text x="14.00" y="114.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="41.00" y="114.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">★</text>
+<text x="68.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">親</text>
+<text x="86.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">リ</text>
+<text x="104.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ポ</text>
+<text x="122.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ジ</text>
+<text x="140.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ト</text>
+<text x="158.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">リ</text>
+<text x="248.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ブ</text>
+<text x="266.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ラ</text>
+<text x="284.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ン</text>
+<text x="302.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">チ</text>
+<text x="455.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">未</text>
+<text x="473.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">コ</text>
+<text x="491.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ミ</text>
+<text x="509.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ッ</text>
+<text x="527.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ト</text>
+<text x="554.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">最</text>
+<text x="572.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">終</text>
+<text x="590.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">コ</text>
+<text x="608.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ミ</text>
+<text x="626.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ッ</text>
+<text x="644.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ト</text>
+<text x="716.00" y="114.45" fill="#cdd6f4" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Worktree</text>
+<text x="1013.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">用</text>
+<text x="1031.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">途</text>
+<text x="1049.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">メ</text>
+<text x="1067.00" y="114.45" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">モ</text>
+<text x="1193.00" y="114.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="134.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│▸</text>
+<text x="68.00" y="134.25" fill="#cdd6f4" textLength="99.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">api-gateway</text>
+<text x="248.00" y="134.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">main</text>
+<text x="455.00" y="134.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
+<text x="554.00" y="134.25" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2025-08-13</text>
+<text x="653.00" y="134.25" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">11:00</text>
+<text x="716.00" y="134.25" fill="#cdd6f4" textLength="288.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-tour-workspace/api-gate</text>
+<text x="1193.00" y="134.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="154.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="68.00" y="154.05" fill="#cdd6f4" textLength="135.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">billing-service</text>
+<text x="248.00" y="154.05" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">main</text>
+<text x="455.00" y="154.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2</text>
+<text x="554.00" y="154.05" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2025-08-13</text>
+<text x="653.00" y="154.05" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">04:00</text>
+<text x="716.00" y="154.05" fill="#cdd6f4" textLength="288.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-tour-workspace/billing-</text>
+<text x="1193.00" y="154.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="173.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="68.00" y="173.85" fill="#cdd6f4" textLength="135.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">infra-terraform</text>
+<text x="248.00" y="173.85" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">main</text>
+<text x="455.00" y="173.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
+<text x="554.00" y="173.85" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2025-08-13</text>
+<text x="653.00" y="173.85" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">01:40</text>
+<text x="716.00" y="173.85" fill="#cdd6f4" textLength="288.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-tour-workspace/infra-te</text>
+<text x="1193.00" y="173.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="193.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="68.00" y="193.65" fill="#cdd6f4" textLength="108.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">web-frontend</text>
+<text x="248.00" y="193.65" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">main</text>
+<text x="455.00" y="193.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">1</text>
+<text x="554.00" y="193.65" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2025-08-13</text>
+<text x="653.00" y="193.65" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">06:20</text>
+<text x="716.00" y="193.65" fill="#cdd6f4" textLength="288.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-tour-workspace/web-fron</text>
+<text x="1193.00" y="193.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="213.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="68.00" y="213.45" fill="#cdd6f4" textLength="117.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">design-system</text>
+<text x="248.00" y="213.45" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">main</text>
+<text x="455.00" y="213.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
+<text x="554.00" y="213.45" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2025-08-13</text>
+<text x="653.00" y="213.45" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">01:40</text>
+<text x="716.00" y="213.45" fill="#cdd6f4" textLength="288.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-tour-workspace/design-s</text>
+<text x="1193.00" y="213.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="233.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="41.00" y="233.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">★</text>
+<text x="68.00" y="233.25" fill="#cdd6f4" textLength="117.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">design-system</text>
+<text x="248.00" y="233.25" fill="#cdd6f4" textLength="99.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">release/2.0</text>
+<text x="455.00" y="233.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
+<text x="554.00" y="233.25" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2025-08-13</text>
+<text x="653.00" y="233.25" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">01:40</text>
+<text x="716.00" y="233.25" fill="#cdd6f4" textLength="288.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-tour-workspace/design-s</text>
+<text x="1013.00" y="233.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">明</text>
+<text x="1031.00" y="233.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">日</text>
+<text x="1049.00" y="233.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">の</text>
+<text x="1067.00" y="233.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">レ</text>
+<text x="1085.00" y="233.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ビ</text>
+<text x="1103.00" y="233.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ュ</text>
+<text x="1121.00" y="233.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="1193.00" y="233.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="253.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="253.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="272.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="272.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="292.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="292.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="312.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="312.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="332.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="332.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="352.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="352.05" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="371.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="371.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="391.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="391.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="411.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="411.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="431.25" fill="#cdd6f4" textLength="1188.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<text x="14.00" y="451.05" fill="#cdd6f4" textLength="315.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-tour-workspace/api-gateway</text>
+<text x="14.00" y="490.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">取</text>
+<text x="32.00" y="490.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">得</text>
+<text x="50.00" y="490.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">:</text>
+<text x="68.00" y="490.65" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2026-09-05</text>
+<text x="167.00" y="490.65" fill="#cdd6f4" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">10:52:05</text>
+<text x="14.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">j/k</text>
+<text x="50.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">移</text>
+<text x="68.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">動</text>
+<text x="104.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/</text>
+<text x="122.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">検</text>
+<text x="140.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">索</text>
+<text x="176.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">*</text>
+<text x="194.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">お</text>
+<text x="212.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">気</text>
+<text x="230.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">に</text>
+<text x="248.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">入</text>
+<text x="266.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">り</text>
+<text x="302.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">f</text>
+<text x="320.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">お</text>
+<text x="338.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">気</text>
+<text x="356.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">に</text>
+<text x="374.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">入</text>
+<text x="392.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">り</text>
+<text x="410.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">の</text>
+<text x="428.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">み</text>
+<text x="464.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">m</text>
+<text x="482.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">メ</text>
+<text x="500.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">モ</text>
+<text x="536.00" y="530.25" fill="#cdd6f4" textLength="63.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Enter/O</text>
+<text x="608.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ツ</text>
+<text x="626.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="644.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
+<text x="662.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">で</text>
+<text x="680.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">開</text>
+<text x="698.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">く</text>
+<text x="734.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">t</text>
+<text x="752.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">シ</text>
+<text x="770.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ェ</text>
+<text x="788.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
+<text x="824.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">r</text>
+<text x="842.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">再</text>
+<text x="860.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">読</text>
+<text x="878.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">込</text>
+<text x="914.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Esc</text>
+<text x="950.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Home</text>
+</svg>

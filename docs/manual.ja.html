@@ -109,6 +109,7 @@ footer a{color:var(--muted)}
 <li><a href="#repository">リポジトリの中</a></li>
 <li><a href="#diff">差分を読む</a></li>
 <li><a href="#cross-repo">リポジトリ横断</a></li>
+<li><a href="#worktree-workspace">リポジトリを横断するWorktree</a></li>
 <li><a href="#work-tools">普段の作業ツールで開く</a></li>
 <li><a href="#settings">設定とファイル</a></li>
 <li><a href="#trust">信頼できないリポジトリの扱い</a></li>
@@ -154,6 +155,9 @@ footer a{color:var(--muted)}
 <tr><td class="k"><kbd>[ / ]</kbd></td><td>グループフィルタを切り替え</td></tr>
 <tr><td class="k"><kbd>/</kbd></td><td>名前・パス・グループで絞り込み</td></tr>
 <tr><td class="k"><kbd>n</kbd></td><td>要対応フィルタの切り替え</td></tr>
+<tr><td class="k"><kbd>C</kbd></td><td>リポジトリ全体の最新CI実行を開く</td></tr>
+<tr><td class="k"><kbd>O</kbd></td><td>作業ツールの起動メニュー</td></tr>
+<tr><td class="k"><kbd>W</kbd></td><td>ローカルWorktreeを横断表示</td></tr>
 <tr><td class="k"><kbd>o</kbd></td><td>並び順を切り替え</td></tr>
 <tr><td class="k"><kbd>p / f</kbd></td><td>選択リポジトリを pull / fetch</td></tr>
 <tr><td class="k"><kbd>P / F</kbd></td><td>絞り込み中の全リポジトリを pull / fetch</td></tr>
@@ -193,8 +197,15 @@ footer a{color:var(--muted)}
 <figure><img src="img/commit-search.ja.svg" loading="lazy" alt="&lt;kbd&gt;S&lt;/kbd&gt; で登録済み全リポジトリのコミットメッセージを一括検索します（正規表現ではなく大文字小文字を無視した部分一致）。&lt;kbd&gt;Enter&lt;/kbd&gt; でそのコミットの差分に直接移動します。検索できなかったリポジトリは、「"><figcaption><kbd>S</kbd> で登録済み全リポジトリのコミットメッセージを一括検索します（正規表現ではなく大文字小文字を無視した部分一致）。<kbd>Enter</kbd> でそのコミットの差分に直接移動します。検索できなかったリポジトリは、「一致なし」と混同されないよう失敗として報告されます。</figcaption></figure>
 <figure><img src="img/global-members.ja.svg" loading="lazy" alt="&lt;kbd&gt;M&lt;/kbd&gt; で全リポジトリの貢献者を集計し、別名を1人に統合します。&lt;kbd&gt;Enter&lt;/kbd&gt; でカーソル位置のリポジトリに移動します。"><figcaption><kbd>M</kbd> で全リポジトリの貢献者を集計し、別名を1人に統合します。<kbd>Enter</kbd> でカーソル位置のリポジトリに移動します。</figcaption></figure>
 </section>
+<section id="worktree-workspace">
+<h2>リポジトリを横断するWorktree<a href="#worktree-workspace" aria-label="link">#</a></h2>
+<figure><img src="img/workspace.ja.svg" loading="lazy" alt="ローカルWorktreeと本人の用途メモ・お気に入り。"><figcaption>ローカルWorktreeと本人の用途メモ・お気に入り。</figcaption></figure>
+<p>Homeの <kbd>W</kbd> でローカルWorktreeを横断表示します。親リポジトリとそのWorktreeを両方登録しても同じパスは1行です。最初に登録された親、ブランチ、未コミット数、HEADのコミット日時、パスを表示し、SSHは対象外として件数を示します。</p>
+<p><kbd>/</kbd> でパス・ブランチ・用途メモを検索し、<kbd>m</kbd> でメモを編集します。<kbd>*</kbd> でお気に入りを切り替え、<kbd>f</kbd> で絞り込みます。メモとお気に入りは正規化したローカルパスをキーに設定へ保存します。<kbd>Enter</kbd> または <kbd>O</kbd> でツールメニュー、<kbd>t</kbd> でそのWorktreeのシェルを開けます。<kbd>r</kbd> のバックグラウンド再取得中も操作できます。取得中は前回値が残る場合があり、失敗はクリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、AIエージェントの活動状況ではありません。</p>
+</section>
 <section id="work-tools">
 <h2>普段の作業ツールで開く<a href="#work-tools" aria-label="link">#</a></h2>
+<figure><img src="img/open-tools.ja.svg" loading="lazy" alt="ローカルの作業ツールを選択。未導入コマンドも明示します。"><figcaption>ローカルの作業ツールを選択。未導入コマンドも明示します。</figcaption></figure>
 <p>Home・詳細・diffで <kbd>O</kbd> を押し、<kbd>t</kbd>（シェル）、<kbd>e</kbd>（エディタ）、<kbd>l</kbd>（lazygit）、<kbd>g</kbd>（GitUI）を選びます。未導入ツールは明示されるのでPATH上に導入してください。SSHリポジトリのローカルツール起動は非対応です。</p>
 <p>メニューの <kbd>c</kbd> でエディタを設定できます。引数の引用符と <code>{path}</code> に対応し、プレースホルダがなければリポジトリパスを1引数として追加します。端末内エディタは <kbd>w</kbd> で終了待機をオンにします。GUIは既定で待機しません。端末内ツール終了後は表示・入力を復帰し、選択リポジトリを再取得します。GUIで後から編集した内容は <kbd>r</kbd> で再取得してください。コマンドは絶対パスかPATH上の名前を指定します。</p>
 </section>

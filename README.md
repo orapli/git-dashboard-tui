@@ -228,9 +228,11 @@ Then:
 After your first registration, a short guide introduces `n`, `Enter`, `t`, and `?`.
 Press `Esc` on Home to dismiss it. Use `n` to show repositories needing attention.
 
-Home summarizes attention, uncommitted work, sync differences and missing local data within the current group and search. The selected row shows reasons, local check time, and repository-wide latest CI branch/status; `C` opens that run. GitHub uses a five-minute cache and retries failures after one minute. PR counts are capped at `100+`. Local reload (`r`) does not run `git fetch`. Context folds away on small terminals.
+Home summarizes attention, uncommitted work, sync differences and unverified local/GitHub data within the current group and search. The selected row shows reasons, local check time, and repository-wide latest CI branch/status; `C` opens that run. GitHub uses a five-minute cache and retries failures after one minute. PR counts are capped at `100+`. Local reload (`r`) does not run `git fetch`. Context folds away on small terminals.
 
 Press `O` on Home, Repo or Diff to open a shell (`t`), editor (`e`), lazygit (`l`) or GitUI (`g`). Configure the editor with `c` inside the menu; use `w` to wait for terminal editors. GUI editors launch without waiting by default. Terminal tools restore the dashboard and reload status on exit. Install clients on PATH; local tool launch is unavailable for SSH repositories.
+
+Press `W` on Home to browse local worktrees across repositories without duplicate paths. Search paths, branches and notes with `/`, edit a purpose note with `m`, star with `*`, and filter favorites with `f`. `Enter`/`O` opens tools in that worktree; `t` opens its shell. Refresh (`r`) runs in the background. Notes and favorites persist; SSH worktrees are excluded.
 
 ## Keybindings
 
@@ -262,6 +264,9 @@ Press `O` on Home, Repo or Diff to open a shell (`t`), editor (`e`), lazygit (`l
 | `o` | Cycle sort order — name, branch, sync, dirty, updated, each ↑ and ↓. The sorted column is marked ▲ / ▼ in the header, and can also be set by clicking it. |
 | `[` / `]` | Cycle repository group filter |
 | `n` | Toggle **needs-attention** filter (failing CI / conflicts / interrupted op) |
+| `C` | Open the selected repository’s latest GitHub CI run |
+| `O` | Open the shell / editor / lazygit / GitUI menu |
+| `W` | Browse local worktrees across repositories |
 | `S` | **Cross-repo commit message search** |
 | `M` | Open **Global Cross-Repo Team Analytics** |
 | `p` / `f` | `git pull` / `git fetch` selected repo. While one runs, the repository's Sync cell shows a spinner and the operation name, and the title bar counts the jobs still going |

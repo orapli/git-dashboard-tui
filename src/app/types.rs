@@ -8,6 +8,7 @@ use std::path::PathBuf;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Screen {
     Home,
+    Workspace,
     Repo,
     Diff,
     Settings,
@@ -270,6 +271,8 @@ pub enum InputKind {
     EditMemberAliases,
     DiffCommand,
     EditorCommand,
+    WorkspaceQuery,
+    WorktreeNote,
     FinderFilter,
     FinderScanPath,
     CommitSearchQuery,
@@ -310,6 +313,11 @@ pub struct CommitPreview {
 }
 
 pub enum Job {
+    LoadWorkspace {
+        seq: u64,
+        generation: std::sync::Arc<std::sync::atomic::AtomicU64>,
+        repos: Vec<(String, PathBuf)>,
+    },
     LoadHome {
         generation: u64,
         index: usize,
@@ -400,7 +408,8 @@ impl Job {
     pub fn is_secondary_worker(&self) -> bool {
         matches!(
             self,
-            Job::Pull { .. }
+            Job::LoadWorkspace { .. }
+                | Job::Pull { .. }
                 | Job::Fetch { .. }
                 | Job::SearchCommits { .. }
                 | Job::LoadGlobalMembers { .. }
@@ -409,6 +418,14 @@ impl Job {
 }
 
 pub enum Msg {
+    WorkspaceRow {
+        seq: u64,
+        row: WorkspaceRow,
+    },
+    WorkspaceDone {
+        seq: u64,
+        errors: Vec<String>,
+    },
     HomeLoaded {
         generation: u64,
         index: usize,
@@ -532,4 +549,29 @@ pub const SPINNER_INTERVAL_MS: u128 = 100;
 pub struct WorkTool {
     pub command: ExternalDiff,
     pub wait: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct WorkspaceRow {
+    pub parent: String,
+    pub path: PathBuf,
+    pub branch: String,
+    pub dirty: Option<usize>,
+    pub last_commit: String,
+    pub checked_at: i64,
+    pub locked: bool,
+    pub prunable: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Default)]
+pub struct Workspace {
+    pub rows: Vec<WorkspaceRow>,
+    pub selected: usize,
+    pub filter: String,
+    pub favorites_only: bool,
+    pub loading: bool,
+    pub errors: Vec<String>,
+    pub seen: std::collections::HashSet<PathBuf>,
+    pub skipped_ssh: usize,
 }

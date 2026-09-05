@@ -43,6 +43,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
     draw_title(frame, app, chunks[0], pal);
     match app.screen {
         Screen::Home => draw_home(frame, app, chunks[1], pal),
+        Screen::Workspace => draw_workspace(frame, app, chunks[1], pal),
         Screen::Repo => draw_repo(frame, app, chunks[1], pal),
         Screen::Diff => draw_diff(frame, app, chunks[1], pal),
         Screen::Settings => draw_settings(frame, app, chunks[1], pal),
@@ -80,6 +81,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
 fn draw_title(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     let title = match app.screen {
         Screen::Home => app.tt("Repositories", "リポジトリ一覧"),
+        Screen::Workspace => app.tt("Local worktrees", "ローカルWorktree一覧"),
         Screen::Repo => app
             .repo_index
             .and_then(|i| app.repos.get(i))
@@ -242,6 +244,131 @@ fn draw_footer(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     );
 }
 
+fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    let parts = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Min(3),
+        Constraint::Length(4),
+    ])
+    .split(area);
+    let indices = app.filtered_workspace();
+    let state = if app.workspace.loading {
+        app.tt(
+            "loading; existing rows may be cached",
+            "取得中・既存行は前回値の場合があります",
+        )
+    } else {
+        app.tt("ready", "取得完了")
+    };
+    frame.render_widget(
+        Paragraph::new(format!(
+            "{} / {}  {}  SSH: {}  {}: {}  / {}",
+            indices.len(),
+            app.workspace.rows.len(),
+            state,
+            app.workspace.skipped_ssh,
+            app.tt("errors", "取得失敗"),
+            app.workspace.errors.len(),
+            app.workspace.filter
+        )),
+        parts[0],
+    );
+    let rows = indices.iter().map(|&i| {
+        let r = &app.workspace.rows[i];
+        let note = app.workspace_note(&r.path);
+        Row::new(vec![
+            if note.favorite {
+                "★".into()
+            } else {
+                String::new()
+            },
+            r.parent.clone(),
+            r.branch.clone(),
+            r.dirty.map(|n| n.to_string()).unwrap_or_else(|| "?".into()),
+            r.last_commit.chars().take(16).collect(),
+            r.path.display().to_string(),
+            note.note,
+        ])
+        .style(Style::default().fg(if r.error.is_some() {
+            pal.yellow
+        } else {
+            pal.text
+        }))
+    });
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(2),
+            Constraint::Percentage(15),
+            Constraint::Percentage(17),
+            Constraint::Length(10),
+            Constraint::Length(17),
+            Constraint::Percentage(25),
+            Constraint::Min(8),
+        ],
+    )
+    .header(
+        Row::new(vec![
+            "★".into(),
+            app.tt("Repository", "親リポジトリ"),
+            app.tt("Branch", "ブランチ"),
+            app.tt("Dirty", "未コミット"),
+            app.tt("Last commit", "最終コミット"),
+            "Worktree".into(),
+            app.tt("Note", "用途メモ"),
+        ])
+        .style(Style::default().fg(pal.accent)),
+    )
+    .block(Block::bordered().title(if app.workspace.favorites_only {
+        app.tt("Favorites", "お気に入り")
+    } else {
+        app.tt("Worktrees (local only)", "Worktree（ローカルのみ）")
+    }))
+    .row_highlight_style(
+        Style::default()
+            .bg(pal.overlay)
+            .add_modifier(Modifier::BOLD),
+    )
+    .highlight_symbol(HIGHLIGHT_SYMBOL);
+    let mut selection = TableState::default().with_selected(if indices.is_empty() {
+        None
+    } else {
+        Some(app.workspace.selected)
+    });
+    frame.render_stateful_widget(table, parts[1], &mut selection);
+    app.workspace_viewport.set(ListViewport {
+        y: parts[1].y.saturating_add(2),
+        height: parts[1].height.saturating_sub(3),
+        x: parts[1].x + 1,
+        offset: selection.offset(),
+    });
+    let detail = if let Some(row) = app.selected_workspace_row() {
+        format!(
+            "{}\n{}{}{}\n{}",
+            row.path.display(),
+            if row.locked { "locked  " } else { "" },
+            if row.prunable { "prunable  " } else { "" },
+            app.workspace_note(&row.path).note,
+            row.error.clone().unwrap_or_else(|| format!(
+                "{}: {}",
+                app.tt("Checked", "取得"),
+                crate::git::format_timestamp(row.checked_at)
+            ))
+        )
+    } else {
+        app.workspace.errors.first().cloned().unwrap_or_else(|| {
+            app.tt(
+                "No matching local worktrees. /: search  f: toggle favorites",
+                "一致するローカルWorktreeなし。/: 検索  f: お気に入り切替",
+            )
+        })
+    };
+    frame.render_widget(
+        Paragraph::new(detail).style(Style::default().fg(pal.subtext)),
+        parts[2],
+    );
+}
+
 fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     app.home_table_bounds.set((0, 0));
     if app.repos.is_empty() {
@@ -319,7 +446,7 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 counts.dirty,
                 app.tt("Sync delta", "同期差分"),
                 counts.sync,
-                app.tt("Not fetched", "未取得"),
+                app.tt("Unverified", "未確認"),
                 counts.unknown
             ))
             .style(Style::default().fg(pal.accent)),
@@ -2375,6 +2502,13 @@ fn draw_help(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             ),
         ),
         row(
+            "W",
+            app.tt(
+                "cross-repository local worktrees (Home)",
+                "ローカルWorktreeを横断表示（Home）",
+            ),
+        ),
+        row(
             "O",
             app.tt(
                 "open shell/editor/lazygit/GitUI menu (Home, Repo, Diff)",
@@ -2999,6 +3133,7 @@ pub(crate) mod tests {
             group: None,
         }];
         for screen in [
+            Screen::Workspace,
             Screen::Home,
             Screen::Repo,
             Screen::Diff,
