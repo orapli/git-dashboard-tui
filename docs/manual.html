@@ -138,7 +138,7 @@ footer a{color:var(--muted)}
 </section>
 <section id="first-run">
 <h2>First run<a href="#first-run" aria-label="link">#</a></h2>
-<p>Start it with no arguments. Press <kbd>A</kbd>, enter the folder to scan, then select repositories and register them with <kbd>Enter</kbd>. An empty path or <kbd>Esc</kbd> cancels the scan. Use <kbd>a</kbd> to add one repository.</p>
+<p>Start it with no arguments. Press <kbd>A</kbd>, enter the folder to scan, then select repositories and register them with <kbd>Enter</kbd>. Discovery runs in the background and fills the list progressively. <kbd>Esc</kbd>/<kbd>q</kbd> cancels a running scan; <kbd>Enter</kbd> stops scanning and imports the repositories selected so far. An empty path cancels before scanning. Use <kbd>a</kbd> to add one repository.</p>
 <p>After registration, a short guide introduces <kbd>n</kbd> (needs attention), <kbd>Enter</kbd> (details), <kbd>t</kbd> (shell), and <kbd>?</kbd> (help). Dismiss it with <kbd>Esc</kbd>; it stays dismissed on subsequent launches.</p>
 <p>Rows fill in as each repository is analysed, and the result is cached — so the next launch shows the dashboard populated straight away rather than a screen of placeholders while it re-reads everything.</p>
 <figure><img src="img/progress.svg" loading="lazy" alt="Work in flight. The repository being refreshed shows a spinner in place of the value about to change, and the title bar "><figcaption>Work in flight. The repository being refreshed shows a spinner in place of the value about to change, and the title bar counts the jobs still running — from any screen, since work started here keeps going while you look elsewhere.</figcaption></figure>

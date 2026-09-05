@@ -30,6 +30,8 @@ pub struct FoundRepo {
 
 #[derive(Clone, Debug)]
 pub struct RepoFinderState {
+    pub loading: bool,
+    pub errors: Vec<String>,
     pub scan_root: PathBuf,
     pub repos: Vec<FoundRepo>,
     pub selected_idx: usize,
@@ -313,6 +315,11 @@ pub struct CommitPreview {
 }
 
 pub enum Job {
+    ScanRepos {
+        seq: u64,
+        generation: std::sync::Arc<std::sync::atomic::AtomicU64>,
+        root: PathBuf,
+    },
     LoadWorkspace {
         seq: u64,
         generation: std::sync::Arc<std::sync::atomic::AtomicU64>,
@@ -418,6 +425,14 @@ impl Job {
 }
 
 pub enum Msg {
+    FinderRepo {
+        seq: u64,
+        repo: FoundRepo,
+    },
+    FinderDone {
+        seq: u64,
+        errors: Vec<String>,
+    },
     WorkspaceRow {
         seq: u64,
         row: WorkspaceRow,

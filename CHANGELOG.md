@@ -11,6 +11,7 @@ These entries describe development on `main`, not the latest release binary.
 
 ### Added
 
+- Cancellable, incremental repository discovery on a dedicated worker, including folder inputs from single-repository registration.
 - First-run repository import flow and English/Japanese product walkthrough.
 - Home attention reasons, separate unverified-data counts, GitHub freshness and CI-run context.
 - `O` menu for shell, editor, lazygit and GitUI, with editor command/wait preferences.

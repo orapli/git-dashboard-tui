@@ -103,10 +103,10 @@ SECTIONS = [
             ("p", t(
                 "Start it with no arguments. Press <kbd>A</kbd>, enter the folder to scan, "
                 "then select repositories and register them with <kbd>Enter</kbd>. "
-                "An empty path or <kbd>Esc</kbd> cancels the scan. Use <kbd>a</kbd> to add one repository.",
+                "Discovery runs in the background and fills the list progressively. <kbd>Esc</kbd>/<kbd>q</kbd> cancels a running scan; <kbd>Enter</kbd> stops scanning and imports the repositories selected so far. An empty path cancels before scanning. Use <kbd>a</kbd> to add one repository.",
                 "引数なしで起動し、<kbd>A</kbd> で走査するフォルダを入力します。"
                 "検出一覧でリポジトリを選び、<kbd>Enter</kbd> でまとめて登録します。"
-                "空入力または <kbd>Esc</kbd> で走査を取り消せます。1件だけ追加する場合は <kbd>a</kbd> を使います。")),
+                "検出はバックグラウンドで進み、結果を順次表示します。走査中は <kbd>Esc</kbd>/<kbd>q</kbd> で中止、<kbd>Enter</kbd> で走査を止めて検出済みの選択分を登録します。空入力は走査開始前の取消です。1件だけなら <kbd>a</kbd> を使います。")),
             ("p", t(
                 "After registration, a short guide introduces <kbd>n</kbd> (needs attention), "
                 "<kbd>Enter</kbd> (details), <kbd>t</kbd> (shell), and <kbd>?</kbd> (help). "

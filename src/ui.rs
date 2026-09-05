@@ -2291,7 +2291,7 @@ fn draw_repo_finder(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     };
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(4), Constraint::Min(1)])
+        .constraints([Constraint::Length(5), Constraint::Min(1)])
         .split(area);
 
     let vis = app.filtered_finder_repos();
@@ -2305,6 +2305,20 @@ fn draw_repo_finder(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         .count();
 
     let scan_info = vec![
+        Line::from(if finder.loading {
+            app.tt(
+                "Scanning… Esc: cancel / Enter: import found repositories",
+                "走査中… Esc: 中止 / Enter: 検出済みを登録",
+            )
+        } else if let Some(error) = finder.errors.first() {
+            format!(
+                "{} ({}): {error}",
+                app.tt("Scan errors", "走査エラー"),
+                finder.errors.len()
+            )
+        } else {
+            app.tt("Scan complete", "走査完了")
+        }),
         Line::from(vec![
             Span::styled(
                 format!("  {:<14}", app.tt("Scan Root:", "探索フォルダ:")),
@@ -2411,10 +2425,14 @@ fn draw_repo_finder(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         finder.selected_idx,
         list_title,
         None,
-        &app.tt(
+        &if finder.loading {
+            app.tt("Discovering repositories…", "リポジトリを検出中…")
+        } else {
+            app.tt(
             "No git repositories found in this folder. Press 'r' to scan another folder.",
             "このフォルダ内に Git リポジトリは見つかりませんでした。'r' で別フォルダをスキャンしてください。",
-        ),
+        )
+        },
     );
 }
 

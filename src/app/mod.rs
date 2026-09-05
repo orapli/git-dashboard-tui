@@ -122,6 +122,8 @@ pub struct App {
     pub attention_only: bool,
     pub onboarding_visible: bool,
     pub repo_finder: Option<RepoFinderState>,
+    pub finder_generation: Arc<AtomicU64>,
+    finder_tx: Sender<Job>,
     pub path_completions: Vec<String>,
     pub path_completion_idx: usize,
     input: Option<InputKind>,
@@ -161,6 +163,7 @@ impl Default for App {
 impl App {
     pub fn new() -> Self {
         let (job_tx, job_rx) = mpsc::channel::<Job>();
+        let (finder_tx, finder_rx) = mpsc::channel::<Job>();
         let (bulk_tx, bulk_rx) = mpsc::channel::<Job>();
         let (msg_tx, msg_rx) = mpsc::channel::<Msg>();
         let home_gen = Arc::new(AtomicU64::new(0));
@@ -169,7 +172,8 @@ impl App {
         // aggregations get their own worker: a 120 s `pull`, or a commit
         // search that reaches an unresponsive SSH host, would otherwise
         // block every diff and single-repo load queued behind it.
-        spawn_worker(bulk_rx, msg_tx, Arc::clone(&home_gen));
+        spawn_worker(bulk_rx, msg_tx.clone(), Arc::clone(&home_gen));
+        spawn_worker(finder_rx, msg_tx, Arc::clone(&home_gen));
 
         let mut load_errors = Vec::new();
         let mut config_state = ConfigLoadState::default();
@@ -238,6 +242,8 @@ impl App {
             attention_only: false,
             onboarding_visible: false,
             repo_finder: None,
+            finder_generation: Arc::new(AtomicU64::new(0)),
+            finder_tx,
             path_completions: Vec::new(),
             path_completion_idx: 0,
             input: None,
@@ -321,6 +327,7 @@ impl App {
             self.repo_loading,
             self.global_members_loading,
             self.workspace.loading,
+            self.repo_finder.as_ref().is_some_and(|f| f.loading),
             self.diff.as_ref().is_some_and(|d| d.loading),
             self.diff.as_ref().is_some_and(|d| d.blame_loading),
             self.commit_search.as_ref().is_some_and(|s| s.loading),
@@ -868,6 +875,10 @@ impl App {
                 KeyCode::Char('G') => self.help_scroll.set(usize::MAX),
                 _ => {}
             }
+            return;
+        }
+        if self.screen == Screen::RepoFinder && key.code == KeyCode::Char('q') {
+            self.handle_repo_finder(key);
             return;
         }
         if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL)
@@ -1797,12 +1808,18 @@ impl App {
             _ => {}
         }
         let workspace_job = matches!(&job, Job::LoadWorkspace { .. });
-        let tx = if job.is_secondary_worker() {
+        let finder_job = matches!(&job, Job::ScanRepos { .. });
+        let tx = if finder_job {
+            &self.finder_tx
+        } else if job.is_secondary_worker() {
             &self.bulk_tx
         } else {
             &self.job_tx
         };
         if tx.send(job).is_err() {
+            if finder_job && let Some(finder) = self.repo_finder.as_mut() {
+                finder.loading = false;
+            }
             if workspace_job {
                 self.workspace.loading = false;
             }
@@ -2657,42 +2674,28 @@ impl App {
     pub fn open_repo_finder(&mut self, root: Option<PathBuf>) {
         let scan_root =
             root.unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-        let found_paths = git::find_git_repos(&scan_root, 4);
-        let mut repos = Vec::new();
-        for path in found_paths {
-            let is_already_added = self.repos.iter().any(|r| r.path == path);
-            let name = path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .filter(|n| !n.is_empty())
-                .unwrap_or_else(|| path.display().to_string());
-            let branch = git::read_file_capped(&path.join(".git/HEAD"), 4096)
-                .and_then(|h| {
-                    let trimmed = h.trim();
-                    if let Some(b) = trimmed.strip_prefix("ref: refs/heads/") {
-                        Some(b.to_string())
-                    } else if trimmed.is_empty() {
-                        None
-                    } else {
-                        Some(short_hash(trimmed))
-                    }
-                })
-                .unwrap_or_else(|| "HEAD".into());
-            repos.push(FoundRepo {
-                path,
-                name,
-                branch,
-                is_already_added,
-                is_selected: !is_already_added,
-            });
-        }
+        let seq = self.finder_generation.fetch_add(1, Ordering::Relaxed) + 1;
         self.repo_finder = Some(RepoFinderState {
-            scan_root,
-            repos,
+            scan_root: scan_root.clone(),
+            repos: Vec::new(),
             selected_idx: 0,
             filter: String::new(),
+            loading: true,
+            errors: Vec::new(),
         });
         self.screen = Screen::RepoFinder;
+        self.send_job(Job::ScanRepos {
+            seq,
+            generation: self.finder_generation.clone(),
+            root: scan_root,
+        });
+    }
+
+    fn cancel_finder(&mut self) {
+        self.finder_generation.fetch_add(1, Ordering::Relaxed);
+        if let Some(finder) = self.repo_finder.as_mut() {
+            finder.loading = false;
+        }
     }
 
     fn handle_repo_finder(&mut self, key: KeyEvent) {
@@ -2700,6 +2703,11 @@ impl App {
         let num_vis = vis.len();
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => {
+                if self.repo_finder.as_ref().is_some_and(|f| f.loading) {
+                    self.cancel_finder();
+                    self.screen = Screen::Home;
+                    return;
+                }
                 if let Some(finder) = self.repo_finder.as_mut()
                     && !finder.filter.is_empty()
                 {
@@ -2780,6 +2788,7 @@ impl App {
     }
 
     fn import_finder_selected(&mut self) {
+        self.cancel_finder();
         let Some(finder) = self.repo_finder.take() else {
             self.screen = Screen::Home;
             return;
@@ -2825,64 +2834,6 @@ impl App {
         }
     }
 
-    fn bulk_add_repos_from_path(&mut self, path_str: &str) {
-        let s = path_str.trim();
-        if s.is_empty() {
-            return;
-        }
-        let path = expand_user_path(s);
-        let found = git::find_git_repos(&path, 3);
-        if found.is_empty() {
-            self.error = Some(format!(
-                "{}: {}",
-                self.tt(
-                    "No git repositories found in",
-                    "Git リポジトリが見つかりませんでした"
-                ),
-                path.display()
-            ));
-            return;
-        }
-        let mut added = 0usize;
-        let mut skipped = 0usize;
-        for repo_path in found {
-            if self.repos.iter().any(|r| r.path == repo_path) {
-                skipped += 1;
-                continue;
-            }
-            let name = repo_path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .filter(|n| !n.is_empty())
-                .unwrap_or_else(|| repo_path.display().to_string());
-            self.repos.push(Repository {
-                name,
-                path: repo_path.clone(),
-                group: None,
-            });
-            let index = self.repos.len() - 1;
-            self.send_job(Job::LoadHome {
-                generation: self.home_generation(),
-                index,
-                path: repo_path,
-                members: self.members.clone(),
-            });
-            added += 1;
-        }
-        if added > 0
-            && let Err(e) = self.try_persist_repos()
-        {
-            self.error = Some(e);
-            return;
-        }
-        self.status = match self.lang() {
-            Language::English => format!("Added {added} repository(ies) (skipped {skipped})"),
-            Language::Japanese => {
-                format!("{added}件のリポジトリを追加しました (スキップ {skipped}件)")
-            }
-        };
-    }
-
     fn add_repo_from_path(&mut self, path_str: &str) {
         if path_str.trim().is_empty() {
             return;
@@ -2890,11 +2841,8 @@ impl App {
         let path = expand_user_path(path_str);
         if !git::is_git_repo(&path) {
             if path.is_dir() {
-                let found = git::find_git_repos(&path, 3);
-                if !found.is_empty() {
-                    self.bulk_add_repos_from_path(path_str);
-                    return;
-                }
+                self.open_repo_finder(Some(path));
+                return;
             }
             self.error = Some(format!(
                 "{}: {}",
@@ -3474,6 +3422,41 @@ impl App {
             _ => {}
         }
         match msg {
+            Msg::FinderRepo { seq, mut repo } => {
+                if seq != self.finder_generation.load(Ordering::Relaxed) {
+                    return;
+                }
+                repo.is_already_added = self.repos.iter().any(|r| r.path == repo.path);
+                repo.is_selected = !repo.is_already_added;
+                if let Some(finder) = self.repo_finder.as_mut() {
+                    finder.repos.push(repo);
+                }
+            }
+            Msg::FinderDone { seq, errors } => {
+                if seq != self.finder_generation.load(Ordering::Relaxed) {
+                    return;
+                }
+                let selected = self.repo_finder.as_ref().and_then(|f| {
+                    self.filtered_finder_repos()
+                        .get(f.selected_idx)
+                        .map(|&i| f.repos[i].path.clone())
+                });
+                if let Some(finder) = self.repo_finder.as_mut() {
+                    finder.loading = false;
+                    finder.errors = errors;
+                    finder.repos.sort_by(|a, b| a.path.cmp(&b.path));
+                }
+                let selection = selected
+                    .and_then(|p| {
+                        self.filtered_finder_repos()
+                            .iter()
+                            .position(|&i| self.repo_finder.as_ref().unwrap().repos[i].path == p)
+                    })
+                    .unwrap_or(0);
+                if let Some(finder) = self.repo_finder.as_mut() {
+                    finder.selected_idx = selection;
+                }
+            }
             Msg::WorkspaceRow { seq, row } => self.apply_workspace_row(seq, row),
             Msg::WorkspaceDone { seq, errors } => self.finish_workspace(seq, errors),
             Msg::HomeLoaded {

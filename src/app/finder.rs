@@ -138,3 +138,125 @@ pub fn strip_ansi(input: &str) -> String {
     }
     out
 }
+
+/// Dedicated-worker discovery: no Git subprocess per directory, and cooperative
+/// cancellation between filesystem operations. Depth bounds symlink cycles too.
+pub fn scan_repositories(
+    root: &std::path::Path,
+    cancelled: impl Fn() -> bool,
+    mut emit: impl FnMut(PathBuf),
+) -> Vec<String> {
+    let mut pending = vec![(root.to_path_buf(), 0)];
+    let mut seen = std::collections::HashSet::new();
+    let mut errors = Vec::new();
+    while let Some((path, depth)) = pending.pop() {
+        if cancelled() {
+            break;
+        }
+        let canonical = match path.canonicalize() {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!("{}: {e}", path.display()));
+                continue;
+            }
+        };
+        if !seen.insert(canonical) {
+            continue;
+        }
+        if path.join(".git").exists() {
+            emit(path);
+            continue;
+        }
+        if depth >= 4 {
+            continue;
+        }
+        let entries = match std::fs::read_dir(&path) {
+            Ok(entries) => entries,
+            Err(e) => {
+                errors.push(format!("{}: {e}", path.display()));
+                continue;
+            }
+        };
+        for entry in entries {
+            if cancelled() {
+                return errors;
+            }
+            match entry {
+                Ok(entry) => {
+                    let name = entry.file_name();
+                    let name = name.to_string_lossy();
+                    if name.starts_with('.')
+                        || matches!(name.as_ref(), "node_modules" | "target" | "vendor")
+                    {
+                        continue;
+                    }
+                    if entry.path().is_dir() {
+                        pending.push((entry.path(), depth + 1));
+                    }
+                }
+                Err(e) => errors.push(format!("{}: {e}", path.display())),
+            }
+        }
+    }
+    errors
+}
+
+pub fn found_repository(path: PathBuf) -> super::FoundRepo {
+    let marker = path.join(".git");
+    let git_dir = if marker.is_file() {
+        crate::git::read_file_capped(&marker, 4096)
+            .and_then(|s| s.trim().strip_prefix("gitdir: ").map(|dir| path.join(dir)))
+            .unwrap_or(marker)
+    } else {
+        marker
+    };
+    let branch = crate::git::read_file_capped(&git_dir.join("HEAD"), 4096)
+        .map(|s| {
+            s.trim()
+                .strip_prefix("ref: refs/heads/")
+                .map(str::to_owned)
+                .unwrap_or_else(|| s.trim().chars().take(8).collect())
+        })
+        .filter(|s: &String| !s.is_empty())
+        .unwrap_or_else(|| "HEAD".into());
+    super::FoundRepo {
+        name: path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| path.display().to_string()),
+        path,
+        branch,
+        is_already_added: false,
+        is_selected: true,
+    }
+}
+
+#[cfg(test)]
+mod scan_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn scan_streams_results_skips_build_trees_and_cancels() {
+        let root = std::env::temp_dir().join(format!("gdt-scan-{}", std::process::id()));
+        for name in ["one", "two", "node_modules/hidden", "target/hidden"] {
+            std::fs::create_dir_all(root.join(name).join(".git")).unwrap();
+        }
+        let mut found = Vec::new();
+        assert!(scan_repositories(&root, || false, |p| found.push(p)).is_empty());
+        assert_eq!(found.len(), 2);
+        let cancel = AtomicBool::new(false);
+        let mut count = 0;
+        scan_repositories(
+            &root,
+            || cancel.load(Ordering::Relaxed),
+            |_| {
+                count += 1;
+                cancel.store(true, Ordering::Relaxed);
+            },
+        );
+        assert_eq!(count, 1);
+        assert!(!scan_repositories(&root.join("missing"), || false, |_| {}).is_empty());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}

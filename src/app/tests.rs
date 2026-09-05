@@ -1190,6 +1190,12 @@ fn test_repo_finder_workflow() {
 
     // Open repo finder pointing to temp_dir
     app.open_repo_finder(Some(temp_dir.clone()));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while app.repo_finder.as_ref().unwrap().loading {
+        app.drain_messages();
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
     assert_eq!(app.screen, Screen::RepoFinder);
     assert!(app.repo_finder.is_some());
     let finder = app.repo_finder.as_ref().unwrap();
@@ -1697,6 +1703,8 @@ fn failed_first_import_keeps_selection_and_does_not_show_success_guide() {
     app.config_state.repos_failed = true;
     app.screen = Screen::RepoFinder;
     app.repo_finder = Some(RepoFinderState {
+        loading: false,
+        errors: vec![],
         scan_root: PathBuf::from("/tmp"),
         repos: vec![FoundRepo {
             path: PathBuf::from("/tmp/sample"),
@@ -1714,4 +1722,38 @@ fn failed_first_import_keeps_selection_and_does_not_show_success_guide() {
     assert!(app.repo_finder.as_ref().unwrap().repos[0].is_selected);
     assert_eq!(app.screen, Screen::RepoFinder);
     assert!(!app.onboarding_visible);
+}
+
+#[test]
+fn finder_can_cancel_before_worker_responds_and_discards_late_results() {
+    let mut app = App::new();
+    let (tx, rx) = mpsc::channel();
+    app.finder_tx = tx; // Hold the worker: cancellation must not depend on filesystem speed.
+    app.open_repo_finder(Some(PathBuf::from("/slow-folder")));
+    let seq = app.finder_generation.load(Ordering::Relaxed);
+    assert!(matches!(rx.try_recv(), Ok(Job::ScanRepos { .. })));
+    assert!(app.repo_finder.as_ref().unwrap().loading);
+    app.handle_key(KeyEvent::from(KeyCode::Esc));
+    assert_eq!(app.screen, Screen::Home);
+    assert!(!app.repo_finder.as_ref().unwrap().loading);
+    app.open_repo_finder(Some(PathBuf::from("/new-folder")));
+    app.apply_msg_for_test(Msg::FinderRepo {
+        seq,
+        repo: FoundRepo {
+            path: "/old".into(),
+            name: "old".into(),
+            branch: "main".into(),
+            is_selected: true,
+            is_already_added: false,
+        },
+    });
+    app.apply_msg_for_test(Msg::FinderDone {
+        seq,
+        errors: vec!["old error".into()],
+    });
+    assert!(app.repo_finder.as_ref().unwrap().repos.is_empty());
+    assert!(app.repo_finder.as_ref().unwrap().loading);
+    app.handle_key(KeyEvent::from(KeyCode::Char('q')));
+    assert_eq!(app.screen, Screen::Home);
+    assert!(!app.should_quit);
 }

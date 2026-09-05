@@ -19,6 +19,24 @@ pub fn spawn_worker(job_rx: Receiver<Job>, msg_tx: Sender<Msg>, home_gen: Arc<At
     thread::spawn(move || {
         while let Ok(job) = job_rx.recv() {
             let msg = match job {
+                Job::ScanRepos {
+                    seq,
+                    generation,
+                    root,
+                } => {
+                    let errors = super::finder::scan_repositories(
+                        &root,
+                        || generation.load(Ordering::Relaxed) != seq,
+                        |path| {
+                            let _ = msg_tx.send(Msg::FinderRepo {
+                                seq,
+                                repo: super::finder::found_repository(path),
+                            });
+                        },
+                    );
+                    Msg::FinderDone { seq, errors }
+                }
+
                 Job::LoadWorkspace {
                     seq,
                     generation,
