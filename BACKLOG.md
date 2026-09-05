@@ -53,5 +53,5 @@ See [the product improvement proposal](docs/product-improvement-proposal.ja.md) 
 - [x] 1–2: Updated positioning, captured walkthrough, bulk-first onboarding and dismissible guide.
 - [x] 3: Attention summary and reasons.
 - [x] 4: Freshness and GitHub status context.
-- [ ] 5: External editor and Git client launch.
+- [x] 5: External editor and Git client launch.
 - [ ] 6: Cross-repository Worktree workspace.

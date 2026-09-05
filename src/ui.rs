@@ -54,6 +54,21 @@ pub fn draw(frame: &mut Frame, app: &App) {
     }
     draw_footer(frame, app, chunks[2], pal);
 
+    if app.tool_menu.is_some() {
+        let rect = centered_rect(area, 30, 90, 12);
+        frame.render_widget(Clear, rect);
+        frame.render_widget(
+            Paragraph::new(
+                app.tool_menu_lines()
+                    .into_iter()
+                    .map(Line::from)
+                    .collect::<Vec<_>>(),
+            )
+            .block(Block::bordered().title(app.tt("Open in tool", "ツールで開く")))
+            .style(Style::default().bg(pal.surface).fg(pal.text)),
+            rect,
+        );
+    }
     if app.is_adding_repo() {
         draw_prompt(frame, area, &app.prompt_title(), app.input_buf(), pal);
     }
@@ -2357,6 +2372,13 @@ fn draw_help(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             app.tt(
                 "unresolved conflict, or a mid-operation merge/rebase)",
                 "中断中の merge/rebase）の切替",
+            ),
+        ),
+        row(
+            "O",
+            app.tt(
+                "open shell/editor/lazygit/GitUI menu (Home, Repo, Diff)",
+                "シェル・エディタ・lazygit・GitUIメニュー（Home・詳細・diff）",
             ),
         ),
         row(

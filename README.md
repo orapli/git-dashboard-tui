@@ -230,6 +230,8 @@ Press `Esc` on Home to dismiss it. Use `n` to show repositories needing attentio
 
 Home summarizes attention, uncommitted work, sync differences and missing local data within the current group and search. The selected row shows reasons, local check time, and repository-wide latest CI branch/status; `C` opens that run. GitHub uses a five-minute cache and retries failures after one minute. PR counts are capped at `100+`. Local reload (`r`) does not run `git fetch`. Context folds away on small terminals.
 
+Press `O` on Home, Repo or Diff to open a shell (`t`), editor (`e`), lazygit (`l`) or GitUI (`g`). Configure the editor with `c` inside the menu; use `w` to wait for terminal editors. GUI editors launch without waiting by default. Terminal tools restore the dashboard and reload status on exit. Install clients on PATH; local tool launch is unavailable for SSH repositories.
+
 ## Keybindings
 
 ### Global

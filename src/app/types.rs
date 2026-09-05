@@ -269,6 +269,7 @@ pub enum InputKind {
     AddMemberAliases,
     EditMemberAliases,
     DiffCommand,
+    EditorCommand,
     FinderFilter,
     FinderScanPath,
     CommitSearchQuery,
@@ -526,3 +527,9 @@ pub const SPINNER_FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴"
 /// Milliseconds per frame. The event loop polls on a 100 ms timeout and
 /// redraws each pass, so anything at or above that turns over every frame.
 pub const SPINNER_INTERVAL_MS: u128 = 100;
+
+#[derive(Clone, Debug)]
+pub struct WorkTool {
+    pub command: ExternalDiff,
+    pub wait: bool,
+}

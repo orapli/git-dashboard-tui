@@ -109,6 +109,7 @@ footer a{color:var(--muted)}
 <li><a href="#repository">Inside a repository</a></li>
 <li><a href="#diff">Reading a diff</a></li>
 <li><a href="#cross-repo">Across every repository</a></li>
+<li><a href="#work-tools">Open your work tools</a></li>
 <li><a href="#settings">Settings and files</a></li>
 <li><a href="#trust">What it does with a repository you do not trust</a></li>
 <li><a href="#help">Everything else</a></li>
@@ -191,6 +192,11 @@ footer a{color:var(--muted)}
 <h2>Across every repository<a href="#cross-repo" aria-label="link">#</a></h2>
 <figure><img src="img/commit-search.svg" loading="lazy" alt="&lt;kbd&gt;S&lt;/kbd&gt; searches commit messages in every registered repository at once — a case-insensitive substring, not a regex"><figcaption><kbd>S</kbd> searches commit messages in every registered repository at once — a case-insensitive substring, not a regex. <kbd>Enter</kbd> jumps straight into the matching commit's diff. A repository the search could not reach is reported as failed rather than silently counted as having no matches.</figcaption></figure>
 <figure><img src="img/global-members.svg" loading="lazy" alt="&lt;kbd&gt;M&lt;/kbd&gt; aggregates contributors across all repositories, merging aliases into one person. &lt;kbd&gt;Enter&lt;/kbd&gt; jumps in"><figcaption><kbd>M</kbd> aggregates contributors across all repositories, merging aliases into one person. <kbd>Enter</kbd> jumps into the repository under the cursor.</figcaption></figure>
+</section>
+<section id="work-tools">
+<h2>Open your work tools<a href="#work-tools" aria-label="link">#</a></h2>
+<p>Press <kbd>O</kbd> on Home, Repo or Diff. Choose <kbd>t</kbd> for a shell, <kbd>e</kbd> for the editor, <kbd>l</kbd> for lazygit, or <kbd>g</kbd> for GitUI. Unavailable commands are marked; install clients on PATH. SSH repositories do not support local tool launch.</p>
+<p>Configure the editor with <kbd>c</kbd> in that menu. Quoted arguments and <code>{path}</code> are supported; without that placeholder the repository path is appended as one argument. Use <kbd>w</kbd> to enable waiting for terminal editors; GUI launch does not wait by default. After a terminal tool exits the dashboard restores input and reloads the selected repository. For subsequent GUI edits use <kbd>r</kbd> to reload. Commands must be absolute paths or names on PATH.</p>
 </section>
 <section id="settings">
 <h2>Settings and files<a href="#settings" aria-label="link">#</a></h2>

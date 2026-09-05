@@ -2,6 +2,7 @@ pub mod finder;
 pub mod handlers;
 pub mod helpers;
 pub mod home;
+pub mod tools;
 pub mod types;
 pub mod worker;
 
@@ -134,6 +135,8 @@ pub struct App {
     editing_member_idx: Option<usize>,
     pending_external: Option<ExternalDiff>,
     pending_terminal: Option<PathBuf>,
+    pub tool_menu: Option<PathBuf>,
+    pending_work_tool: Option<WorkTool>,
     preview_seq: u64,
     job_tx: Sender<Job>,
     bulk_tx: Sender<Job>,
@@ -244,6 +247,8 @@ impl App {
             editing_member_idx: None,
             pending_external: None,
             pending_terminal: None,
+            tool_menu: None,
+            pending_work_tool: None,
             preview_seq: 0,
             job_tx,
             bulk_tx,
@@ -348,6 +353,7 @@ impl App {
                     | InputKind::AddMemberName
                     | InputKind::AddMemberAliases
                     | InputKind::EditMemberAliases
+                    | InputKind::EditorCommand
                     | InputKind::DiffCommand
                     | InputKind::CommitSearchQuery
             )
@@ -382,6 +388,10 @@ impl App {
                 "Edit member aliases / Git commit authors (comma separated)",
                 "メンバーの別名を編集 / Gitコミット名 (カンマ区切り)",
             ),
+            Some(InputKind::EditorCommand) => self.tt(
+                "Editor command (quoted arguments supported)",
+                "エディタコマンド（引数の引用符に対応）",
+            ),
             Some(InputKind::DiffCommand) => self.tt(
                 "Diff tool command (e.g. 'code --wait --diff', empty for builtin)",
                 "Diff ツールコマンド (例: 'code --wait --diff', 空で内蔵)",
@@ -407,7 +417,13 @@ impl App {
     }
 
     pub fn open_terminal_for_current_repo(&mut self) {
-        let path = match self.screen {
+        if let Some(path) = self.current_work_path() {
+            self.queue_shell(path);
+        }
+    }
+
+    pub fn current_work_path(&self) -> Option<PathBuf> {
+        match self.screen {
             Screen::Home => {
                 let filtered = self.filtered_home();
                 filtered
@@ -432,22 +448,6 @@ impl App {
                 .and_then(|i| self.repos.get(i))
                 .map(|r| r.path.clone()),
             _ => None,
-        };
-
-        if let Some(p) = path {
-            if git::parse_ssh_repo(&p).is_some() {
-                self.error = Some(self.tt(
-                    "Cannot open local terminal for remote SSH repository",
-                    "リモートSSHリポジトリのローカルターミナルは開けません",
-                ));
-            } else if p.exists() {
-                self.pending_terminal = Some(p);
-            } else {
-                self.error = Some(self.tt(
-                    "Repository path does not exist",
-                    "リポジトリのパスが存在しません",
-                ));
-            }
         }
     }
 
@@ -643,6 +643,7 @@ impl App {
                 pair("[/]", "group", "グループ"),
                 pair("/", "filter", "絞込"),
                 pair("t", "shell", "シェル"),
+                pair("O", "open tools", "ツールで開く"),
                 pair("P/F", "pull/fetch all", "一括P/F"),
                 pair("M", "members", "横断メンバー"),
                 pair("S", "search commits", "コミット検索"),
@@ -706,6 +707,7 @@ impl App {
                     pair("f", "full file", "全文表示"),
                     pair("b", "blame", "blame"),
                     pair("t", "shell", "シェル"),
+                    pair("O", "open tools", "ツールで開く"),
                     pair("?", "help", "ヘルプ"),
                     pair("esc", "back", "戻る"),
                     pair("q", "quit", "終了"),
@@ -800,6 +802,18 @@ impl App {
         }
         if self.input.is_some() {
             self.handle_input(key);
+            return;
+        }
+        if self.tool_menu.is_some() {
+            self.handle_tool_menu(key);
+            return;
+        }
+        if key.code == KeyCode::Char('O')
+            && matches!(self.screen, Screen::Home | Screen::Repo | Screen::Diff)
+        {
+            if let Some(path) = self.current_work_path() {
+                self.open_tool_menu(path);
+            }
             return;
         }
         if self.screen == Screen::Help {
@@ -1047,6 +1061,10 @@ impl App {
                     Some(InputKind::AddMemberName) => self.finish_add_member_name(buf),
                     Some(InputKind::AddMemberAliases) => self.finish_add_member_aliases(buf),
                     Some(InputKind::EditMemberAliases) => self.finish_edit_member_aliases(buf),
+                    Some(InputKind::EditorCommand) => {
+                        self.prefs.editor_command = buf.trim().to_string();
+                        self.persist_prefs();
+                    }
                     Some(InputKind::DiffCommand) => {
                         self.prefs.diff_command = buf.trim().to_string();
                         self.persist_prefs();

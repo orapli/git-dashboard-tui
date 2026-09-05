@@ -20,6 +20,9 @@ impl App {
     }
 
     pub fn handle_mouse_scroll(&mut self, delta: isize) {
+        if self.tool_menu.is_some() {
+            return;
+        }
         match self.screen {
             Screen::Home => {
                 let len = self.filtered_home().len();
@@ -152,7 +155,7 @@ impl App {
     }
 
     pub fn handle_mouse_click(&mut self, col: u16, row: u16) {
-        if self.confirm.is_some() || self.input.is_some() {
+        if self.confirm.is_some() || self.input.is_some() || self.tool_menu.is_some() {
             return;
         }
 

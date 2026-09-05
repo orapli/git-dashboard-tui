@@ -184,6 +184,7 @@ pub struct Preferences {
     pub sidebar_collapsed: bool,
     pub sidebar_width: f32,
     pub editor_command: String,
+    pub editor_wait: bool,
     // Diff view toggles, persisted across sessions
     pub diff_ignore_whitespace: bool,
     pub diff_full_file: bool,
@@ -208,9 +209,7 @@ pub struct Preferences {
     /// Off by default: local analysis can still be expensive. GitHub has a
     /// separate five-minute cache and a one-minute failure retry delay.
     /// Opting an existing prefs.json into automatic refresh on
-    /// upgrade would silently turn an idle screen into a background API
-    /// consumer — 25 GitHub repos at the default 60s interval is ~3000
-    /// requests/hour, ~60% of the 5000/hr authenticated rate limit.
+    /// upgrade would silently turn an idle screen into a background worker.
     #[serde(default = "default_auto_refresh_secs")]
     pub auto_refresh_secs: u64,
 }
@@ -232,6 +231,7 @@ impl Default for Preferences {
             sidebar_collapsed: false,
             sidebar_width: 260.0,
             editor_command: "code".to_string(),
+            editor_wait: false,
             diff_ignore_whitespace: false,
             diff_full_file: false,
             diff_show_blame: false,

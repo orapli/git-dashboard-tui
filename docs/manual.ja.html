@@ -109,6 +109,7 @@ footer a{color:var(--muted)}
 <li><a href="#repository">リポジトリの中</a></li>
 <li><a href="#diff">差分を読む</a></li>
 <li><a href="#cross-repo">リポジトリ横断</a></li>
+<li><a href="#work-tools">普段の作業ツールで開く</a></li>
 <li><a href="#settings">設定とファイル</a></li>
 <li><a href="#trust">信頼できないリポジトリの扱い</a></li>
 <li><a href="#help">その他</a></li>
@@ -191,6 +192,11 @@ footer a{color:var(--muted)}
 <h2>リポジトリ横断<a href="#cross-repo" aria-label="link">#</a></h2>
 <figure><img src="img/commit-search.ja.svg" loading="lazy" alt="&lt;kbd&gt;S&lt;/kbd&gt; で登録済み全リポジトリのコミットメッセージを一括検索します（正規表現ではなく大文字小文字を無視した部分一致）。&lt;kbd&gt;Enter&lt;/kbd&gt; でそのコミットの差分に直接移動します。検索できなかったリポジトリは、「"><figcaption><kbd>S</kbd> で登録済み全リポジトリのコミットメッセージを一括検索します（正規表現ではなく大文字小文字を無視した部分一致）。<kbd>Enter</kbd> でそのコミットの差分に直接移動します。検索できなかったリポジトリは、「一致なし」と混同されないよう失敗として報告されます。</figcaption></figure>
 <figure><img src="img/global-members.ja.svg" loading="lazy" alt="&lt;kbd&gt;M&lt;/kbd&gt; で全リポジトリの貢献者を集計し、別名を1人に統合します。&lt;kbd&gt;Enter&lt;/kbd&gt; でカーソル位置のリポジトリに移動します。"><figcaption><kbd>M</kbd> で全リポジトリの貢献者を集計し、別名を1人に統合します。<kbd>Enter</kbd> でカーソル位置のリポジトリに移動します。</figcaption></figure>
+</section>
+<section id="work-tools">
+<h2>普段の作業ツールで開く<a href="#work-tools" aria-label="link">#</a></h2>
+<p>Home・詳細・diffで <kbd>O</kbd> を押し、<kbd>t</kbd>（シェル）、<kbd>e</kbd>（エディタ）、<kbd>l</kbd>（lazygit）、<kbd>g</kbd>（GitUI）を選びます。未導入ツールは明示されるのでPATH上に導入してください。SSHリポジトリのローカルツール起動は非対応です。</p>
+<p>メニューの <kbd>c</kbd> でエディタを設定できます。引数の引用符と <code>{path}</code> に対応し、プレースホルダがなければリポジトリパスを1引数として追加します。端末内エディタは <kbd>w</kbd> で終了待機をオンにします。GUIは既定で待機しません。端末内ツール終了後は表示・入力を復帰し、選択リポジトリを再取得します。GUIで後から編集した内容は <kbd>r</kbd> で再取得してください。コマンドは絶対パスかPATH上の名前を指定します。</p>
 </section>
 <section id="settings">
 <h2>設定とファイル<a href="#settings" aria-label="link">#</a></h2>

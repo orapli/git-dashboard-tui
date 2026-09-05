@@ -322,6 +322,27 @@ SECTIONS = [
         ],
     ),
     (
+        "work-tools",
+        t("Open your work tools", "普段の作業ツールで開く"),
+        [("p", t(
+            "Press <kbd>O</kbd> on Home, Repo or Diff. Choose <kbd>t</kbd> for a shell, "
+            "<kbd>e</kbd> for the editor, <kbd>l</kbd> for lazygit, or <kbd>g</kbd> for GitUI. "
+            "Unavailable commands are marked; install clients on PATH. SSH repositories do not support local tool launch.",
+            "Home・詳細・diffで <kbd>O</kbd> を押し、<kbd>t</kbd>（シェル）、<kbd>e</kbd>（エディタ）、"
+            "<kbd>l</kbd>（lazygit）、<kbd>g</kbd>（GitUI）を選びます。未導入ツールは明示されるのでPATH上に導入してください。"
+            "SSHリポジトリのローカルツール起動は非対応です。")),
+         ("p", t(
+            "Configure the editor with <kbd>c</kbd> in that menu. Quoted arguments and <code>{path}</code> "
+            "are supported; without that placeholder the repository path is appended as one argument. "
+            "Use <kbd>w</kbd> to enable waiting for terminal editors; GUI launch does not wait by default. "
+            "After a terminal tool exits the dashboard restores input and reloads the selected repository. "
+            "For subsequent GUI edits use <kbd>r</kbd> to reload. Commands must be absolute paths or names on PATH.",
+            "メニューの <kbd>c</kbd> でエディタを設定できます。引数の引用符と <code>{path}</code> に対応し、"
+            "プレースホルダがなければリポジトリパスを1引数として追加します。端末内エディタは <kbd>w</kbd> で終了待機をオンにします。"
+            "GUIは既定で待機しません。端末内ツール終了後は表示・入力を復帰し、選択リポジトリを再取得します。"
+            "GUIで後から編集した内容は <kbd>r</kbd> で再取得してください。コマンドは絶対パスかPATH上の名前を指定します。"))],
+    ),
+    (
         "settings",
         t("Settings and files", "設定とファイル"),
         [

@@ -46,6 +46,23 @@ fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> io::Res
     while !app.should_quit {
         app.drain_messages();
         app.maybe_auto_refresh();
+        if let Some(tool) = app.take_work_tool() {
+            let result = if tool.wait {
+                leave_tui();
+                let result = run_work_tool(&tool);
+                enter_tui();
+                *terminal = ratatui::init();
+                drain_pending_keys();
+                result
+            } else {
+                run_work_tool(&tool)
+            };
+            if let Err(error) = result {
+                app.error = Some(error);
+            }
+            app.after_external_work(&tool.command.cwd);
+            continue;
+        }
         if let Some(ext) = app.take_external() {
             leave_tui();
             let msg = run_external(&ext);
@@ -64,6 +81,7 @@ fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> io::Res
             enter_tui();
             *terminal = ratatui::init();
             drain_pending_keys();
+            app.after_external_work(&dir);
             if let Err(e) = msg {
                 app.error = Some(e);
             }
@@ -154,6 +172,38 @@ fn run_external(ext: &app::ExternalDiff) -> Result<String, String> {
     }
 }
 
+fn run_work_tool(tool: &app::WorkTool) -> Result<(), String> {
+    let program = resolve_program(&tool.command.program)?;
+    let mut command = Command::new(program);
+    command
+        .args(&tool.command.args)
+        .current_dir(&tool.command.cwd);
+    if tool.wait {
+        let status = command
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .map_err(|e| e.to_string())?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("{}: {status}", tool.command.program))
+        }
+    } else {
+        let mut child = command
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+        Ok(())
+    }
+}
+
 fn resolve_program(name: &str) -> Result<PathBuf, String> {
     let p = PathBuf::from(name);
     if p.is_absolute() {
@@ -168,11 +218,14 @@ fn resolve_program(name: &str) -> Result<PathBuf, String> {
     // command would execute a binary shipped by that repository.
     if name.contains('/') || name.contains('\\') {
         return Err(format!(
-            "diff コマンドには絶対パスか PATH 上のコマンド名を指定してください: {name}"
+            "コマンドには絶対パスか PATH 上のコマンド名を指定してください: {name}"
         ));
     }
     if let Some(path) = std::env::var_os("PATH") {
         for dir in std::env::split_paths(&path) {
+            if !dir.is_absolute() {
+                continue;
+            }
             let cand = dir.join(name);
             if cand.is_file() {
                 return Ok(cand);
@@ -204,7 +257,7 @@ fn resolve_program(name: &str) -> Result<PathBuf, String> {
         }
     }
     Err(format!(
-        "command not found: {name} (PATH に hunk がありません。which hunk を確認)"
+        "command not found: {name} (install it on PATH / PATH上に導入してください)"
     ))
 }
 
