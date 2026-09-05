@@ -215,18 +215,77 @@ pub fn get_changed_files(
     check_safe_ref(target)?;
 
     let range = if target == WORKING_TREE {
-        vec!["HEAD".to_string()]
+        working_tree_range(repo_path)
     } else {
         diff_range(base, target, three_dot)
     };
 
     let extra = ["--name-status", "--find-renames"];
-    let name_status = run_diff(repo_path, base, target, &range, &extra, &[]).unwrap_or_default();
+    let name_status = run_diff(repo_path, base, target, &range, &extra, &[])?;
 
     let extra = ["--numstat", "--find-renames"];
-    let numstat = run_diff(repo_path, base, target, &range, &extra, &[]).unwrap_or_default();
+    let numstat = run_diff(repo_path, base, target, &range, &extra, &[])?;
 
-    Ok(parse_changed_files(&name_status, &numstat))
+    let mut files = parse_changed_files(&name_status, &numstat);
+    if target == WORKING_TREE {
+        for path in untracked_files(repo_path)? {
+            files.push(ChangedFile {
+                status: "?".into(),
+                path,
+                old_path: None,
+                additions: 0,
+                deletions: 0,
+            });
+        }
+        files.sort_by(|a, b| a.path.cmp(&b.path));
+    }
+    Ok(files)
+}
+
+fn working_tree_range(path: &Path) -> Vec<String> {
+    // An unborn branch still has staged and untracked work worth inspecting.
+    vec![
+        if run_git_cmd(path, &["rev-parse", "--verify", "HEAD"]).is_ok() {
+            "HEAD".into()
+        } else {
+            EMPTY_TREE.into()
+        },
+    ]
+}
+
+fn untracked_files(path: &Path) -> Result<Vec<String>, String> {
+    let output = run_git_cmd(
+        path,
+        &[
+            "-c",
+            "core.quotePath=true",
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+        ],
+    )?;
+    Ok(output.lines().map(unquote_path).collect())
+}
+
+fn untracked_diff(path: &Path, file: &str, extra: &[&str]) -> Result<String, String> {
+    let mut args = vec!["diff", "--no-index"];
+    args.extend_from_slice(extra);
+    args.extend_from_slice(&["--", "/dev/null", file]);
+    let output = super::exec::run_with_timeout(
+        super::exec::git_command_for(path, &args),
+        super::exec::GIT_TIMEOUT,
+    )?;
+    // --no-index reports differences as exit 1, not an execution failure.
+    if !output.status.success() && output.status.code() != Some(1) {
+        return Err(super::exec::strip_control_sequences(
+            &String::from_utf8_lossy(&output.stderr),
+            false,
+        ));
+    }
+    Ok(super::exec::strip_control_sequences(
+        &String::from_utf8_lossy(&output.stdout),
+        false,
+    ))
 }
 
 /// Char-level similarity in [0, 1] between two lines: 2*LCS/(len_a+len_b).
@@ -496,12 +555,17 @@ pub fn get_file_diff(
     }
 
     let range = if target == WORKING_TREE {
-        vec!["HEAD".to_string()]
+        working_tree_range(repo_path)
     } else {
         diff_range(base, target, three_dot)
     };
 
-    let raw = run_diff(repo_path, base, target, &range, &extra, &[file_path])?;
+    let raw =
+        if target == WORKING_TREE && untracked_files(repo_path)?.iter().any(|p| p == file_path) {
+            untracked_diff(repo_path, file_path, &extra)?
+        } else {
+            run_diff(repo_path, base, target, &range, &extra, &[file_path])?
+        };
 
     // Match only git's own marker line, not file content that happens to
     // contain the phrase (content lines are prefixed with +/-/space).

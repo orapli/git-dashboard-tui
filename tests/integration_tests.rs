@@ -759,3 +759,86 @@ fn config_override_and_external_work_refresh_roundtrip() {
     #[cfg(unix)]
     fs::remove_file(registered).unwrap();
 }
+
+#[test]
+fn untracked_and_unborn_work_is_visible_without_changing_the_index() {
+    use git_dashboard_tui::git::WORKING_TREE;
+    let repo = TempRepo::new("untracked-preview");
+    repo.write_file("new file.txt", "hello\n\tworld\n");
+    repo.write_file("ignored.tmp", "private\n");
+    repo.write_file(".gitignore", "*.tmp\n");
+    repo.git(&["add", ".gitignore"]);
+    let before = repo.git(&["status", "--porcelain"]);
+    for committed in [false, true] {
+        if committed {
+            repo.git(&["commit", "-qm", "ignore rule"]);
+        }
+        let files = get_changed_files(&repo.path, None, WORKING_TREE, false).unwrap();
+        assert!(
+            files
+                .iter()
+                .any(|f| f.path == "new file.txt" && f.status == "?")
+        );
+        assert!(!files.iter().any(|f| f.path == "ignored.tmp"));
+        let diff = get_file_diff(
+            &repo.path,
+            None,
+            WORKING_TREE,
+            "new file.txt",
+            false,
+            false,
+            false,
+        )
+        .unwrap();
+        assert!(
+            diff.rows
+                .iter()
+                .any(|r| r.right_text.as_deref() == Some("hello"))
+        );
+        assert!(
+            diff.rows
+                .iter()
+                .any(|r| r.kind == DiffRowKind::Added && r.right_text.as_deref() == Some("hello"))
+        );
+        if !committed {
+            assert_eq!(repo.git(&["status", "--porcelain"]), before);
+        }
+    }
+    repo.write_file("binary.bin", "a\0b");
+    assert!(
+        get_file_diff(
+            &repo.path,
+            None,
+            WORKING_TREE,
+            "binary.bin",
+            false,
+            false,
+            false
+        )
+        .unwrap()
+        .is_binary
+    );
+    repo.write_file("empty.txt", "");
+    assert!(
+        get_changed_files(&repo.path, None, WORKING_TREE, false)
+            .unwrap()
+            .iter()
+            .any(|f| f.path == "empty.txt")
+    );
+    assert!(
+        get_file_diff(
+            &repo.path,
+            None,
+            WORKING_TREE,
+            "empty.txt",
+            false,
+            false,
+            false
+        )
+        .unwrap()
+        .rows
+        .iter()
+        .all(|r| r.kind != DiffRowKind::Added)
+    );
+    assert!(get_changed_files(&repo.path.join("missing"), None, WORKING_TREE, false).is_err());
+}

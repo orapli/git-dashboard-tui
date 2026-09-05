@@ -20,6 +20,7 @@ These entries describe development on `main`, not the latest release binary.
 
 ### Fixed
 
+- Include untracked files in Status and Diff, including repositories without a first commit; preserve ignored files and the Git index, and surface file-list errors.
 - Prevent inherited `NO_COLOR` from removing application colors in documentation captures; regenerate affected English/Japanese screenshots and tours, and detect monochrome assets in CI.
 - Refresh the Diff file list after returning from external tools, preserving selection and scroll when possible.
 - Refresh repositories registered through symlink/noncanonical paths after working in their canonical directory.
