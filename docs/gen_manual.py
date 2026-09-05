@@ -340,13 +340,13 @@ SECTIONS = [
             "<kbd>*</kbd> toggles a favorite and <kbd>f</kbd> filters favorites. Notes and favorites are "
             "stored in preferences by canonical local path. <kbd>Enter</kbd> or <kbd>O</kbd> opens the tool menu; "
             "<kbd>t</kbd> starts a shell in that worktree. <kbd>r</kbd> refreshes in the background while "
-            "navigation remains available. Rows may show previous values until refreshed; errors stay distinct "
+            "navigation remains available. Rows may show previous values until refreshed; use <kbd>[</kbd>/<kbd>]</kbd> to inspect repository collection errors even when healthy rows are selected. Errors stay distinct "
             "from a clean worktree. These are Git states and personal notes, not AI agent activity.",
             "<kbd>/</kbd> でパス・ブランチ・用途メモを検索し、<kbd>m</kbd> でメモを編集します。"
             "<kbd>*</kbd> でお気に入りを切り替え、<kbd>f</kbd> で絞り込みます。メモとお気に入りは正規化した"
             "ローカルパスをキーに設定へ保存します。<kbd>Enter</kbd> または <kbd>O</kbd> でツールメニュー、"
             "<kbd>t</kbd> でそのWorktreeのシェルを開けます。<kbd>r</kbd> のバックグラウンド再取得中も操作できます。"
-            "取得中は前回値が残る場合があり、失敗はクリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、"
+            "取得中は前回値が残る場合があります。正常な行を選択中も <kbd>[</kbd>/<kbd>]</kbd> で各リポジトリの取得失敗を確認でき、クリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、"
             "AIエージェントの活動状況ではありません。"))],
     ),
     (

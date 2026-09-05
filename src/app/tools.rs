@@ -163,12 +163,25 @@ impl App {
         if self.screen == Screen::Workspace {
             self.reload_workspace();
         }
-        if let Some(i) = self.repos.iter().position(|r| r.path == path) {
+        let canonical = path.canonicalize().ok();
+        let indices: Vec<_> = self
+            .repos
+            .iter()
+            .enumerate()
+            .filter_map(|(i, repo)| {
+                let matches = repo.path == path
+                    || canonical
+                        .as_ref()
+                        .is_some_and(|p| repo.path.canonicalize().ok().as_ref() == Some(p));
+                matches.then_some(i)
+            })
+            .collect();
+        for i in indices {
             self.refresh_home_row(i);
             if self.repo_index == Some(i) {
                 self.reload_repo(i);
                 if self.screen == Screen::Diff {
-                    self.reload_diff_preserving_scroll();
+                    self.reload_diff_files();
                 }
             }
         }

@@ -572,6 +572,7 @@ pub struct Workspace {
     pub favorites_only: bool,
     pub loading: bool,
     pub errors: Vec<String>,
+    pub error_selected: usize,
     pub seen: std::collections::HashSet<PathBuf>,
     pub skipped_ssh: usize,
 }

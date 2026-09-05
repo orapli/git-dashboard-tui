@@ -24,30 +24,7 @@ fn retry_after(info: &RemoteCiPrInfo) -> i64 {
 }
 
 pub fn get_status(path: &Path) -> Option<RemoteCiPrInfo> {
-    if parse_ssh_repo(path).is_some() {
-        return Some(RemoteCiPrInfo {
-            ci_state: GithubState::Unsupported,
-            pr_state: GithubState::Unsupported,
-            ..Default::default()
-        });
-    }
-    let remote = run_git_cmd(path, &["remote", "-v"]).ok()?;
-    if !remote.contains("github.com") {
-        return None;
-    }
-    type Entry = Arc<Mutex<Option<RemoteCiPrInfo>>>;
-    static CACHE: OnceLock<Mutex<HashMap<PathBuf, Entry>>> = OnceLock::new();
-    let cache = CACHE.get_or_init(Mutex::default);
-    let key = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-    let now = chrono::Utc::now().timestamp();
-    let entry = cache
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .entry(key)
-        .or_insert_with(|| Arc::new(Mutex::new(None)))
-        .clone();
-    let mut stored = entry.lock().unwrap_or_else(|e| e.into_inner());
-    Some(cached(&mut stored, now, |args| {
+    get_status_with(path, chrono::Utc::now().timestamp(), |args| {
         let mut command = quiet_command("gh");
         command.args(args).current_dir(path);
         let output = run_with_timeout(command, Duration::from_secs(2)).map_err(|e| {
@@ -72,7 +49,40 @@ pub fn get_status(path: &Path) -> Option<RemoteCiPrInfo> {
             );
         }
         String::from_utf8(output.stdout).map_err(|_| GithubState::Failed)
-    }))
+    })
+}
+
+fn get_status_with(
+    path: &Path,
+    now: i64,
+    run: impl FnMut(&[&str]) -> Result<String, GithubState>,
+) -> Option<RemoteCiPrInfo> {
+    if parse_ssh_repo(path).is_some() {
+        return Some(RemoteCiPrInfo {
+            ci_state: GithubState::Unsupported,
+            pr_state: GithubState::Unsupported,
+            ..Default::default()
+        });
+    }
+    let remote = run_git_cmd(path, &["remote", "-v"]).ok()?;
+    if !remote.contains("github.com") {
+        return None;
+    }
+    type Entry = Arc<Mutex<Option<RemoteCiPrInfo>>>;
+    static CACHE: OnceLock<Mutex<HashMap<(PathBuf, String), Entry>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(Mutex::default);
+    let key = (
+        path.canonicalize().unwrap_or_else(|_| path.to_path_buf()),
+        remote,
+    );
+    let entry = cache
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .entry(key)
+        .or_insert_with(|| Arc::new(Mutex::new(None)))
+        .clone();
+    let mut stored = entry.lock().unwrap_or_else(|e| e.into_inner());
+    Some(cached(&mut stored, now, run))
 }
 
 fn cached(
@@ -152,6 +162,49 @@ fn fetch(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn changing_remote_does_not_reuse_another_repositorys_values() {
+        let path = std::env::temp_dir().join(format!("gdt-github-origin-{}", std::process::id()));
+        std::fs::create_dir_all(&path).unwrap();
+        run_git_cmd(&path, &["init", "-q"]).unwrap();
+        run_git_cmd(
+            &path,
+            &[
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/example/old.git",
+            ],
+        )
+        .unwrap();
+        let old = get_status_with(&path, 100, |args| Ok(if args[0] == "pr" { "[{\"number\":1}]" }
+            else { r#"[{"conclusion":"failure","url":"https://github.com/example/old/actions/runs/1","headBranch":"old"}]"# }.into())).unwrap();
+        assert_eq!(old.open_prs, Some(1));
+        get_status_with(&path, 101, |_| {
+            panic!("unchanged remote should reuse cache")
+        });
+        run_git_cmd(
+            &path,
+            &[
+                "remote",
+                "set-url",
+                "origin",
+                "https://github.com/example/new.git",
+            ],
+        )
+        .unwrap();
+        let failed = get_status_with(&path, 102, |_| Err(GithubState::Failed)).unwrap();
+        assert_eq!(failed.ci_state, GithubState::Failed);
+        assert_eq!(failed.ci_status, None);
+        assert_eq!(failed.open_prs, None);
+        assert_eq!(failed.last_run_url, None);
+        let new = get_status_with(&path, 162, |_| Ok("[]".into())).unwrap();
+        assert_eq!(new.open_prs, Some(0));
+        assert_eq!(new.ci_state, GithubState::NoRuns);
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
     #[test]
     fn local_reloads_reuse_cache_and_failures_wait_before_retry() {
         let mut stored = None;

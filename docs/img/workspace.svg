@@ -104,7 +104,7 @@
 <text x="14.00" y="451.05" fill="#cdd6f4" textLength="315.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-tour-workspace/api-gateway</text>
 <text x="14.00" y="490.65" fill="#cdd6f4" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Checked:</text>
 <text x="95.00" y="490.65" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2026-09-05</text>
-<text x="194.00" y="490.65" fill="#cdd6f4" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">10:51:09</text>
+<text x="194.00" y="490.65" fill="#cdd6f4" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">14:21:00</text>
 <text x="14.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">j/k</text>
 <text x="50.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">move</text>
 <text x="104.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/</text>
@@ -116,13 +116,15 @@
 <text x="410.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">only</text>
 <text x="464.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">m</text>
 <text x="482.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">note</text>
-<text x="536.00" y="530.25" fill="#cdd6f4" textLength="63.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Enter/O</text>
-<text x="608.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">open</text>
-<text x="653.00" y="530.25" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">tools</text>
-<text x="716.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">t</text>
-<text x="734.00" y="530.25" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">shell</text>
-<text x="797.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">r</text>
-<text x="815.00" y="530.25" fill="#cdd6f4" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">reload</text>
-<text x="887.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Esc</text>
-<text x="923.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Home</text>
+<text x="536.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[/]</text>
+<text x="572.00" y="530.25" fill="#cdd6f4" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">errors</text>
+<text x="644.00" y="530.25" fill="#cdd6f4" textLength="63.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Enter/O</text>
+<text x="716.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">open</text>
+<text x="761.00" y="530.25" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">tools</text>
+<text x="824.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">t</text>
+<text x="842.00" y="530.25" fill="#cdd6f4" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">shell</text>
+<text x="905.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">r</text>
+<text x="923.00" y="530.25" fill="#cdd6f4" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">reload</text>
+<text x="995.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Esc</text>
+<text x="1031.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Home</text>
 </svg>

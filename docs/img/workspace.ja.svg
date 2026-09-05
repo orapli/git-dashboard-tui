@@ -164,7 +164,7 @@
 <text x="32.00" y="490.65" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">得</text>
 <text x="50.00" y="490.65" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">:</text>
 <text x="68.00" y="490.65" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2026-09-05</text>
-<text x="167.00" y="490.65" fill="#cdd6f4" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">10:52:05</text>
+<text x="167.00" y="490.65" fill="#cdd6f4" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">14:21:00</text>
 <text x="14.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">j/k</text>
 <text x="50.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">移</text>
 <text x="68.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">動</text>
@@ -188,21 +188,26 @@
 <text x="464.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">m</text>
 <text x="482.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">メ</text>
 <text x="500.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">モ</text>
-<text x="536.00" y="530.25" fill="#cdd6f4" textLength="63.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Enter/O</text>
-<text x="608.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ツ</text>
-<text x="626.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
-<text x="644.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
-<text x="662.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">で</text>
-<text x="680.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">開</text>
-<text x="698.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">く</text>
-<text x="734.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">t</text>
-<text x="752.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">シ</text>
-<text x="770.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ェ</text>
-<text x="788.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
-<text x="824.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">r</text>
-<text x="842.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">再</text>
-<text x="860.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">読</text>
-<text x="878.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">込</text>
-<text x="914.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Esc</text>
-<text x="950.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Home</text>
+<text x="536.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[/]</text>
+<text x="572.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">取</text>
+<text x="590.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">得</text>
+<text x="608.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">失</text>
+<text x="626.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">敗</text>
+<text x="662.00" y="530.25" fill="#cdd6f4" textLength="63.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Enter/O</text>
+<text x="734.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ツ</text>
+<text x="752.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="770.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
+<text x="788.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">で</text>
+<text x="806.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">開</text>
+<text x="824.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">く</text>
+<text x="860.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">t</text>
+<text x="878.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">シ</text>
+<text x="896.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ェ</text>
+<text x="914.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
+<text x="950.00" y="530.25" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">r</text>
+<text x="968.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">再</text>
+<text x="986.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">読</text>
+<text x="1004.00" y="530.25" fill="#cdd6f4" textLength="18.00" lengthAdjust="spacingAndGlyphs">込</text>
+<text x="1040.00" y="530.25" fill="#cdd6f4" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Esc</text>
+<text x="1076.00" y="530.25" fill="#cdd6f4" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Home</text>
 </svg>

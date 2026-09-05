@@ -207,8 +207,8 @@ fn run_work_tool(tool: &app::WorkTool) -> Result<(), String> {
 fn resolve_program(name: &str) -> Result<PathBuf, String> {
     let p = PathBuf::from(name);
     if p.is_absolute() {
-        return if p.is_file() {
-            Ok(p)
+        return if let Some(found) = executable_candidate(&p, cfg!(windows)) {
+            Ok(found)
         } else {
             Err(format!("command not found: {name}"))
         };
@@ -227,8 +227,8 @@ fn resolve_program(name: &str) -> Result<PathBuf, String> {
                 continue;
             }
             let cand = dir.join(name);
-            if cand.is_file() {
-                return Ok(cand);
+            if let Some(found) = executable_candidate(&cand, cfg!(windows)) {
+                return Ok(found);
             }
         }
     }
@@ -240,8 +240,8 @@ fn resolve_program(name: &str) -> Result<PathBuf, String> {
     ];
     for dir in extras {
         let cand = dir.join(name);
-        if cand.is_file() {
-            return Ok(cand);
+        if let Some(found) = executable_candidate(&cand, cfg!(windows)) {
+            return Ok(found);
         }
     }
     if let Some(home) = home {
@@ -251,8 +251,8 @@ fn resolve_program(name: &str) -> Result<PathBuf, String> {
             home.join(".local/bin"),
         ] {
             let cand = dir.join(name);
-            if cand.is_file() {
-                return Ok(cand);
+            if let Some(found) = executable_candidate(&cand, cfg!(windows)) {
+                return Ok(found);
             }
         }
     }
@@ -261,8 +261,45 @@ fn resolve_program(name: &str) -> Result<PathBuf, String> {
     ))
 }
 
+// Only native executable suffixes are inferred. Do not turn PATH script entries
+// into implicit shell execution; command arguments must remain literal.
+fn executable_candidate(path: &std::path::Path, windows: bool) -> Option<PathBuf> {
+    if path.is_file() {
+        return Some(path.to_path_buf());
+    }
+    if windows && path.extension().is_none() {
+        for extension in ["exe", "com"] {
+            let candidate = path.with_extension(extension);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn windows_native_executables_are_found_without_enabling_scripts() {
+        let root = std::env::temp_dir().join(format!("gdt-native-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        for name in ["lazygit", "gitui", "editor with spaces"] {
+            let exe = root.join(format!("{name}.exe"));
+            std::fs::write(&exe, "fixture").unwrap();
+            assert_eq!(
+                executable_candidate(&root.join(name), true),
+                Some(exe.clone())
+            );
+            assert_eq!(executable_candidate(&root.join(name), false), None);
+            assert_eq!(executable_candidate(&exe, true), Some(exe));
+        }
+        std::fs::write(root.join("script.cmd"), "fixture").unwrap();
+        assert_eq!(executable_candidate(&root.join("script"), true), None);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     use super::*;
 
     /// `run_external` spawns the resolved program with its working directory

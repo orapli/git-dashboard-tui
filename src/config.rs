@@ -11,6 +11,9 @@ pub(crate) fn write_atomic(path: &Path, content: &str) -> std::io::Result<()> {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        fs::create_dir_all(parent)?;
+    }
     let tmp = path.with_extension(format!("tmp.{}.{}", std::process::id(), n));
     fs::write(&tmp, content)?;
     fs::rename(&tmp, path)

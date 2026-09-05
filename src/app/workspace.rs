@@ -150,6 +150,7 @@ impl App {
         self.workspace.loading = true;
         self.workspace.seen.clear();
         self.workspace.errors.clear();
+        self.workspace.error_selected = 0;
         self.workspace.skipped_ssh = self
             .repos
             .iter()
@@ -221,6 +222,20 @@ impl App {
                 self.screen = Screen::Home;
             }
             KeyCode::Char('r') => self.reload_workspace(),
+            KeyCode::Char('[') => {
+                self.workspace.error_selected = move_index(
+                    self.workspace.error_selected,
+                    self.workspace.errors.len(),
+                    -1,
+                );
+            }
+            KeyCode::Char(']') => {
+                self.workspace.error_selected = move_index(
+                    self.workspace.error_selected,
+                    self.workspace.errors.len(),
+                    1,
+                );
+            }
             KeyCode::Down | KeyCode::Char('j') => self.move_workspace(1),
             KeyCode::Up | KeyCode::Char('k') => self.move_workspace(-1),
             KeyCode::Char('g') => self.workspace.selected = 0,

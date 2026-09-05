@@ -249,6 +249,11 @@ fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         Constraint::Length(1),
         Constraint::Min(3),
         Constraint::Length(4),
+        Constraint::Length(if app.workspace.errors.is_empty() {
+            0
+        } else {
+            4
+        }),
     ])
     .split(area);
     let indices = app.filtered_workspace();
@@ -356,17 +361,31 @@ fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             ))
         )
     } else {
-        app.workspace.errors.first().cloned().unwrap_or_else(|| {
-            app.tt(
-                "No matching local worktrees. /: search  f: toggle favorites",
-                "一致するローカルWorktreeなし。/: 検索  f: お気に入り切替",
-            )
-        })
+        app.tt(
+            "No matching local worktrees. /: search  f: toggle favorites",
+            "一致するローカルWorktreeなし。/: 検索  f: お気に入り切替",
+        )
     };
     frame.render_widget(
         Paragraph::new(detail).style(Style::default().fg(pal.subtext)),
         parts[2],
     );
+    if let Some(error) = app.workspace.errors.get(app.workspace.error_selected) {
+        let title = format!(
+            "{} {}/{}  [/] {}",
+            app.tt("Errors", "取得失敗"),
+            app.workspace.error_selected + 1,
+            app.workspace.errors.len(),
+            app.tt("previous/next", "前/次")
+        );
+        frame.render_widget(
+            Paragraph::new(error.as_str())
+                .block(Block::default().borders(Borders::TOP).title(title))
+                .wrap(Wrap { trim: false })
+                .style(Style::default().fg(pal.red)),
+            parts[3],
+        );
+    }
 }
 
 fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
@@ -3036,6 +3055,40 @@ pub(crate) mod tests {
             .iter()
             .map(|cell| cell.symbol())
             .collect()
+    }
+
+    #[test]
+    fn workspace_errors_can_be_inspected_with_healthy_rows_selected() {
+        use crate::app::WorkspaceRow;
+        use crossterm::event::{KeyCode, KeyEvent};
+        let mut app = App::new();
+        app.set_language_for_test(crate::config::Language::English);
+        app.screen = Screen::Workspace;
+        app.workspace.rows.push(WorkspaceRow {
+            parent: "healthy".into(),
+            path: "/healthy".into(),
+            branch: "main".into(),
+            dirty: Some(0),
+            last_commit: String::new(),
+            checked_at: 1,
+            locked: false,
+            prunable: false,
+            error: None,
+        });
+        app.workspace.errors = vec![
+            "broken-one: permission denied".into(),
+            "broken-two: missing directory".into(),
+        ];
+        let text = render_to_text(&app, 120, 30);
+        assert!(text.contains("healthy"));
+        assert!(text.contains("broken-one: permission denied"));
+        app.handle_key(KeyEvent::from(KeyCode::Char(']')));
+        let text = render_to_text(&app, 120, 30);
+        assert!(text.contains("broken-two: missing directory"));
+        assert!(text.contains("Errors 2/2"));
+        app.handle_key(KeyEvent::from(KeyCode::Char('[')));
+        assert_eq!(app.workspace.error_selected, 0);
+        assert_eq!(app.workspace.selected, 0);
     }
 
     #[test]

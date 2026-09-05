@@ -136,6 +136,7 @@ Covers the development version on main. [User manual](manual.html) · [README](.
 | `Enter` / `O` | Tools menu for the selected worktree |
 | `t` | Shell in the selected worktree |
 | `r` | Refresh in the background |
+| `[` / `]` | Show previous / next collection error |
 
 ### 9. Tools menu (`O`)
 
@@ -187,7 +188,7 @@ registered as `ssh://…`, not a local clone whose origin uses SSH.
 
 ## Isolate configuration
 
-Set `GIT_DASHBOARD_CONFIG_DIR` to an absolute, existing directory. Create the directory before launching the current version.
+Set `GIT_DASHBOARD_CONFIG_DIR` to an absolute directory. Configuration saves create missing directories; you can also create it before launch as below.
 
 ```bash
 mkdir -p "$HOME/.gdt-demo-config"

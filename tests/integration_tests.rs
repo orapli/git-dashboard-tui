@@ -646,3 +646,116 @@ fn test_integration_tab_indented_files_are_expanded_for_display() {
         "two tabs should indent to column 8: {lines:?}"
     );
 }
+
+#[test]
+fn config_override_and_external_work_refresh_roundtrip() {
+    // A child process isolates the environment override from concurrent tests.
+    if std::env::var_os("GDT_REFRESH_TEST_CHILD").is_none() {
+        let root = TempRepo::new("external-refresh-config");
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "config_override_and_external_work_refresh_roundtrip",
+                "--nocapture",
+            ])
+            .env("GDT_REFRESH_TEST_CHILD", "1")
+            .env(
+                "GIT_DASHBOARD_CONFIG_DIR",
+                root.path.join("new/nested/config"),
+            )
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    use crossterm::event::{KeyCode, KeyEvent};
+    use git_dashboard_tui::{
+        app::{App, Screen},
+        config,
+    };
+    fn settle(app: &mut App) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        loop {
+            app.drain_messages();
+            if !app.is_busy() {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "background work did not finish: {:?}",
+                app.error
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(app.error.is_none(), "{:?}", app.error);
+    }
+    let config_dir = config::get_config_dir();
+    assert!(!config_dir.exists());
+    let repo = TempRepo::new("external-work-refresh");
+    let original: String = (0..60).map(|i| format!("line {i}\n")).collect();
+    repo.write_file("old.txt", &original);
+    repo.write_file("aaa-new.txt", "base\n");
+    repo.git(&["add", "."]);
+    repo.git(&["commit", "-qm", "initial"]);
+    repo.write_file("old.txt", &(original.clone() + "edited\n"));
+    #[cfg(unix)]
+    let registered = {
+        let alias = repo.path.with_extension("alias");
+        std::os::unix::fs::symlink(&repo.path, &alias).unwrap();
+        alias
+    };
+    #[cfg(not(unix))]
+    let registered = repo.path.join("..").join(repo.path.file_name().unwrap());
+    let entries = vec![config::Repository {
+        name: "sample".into(),
+        path: registered.clone(),
+        group: None,
+    }];
+    config::save_repositories(&entries).unwrap();
+    assert_eq!(config::load_repositories().unwrap(), entries);
+    config::save_preferences(&config::Preferences {
+        diff_full_file: true,
+        ..Default::default()
+    })
+    .unwrap();
+    let mut app = App::new();
+    settle(&mut app);
+    app.handle_key(KeyEvent::from(KeyCode::Enter));
+    settle(&mut app);
+    app.handle_key(KeyEvent::from(KeyCode::Char('1')));
+    app.handle_key(KeyEvent::from(KeyCode::Enter));
+    settle(&mut app);
+    assert_eq!(app.screen, Screen::Diff);
+    app.diff.as_mut().unwrap().scroll = 5;
+    repo.write_file("aaa-new.txt", "new file\n");
+    app.after_external_work(&repo.path.canonicalize().unwrap());
+    settle(&mut app);
+    let diff = app.diff.as_ref().unwrap();
+    assert_eq!(diff.files.len(), 2);
+    assert_eq!(diff.files[diff.file_idx].path, "old.txt");
+    assert_eq!(diff.scroll, 5);
+    assert_eq!(app.home_rows.get(&0).unwrap().dirty, 2);
+    repo.write_file("old.txt", &original);
+    app.after_external_work(&repo.path.canonicalize().unwrap());
+    settle(&mut app);
+    let diff = app.diff.as_ref().unwrap();
+    assert_eq!(diff.files.len(), 1);
+    assert_eq!(diff.files[diff.file_idx].path, "aaa-new.txt");
+    assert_eq!(diff.scroll, 0);
+    repo.write_file("aaa-new.txt", "base\n");
+    app.after_external_work(&repo.path.canonicalize().unwrap());
+    settle(&mut app);
+    let diff = app.diff.as_ref().unwrap();
+    assert!(diff.files.is_empty());
+    assert!(diff.lines.is_empty());
+    assert!(diff.blame.is_none());
+    assert!(!diff.loading);
+    assert_eq!(app.home_rows.get(&0).unwrap().dirty, 0);
+    #[cfg(unix)]
+    fs::remove_file(registered).unwrap();
+}

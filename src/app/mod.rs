@@ -661,6 +661,7 @@ impl App {
                 pair("*", "favorite", "お気に入り"),
                 pair("f", "favorites only", "お気に入りのみ"),
                 pair("m", "note", "メモ"),
+                pair("[/]", "errors", "取得失敗"),
                 pair("Enter/O", "open tools", "ツールで開く"),
                 pair("t", "shell", "シェル"),
                 pair("r", "reload", "再読込"),
@@ -2151,6 +2152,29 @@ impl App {
         });
     }
 
+    /// External work can add/remove files, so refresh the sidebar before its diff.
+    fn reload_diff_files(&mut self) {
+        let Some(repo) = self.repo_index.and_then(|i| self.repos.get(i)) else {
+            return;
+        };
+        let Some(diff) = self.diff.as_mut() else {
+            return;
+        };
+        self.diff_seq += 1;
+        diff.loading = true;
+        diff.error = None;
+        diff.pending_scroll_restore = Some(diff.scroll);
+        let job = Job::LoadFiles {
+            seq: self.diff_seq,
+            path: repo.path.clone(),
+            base: diff.base.clone(),
+            target: diff.target.clone(),
+            three_dot: diff.three_dot,
+            preselect: diff.files.get(diff.file_idx).map(|f| f.path.clone()),
+        };
+        self.send_job(job);
+    }
+
     fn load_selected_diff_file(&mut self) {
         let Some(repo_idx) = self.repo_index else {
             return;
@@ -2166,6 +2190,10 @@ impl App {
             diff.lines.clear();
             diff.hunks.clear();
             diff.hunk_idx = 0;
+            diff.scroll = 0;
+            diff.blame = None;
+            diff.blame_loading = false;
+            diff.pending_scroll_restore = None;
             return;
         };
         self.diff_seq += 1;
@@ -3574,18 +3602,22 @@ impl App {
                     return;
                 }
                 let mut focus_content = false;
+                let mut restore_scroll = None;
                 let load = {
                     let Some(diff) = self.diff.as_mut() else {
                         return;
                     };
                     match files {
                         Ok(f) => {
-                            diff.file_idx = preselect
+                            let selected = preselect
                                 .as_ref()
-                                .and_then(|p| f.iter().position(|x| &x.path == p))
-                                .unwrap_or(0);
+                                .and_then(|p| f.iter().position(|x| &x.path == p));
+                            let saved = diff.pending_scroll_restore.take();
+                            restore_scroll = selected.and(saved);
+                            diff.file_idx = selected.unwrap_or(0);
                             diff.files = f;
-                            focus_content = preselect.is_some();
+                            diff.error = None;
+                            focus_content = preselect.is_some() && saved.is_none();
                             true
                         }
                         Err(e) => {
@@ -3600,6 +3632,9 @@ impl App {
                 }
                 if load {
                     self.load_selected_diff_file();
+                    if let Some(diff) = self.diff.as_mut() {
+                        diff.pending_scroll_restore = restore_scroll;
+                    }
                 }
             }
             Msg::OpDone {

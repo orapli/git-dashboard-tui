@@ -153,7 +153,7 @@ footer a{color:var(--muted)}
 <h2>目的別の操作手順<a href="#tasks" aria-label="link">#</a></h2>
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
 <tr><td class="term"><span>作業を始める</span></td><td>Homeで <kbd>r</kbd> を押してローカル情報を再読込します。リモート参照の更新が必要なら、1件は <kbd>f</kbd>、絞り込み中の一覧は <kbd>F</kbd>。<kbd>n</kbd> で要対応に絞り、理由を読んで <kbd>Enter</kbd> で詳細を開きます。</td></tr>
-<tr><td class="term"><span>差分を確認して編集する</span></td><td>Status（<kbd>1</kbd>）でファイルを選び <kbd>Enter</kbd>。Diffでは <kbd>n</kbd>/<kbd>p</kbd> でhunk移動、<kbd>b</kbd> でblameを表示します。<kbd>O</kbd> のツールメニュー内で <kbd>c</kbd> を押してエディタを設定します。GUIでの編集後はHomeまたは詳細で <kbd>r</kbd>。差分のファイル一覧が古ければDiffを開き直してください。</td></tr>
+<tr><td class="term"><span>差分を確認して編集する</span></td><td>Status（<kbd>1</kbd>）でファイルを選び <kbd>Enter</kbd>。Diffでは <kbd>n</kbd>/<kbd>p</kbd> でhunk移動、<kbd>b</kbd> でblameを表示します。<kbd>O</kbd> のツールメニュー内で <kbd>c</kbd> を押してエディタを設定します。GUIでの編集後はHomeまたは詳細で <kbd>r</kbd>。端末内ツールから戻ると差分ファイル一覧も更新し、対象が残っていれば選択ファイルとスクロール位置を保ちます。</td></tr>
 <tr><td class="term"><span>Worktreeの作業を再開する</span></td><td>Homeの <kbd>W</kbd> でローカルWorktreeを一覧します。<kbd>/</kbd> で検索、<kbd>m</kbd> で用途メモ、<kbd>*</kbd> でお気に入り、<kbd>f</kbd> で絞り込み。<kbd>Enter</kbd> は選択Worktreeのツールメニューです。詳細のWorktreesタブ（<kbd>7</kbd>）では <kbd>Enter</kbd> で直接シェルを開きます。</td></tr>
 <tr><td class="term"><span>変更をリポジトリ横断で探す</span></td><td>Homeの <kbd>S</kbd> でコミットメッセージを検索し、結果を選んで <kbd>Enter</kbd> で差分を開きます。ファイル内容の検索ではありません。貢献者の横断集計はHomeの <kbd>M</kbd> です。</td></tr>
 </tbody></table>
@@ -184,7 +184,7 @@ footer a{color:var(--muted)}
 <h2>OS・SSHの対応範囲<a href="#platforms" aria-label="link">#</a></h2>
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
 <tr><td class="term"><span>Linux / macOS</span></td><td>ローカルGit表示、シェル、エディタ、導入済みGitクライアントに対応します。シェルは$SHELL（未設定時 /bin/sh）。配布対象はLinux x86_64/ARM64とmacOS Intel/Apple Siliconです。</td></tr>
-<tr><td class="term"><span>Windows</span></td><td>主要機能はWindows CIの対象で、配布対象はx64です。シェルはCOMSPEC（未設定時cmd.exe）。エディタの解決では.exe補完やPATHEXT検索を行わないため、拡張子を含む実行ファイル名／パスを指定します。固定名のlazygit/GitUIメニューは通常の.exeを見つけられないため、シェルから起動してください。code.cmd等の.cmdラッパーはネイティブ実行ファイルではありません。</td></tr>
+<tr><td class="term"><span>Windows</span></td><td>主要機能はWindows CIの対象で、配布対象はx64です。シェルはCOMSPEC（未設定時cmd.exe）。エディタ・Gitクライアントの検索はネイティブの.exe/.comを補完するため、PATH上の通常のlazygit.exe・gitui.exeをメニューから起動できます。任意のPATHEXTスクリプト形式は補完しません。エディタコマンドにはcode.cmd等の.cmdラッパーではなくネイティブ実行ファイルを指定してください。</td></tr>
 <tr><td class="term"><span>ssh://host/absolute/path</span></td><td>リモートの状態・ログ・差分・貢献者解析にはローカルのssh、接続先のgit、非対話の鍵認証が必要です。この形式の登録ではローカルシェル・エディタ・クライアント、GitHub PR/CI取得、横断Worktree一覧は非対応です。originがSSH URLのローカルクローンにはこの制限はありません。</td></tr>
 <tr><td class="term"><span>検証範囲</span></td><td>CIはLinux x86_64/ARM64・macOS・WindowsでRustのチェックとテストを実行します。新しいツール起動・Workspaceの操作はLinuxの端末とサンプルツールで確認しています。macOS/WindowsのGUI連携を実機検証済みという意味ではありません。</td></tr>
 </tbody></table>
@@ -193,12 +193,12 @@ footer a{color:var(--muted)}
 <h2>トラブルシューティング：症状 → 確認 → 対処<a href="#troubleshooting" aria-label="link">#</a></h2>
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
 <tr><td class="term"><span>GitHub情報が出ない・未認証・取得失敗</span></td><td>TUIと同じ環境で <code>gh auth status</code> を実行します。リポジトリ内で <code>gh pr list --limit 1</code> と <code>gh run list --limit 1</code> を実行してアクセスを確認します。通常のローカル認証は <code>gh auth login --hostname github.com</code>。注入されたGH_TOKEN/GITHUB_TOKENは保存済み認証より優先するため、環境のシークレット管理で差し替えます。失敗後1分待ってHomeの <kbd>r</kbd> で再取得してください。</td></tr>
-<tr><td class="term"><span>CIブランチが違う・値が古い</span></td><td>表示ブランチ・取得時刻と <code>gh run list --limit 1</code> を比較します。CIはリポジトリ全体の最新です。成功キャッシュは5分なので経過後に再読込します。originを変更した場合、現状のキャッシュキーはローカルパスのためTUIを再起動してください。</td></tr>
+<tr><td class="term"><span>CIブランチが違う・値が古い</span></td><td>表示ブランチ・取得時刻と <code>gh run list --limit 1</code> を比較します。CIはリポジトリ全体の最新です。成功キャッシュは5分なので経過後に再読込します。origin変更後はHomeの <kbd>r</kbd> で新しい接続先を確認します。キャッシュはローカルパスとリモート設定ごとに分離されます。</td></tr>
 <tr><td class="term"><span>再読込しても同期差分が変わらない</span></td><td>対象内で <code>git remote -v</code> と <code>git status -sb</code> を確認します。Homeの <kbd>f</kbd> でリモート参照を更新してから状態を確認してください。再読込はfetchではなく、upstream未設定のブランチにはその比較がありません。</td></tr>
-<tr><td class="term"><span>ツールから戻っても変更が見えない</span></td><td>ツールの作業ディレクトリで <code>git status --short</code> と比較します。Diffのファイル一覧は画面を閉じて開き直してください。GUI編集後やシンボリックリンク経由のWorktree登録ではHomeへ戻って <kbd>r</kbd>。正規化された実体パスで登録するとパス表記の不一致を避けられます。</td></tr>
+<tr><td class="term"><span>ツールから戻っても変更が見えない</span></td><td>ツールの作業ディレクトリで <code>git status --short</code> と比較します。端末内ツール終了後は、シンボリックリンク経由の登録でもHomeと差分ファイル一覧を更新します。GUIで後から編集した場合はHomeまたは詳細で <kbd>r</kbd> を押し、Diffを開き直してください。ツールが選択したリポジトリ・Worktree内で編集しているかも確認します。</td></tr>
 <tr><td class="term"><span>ツールが未導入扱い・端末入力が競合する</span></td><td>Unixでは <code>command -v nvim</code>、Windowsでは <code>where.exe nvim.exe</code> で確認し、その実行ファイルの絶対パスをメニューの <kbd>c</kbd> に設定します。端末内エディタは <kbd>w</kbd> で待機をオンにしてください。シェルaliasや相対PATH要素は使いません。Windowsの制限は上表を参照してください。</td></tr>
-<tr><td class="term"><span>登録や設定が保存されない</span></td><td>エラーと設定先ディレクトリの権限を確認します。GIT_DASHBOARD_CONFIG_DIRを指定した場合、現状は自動作成しないので起動前にディレクトリを作成してください。リファレンスに設定分離コマンドがあります。調査時はconfig.json・members.json・prefs.jsonを保持してください。cacheの削除は設定リセットではありません。</td></tr>
-<tr><td class="term"><span>Worktreeがない・エラー件数が出る</span></td><td>登録したローカルリポジトリごとに <code>git -C /absolute/repository worktree list --porcelain</code> を実行し、パスの存在と権限を確認します。SSH登録は対象外です。現状は正常な行があるとエラー件数だけの表示になる場合があるため、個別に確認してください。解決後はWorkspaceの <kbd>r</kbd> で再取得します。</td></tr>
+<tr><td class="term"><span>登録や設定が保存されない</span></td><td>エラーと設定先ディレクトリの権限を確認します。GIT_DASHBOARD_CONFIG_DIRの指定先が存在しない場合、設定保存時に親ディレクトリも含めて作成します。最も近い既存の親ディレクトリに書込権限が必要です。リファレンスに設定分離コマンドがあります。調査時はconfig.json・members.json・prefs.jsonを保持してください。cacheの削除は設定リセットではありません。</td></tr>
+<tr><td class="term"><span>Worktreeがない・エラー件数が出る</span></td><td>登録したローカルリポジトリごとに <code>git -C /absolute/repository worktree list --porcelain</code> を実行し、パスの存在と権限を確認します。SSH登録は対象外です。正常な行がある場合もエラーパネルを表示します。<kbd>[</kbd>/<kbd>]</kbd> で失敗したリポジトリとエラーを順に確認してください。解決後はWorkspaceの <kbd>r</kbd> で再取得します。</td></tr>
 <tr><td class="term"><span>SSH登録を読み込めない</span></td><td><code>ssh -o BatchMode=yes host git --version</code>、次に <code>ssh -o BatchMode=yes host "git -C /absolute/repository status --short"</code> を確認します。鍵・接続先の信頼設定・リモートパスはTUIの外で設定してください。TUIはSSHパスワードを要求しません。</td></tr>
 <tr><td class="term"><span>起動できない・新機能がない・macOSでブロックされる</span></td><td><code>command -v git-dashboard-tui</code>（Windows: <code>where.exe git-dashboard-tui</code>）でPATH上に古い実行ファイルがないか確認します。導入先をPATHに追加するか絶対パスで起動してください。上のバージョン説明と導入したリリースを照合します。macOSのGatekeeperにブロックされた場合はシステム設定 → プライバシーとセキュリティから許可してください。</td></tr>
 </tbody></table>
@@ -270,7 +270,7 @@ footer a{color:var(--muted)}
 <h2>リポジトリを横断するWorktree<a href="#worktree-workspace" aria-label="link">#</a></h2>
 <figure><img src="img/workspace.ja.svg" loading="lazy" alt="ローカルWorktreeと本人の用途メモ・お気に入り。"><figcaption>ローカルWorktreeと本人の用途メモ・お気に入り。</figcaption></figure>
 <p>Homeの <kbd>W</kbd> でローカルWorktreeを横断表示します。親リポジトリとそのWorktreeを両方登録しても同じパスは1行です。最初に登録された親、ブランチ、未コミット数、HEADのコミット日時、パスを表示し、SSHは対象外として件数を示します。</p>
-<p><kbd>/</kbd> でパス・ブランチ・用途メモを検索し、<kbd>m</kbd> でメモを編集します。<kbd>*</kbd> でお気に入りを切り替え、<kbd>f</kbd> で絞り込みます。メモとお気に入りは正規化したローカルパスをキーに設定へ保存します。<kbd>Enter</kbd> または <kbd>O</kbd> でツールメニュー、<kbd>t</kbd> でそのWorktreeのシェルを開けます。<kbd>r</kbd> のバックグラウンド再取得中も操作できます。取得中は前回値が残る場合があり、失敗はクリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、AIエージェントの活動状況ではありません。</p>
+<p><kbd>/</kbd> でパス・ブランチ・用途メモを検索し、<kbd>m</kbd> でメモを編集します。<kbd>*</kbd> でお気に入りを切り替え、<kbd>f</kbd> で絞り込みます。メモとお気に入りは正規化したローカルパスをキーに設定へ保存します。<kbd>Enter</kbd> または <kbd>O</kbd> でツールメニュー、<kbd>t</kbd> でそのWorktreeのシェルを開けます。<kbd>r</kbd> のバックグラウンド再取得中も操作できます。取得中は前回値が残る場合があります。正常な行を選択中も <kbd>[</kbd>/<kbd>]</kbd> で各リポジトリの取得失敗を確認でき、クリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、AIエージェントの活動状況ではありません。</p>
 </section>
 <section id="work-tools">
 <h2>普段の作業ツールで開く<a href="#work-tools" aria-label="link">#</a></h2>

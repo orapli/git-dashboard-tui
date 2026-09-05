@@ -18,6 +18,15 @@ These entries describe development on `main`, not the latest release binary.
 - Task-oriented bilingual manual, editor examples, platform/SSH matrix and troubleshooting.
 - Documentation checks for generated output, local links/anchors, SVG assets and language structure.
 
+### Fixed
+
+- Refresh the Diff file list after returning from external tools, preserving selection and scroll when possible.
+- Refresh repositories registered through symlink/noncanonical paths after working in their canonical directory.
+- Separate GitHub caches when a repository's remote configuration changes.
+- Resolve native Windows `.exe`/`.com` programs for the editor and Git-client menu.
+- Create missing configuration directories during atomic saves.
+- Keep Worktree collection errors visible beside healthy rows, with `[` / `]` navigation.
+
 ### Changed
 
 - Shortened READMEs; moved complete keyboard/configuration tables to `docs/reference*.md`.
