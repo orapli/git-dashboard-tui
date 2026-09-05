@@ -1203,9 +1203,11 @@ fn test_repo_finder_workflow() {
     assert!(finder.repos[0].is_selected);
     assert!(finder.repos[1].is_selected);
 
-    // Toggle selection on first repo
+    // Discovery order varies by filesystem. Sorting preserves the selected
+    // repository's identity, so it need not occupy row zero after completion.
+    let selected = app.filtered_finder_repos()[finder.selected_idx];
     app.handle_key(KeyEvent::from(KeyCode::Char(' ')));
-    assert!(!app.repo_finder.as_ref().unwrap().repos[0].is_selected);
+    assert!(!app.repo_finder.as_ref().unwrap().repos[selected].is_selected);
 
     // Select all again
     app.handle_key(KeyEvent::from(KeyCode::Char('a')));
@@ -1756,4 +1758,36 @@ fn finder_can_cancel_before_worker_responds_and_discards_late_results() {
     app.handle_key(KeyEvent::from(KeyCode::Char('q')));
     assert_eq!(app.screen, Screen::Home);
     assert!(!app.should_quit);
+}
+
+#[test]
+fn finder_completion_preserves_selection_when_discovery_order_differs() {
+    let mut app = App::new();
+    let (tx, _rx) = mpsc::channel();
+    app.finder_tx = tx;
+    app.repos.clear();
+    app.open_repo_finder(Some("/scan".into()));
+    let seq = app.finder_generation.load(Ordering::Relaxed);
+    for name in ["z-last", "a-first"] {
+        app.apply_msg_for_test(Msg::FinderRepo {
+            seq,
+            repo: FoundRepo {
+                path: format!("/scan/{name}").into(),
+                name: name.into(),
+                branch: "main".into(),
+                is_selected: true,
+                is_already_added: false,
+            },
+        });
+    }
+    app.apply_msg_for_test(Msg::FinderDone {
+        seq,
+        errors: vec![],
+    });
+    let finder = app.repo_finder.as_ref().unwrap();
+    assert_eq!(finder.repos[finder.selected_idx].name, "z-last");
+    app.handle_key(KeyEvent::from(KeyCode::Char(' ')));
+    let finder = app.repo_finder.as_ref().unwrap();
+    assert!(finder.repos[0].is_selected);
+    assert!(!finder.repos[1].is_selected);
 }
