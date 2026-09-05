@@ -257,7 +257,7 @@ pub fn get_summary(repo_path: &Path, members: &[Member]) -> Result<Summary, Stri
         &["branch", "-a"],
         &["ls-tree", "-r", "--long", "HEAD"],
         &["remote"],
-        &["status", "--porcelain=v1"],
+        &["status", "--porcelain=v1", "--untracked-files=all"],
         &["rev-parse", "--abbrev-ref", "@{u}"],
         &["rev-list", "--left-right", "--count", "HEAD...@{u}"],
         &[

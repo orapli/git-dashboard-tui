@@ -73,7 +73,7 @@ fn worktree_dirty(path: &std::path::Path) -> Result<usize, String> {
     let output = git::run_with_timeout(
         git::git_command_for(
             path,
-            &["status", "--porcelain=v1", "-z", "--untracked-files=normal"],
+            &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
         ),
         git::GIT_TIMEOUT,
     )?;

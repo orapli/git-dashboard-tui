@@ -765,6 +765,8 @@ fn untracked_and_unborn_work_is_visible_without_changing_the_index() {
     use git_dashboard_tui::git::WORKING_TREE;
     let repo = TempRepo::new("untracked-preview");
     repo.write_file("new file.txt", "hello\n\tworld\n");
+    repo.write_file("new-directory/one.txt", "one\n");
+    repo.write_file("new-directory/two.txt", "two\n");
     repo.write_file("ignored.tmp", "private\n");
     repo.write_file(".gitignore", "*.tmp\n");
     repo.git(&["add", ".gitignore"]);
@@ -774,6 +776,10 @@ fn untracked_and_unborn_work_is_visible_without_changing_the_index() {
             repo.git(&["commit", "-qm", "ignore rule"]);
         }
         let files = get_changed_files(&repo.path, None, WORKING_TREE, false).unwrap();
+        assert_eq!(
+            get_summary(&repo.path, &[]).unwrap().uncommitted_changes,
+            files.len()
+        );
         assert!(
             files
                 .iter()
