@@ -68,6 +68,8 @@ th{color:var(--faint);font-weight:600;font-size:.8rem;text-transform:uppercase;
    letter-spacing:.04em}
 tbody tr:last-child td{border-bottom:none}
 td.k{white-space:nowrap;width:1%}
+td.term{width:26%;font-weight:600}
+th,td{overflow-wrap:anywhere}
 code,kbd{font-family:var(--mono);font-size:.88em}
 code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
 kbd{background:var(--code-bg);border:1px solid var(--line);border-bottom-width:2px;
@@ -105,6 +107,12 @@ footer a{color:var(--muted)}
 <li><a href="#what">What this is</a></li>
 <li><a href="#install">Installing</a></li>
 <li><a href="#first-run">First run</a></li>
+<li><a href="#versions">Release or development version?</a></li>
+<li><a href="#tasks">Task walkthroughs</a></li>
+<li><a href="#freshness">Read status and refresh deliberately</a></li>
+<li><a href="#editor-examples">Editor command examples</a></li>
+<li><a href="#platforms">Platform and SSH support</a></li>
+<li><a href="#troubleshooting">Troubleshooting: symptom → check → fix</a></li>
 <li><a href="#dashboard">The dashboard</a></li>
 <li><a href="#repository">Inside a repository</a></li>
 <li><a href="#diff">Reading a diff</a></li>
@@ -123,10 +131,10 @@ footer a{color:var(--muted)}
 </section>
 <section id="install">
 <h2>Installing<a href="#install" aria-label="link">#</a></h2>
-<p>The installer detects your platform, downloads the matching release binary, verifies its SHA-256 against the checksum published with the release, and installs to <code>~/.local/bin</code>. It never uses sudo.</p>
+<p>The installer detects your platform, downloads the matching release binary, verifies its SHA-256 against the checksum published with the release, and installs to <code>~/.local/bin</code> (or writable <code>/usr/local/bin</code> already on PATH). It never uses sudo.</p>
 <pre><code>curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh</code></pre>
 <p>Piping a script into a shell means trusting it, so read it first if you prefer — it is short and has no dependencies. <code>INSTALL_DIR</code> and <code>VERSION</code> override the defaults. Pre-built binaries cover Linux (x86_64, ARM64), macOS (Apple Silicon, Intel) and Windows (x64); <code>cargo install --git</code> works too.</p>
-<p>Requirements: <code>git</code> on your PATH. The GitHub columns additionally need the <code>gh</code> CLI, authenticated — without it those columns stay empty and nothing else changes.</p>
+<p>Requirements: <code>git</code> on your PATH. The GitHub columns additionally need authenticated <code>gh</code>. If unavailable, GitHub status is unverified; local Git views still work.</p>
 </section>
 <section id="first-run">
 <h2>First run<a href="#first-run" aria-label="link">#</a></h2>
@@ -135,16 +143,77 @@ footer a{color:var(--muted)}
 <p>Rows fill in as each repository is analysed, and the result is cached — so the next launch shows the dashboard populated straight away rather than a screen of placeholders while it re-reads everything.</p>
 <figure><img src="img/progress.svg" loading="lazy" alt="Work in flight. The repository being refreshed shows a spinner in place of the value about to change, and the title bar "><figcaption>Work in flight. The repository being refreshed shows a spinner in place of the value about to change, and the title bar counts the jobs still running — from any screen, since work started here keeps going while you look elsewhere.</figcaption></figure>
 </section>
+<section id="versions">
+<h2>Release or development version?<a href="#versions" aria-label="link">#</a></h2>
+<p>This manual follows <code>main</code>, including unreleased changes. The installer downloads the latest published release, even though the installer script comes from main. The first-run guide, detailed Home freshness context, O tool menu and W workspace were added after v0.3.1. See <a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">Unreleased in the changelog</a>. For an older version, read the README at its release tag.</p>
+<pre><code>cargo install --git https://github.com/orapli/git-dashboard-tui --branch main --locked</code></pre>
+<p>Building main requires Rust 1.88 or later and a native linker/toolchain. Pre-built release binaries do not require Rust. To pin a release with the installer, use <code>VERSION=v0.3.1 sh</code> in place of <code>sh</code>.</p>
+</section>
+<section id="tasks">
+<h2>Task walkthroughs<a href="#tasks" aria-label="link">#</a></h2>
+<table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody>
+<tr><td class="term"><span>Start the day</span></td><td>Home: press <kbd>r</kbd> to reread local data. If you need current remote refs, use <kbd>f</kbd> on one repository or <kbd>F</kbd> for the filtered list. Press <kbd>n</kbd>, select a row and read the attention reason before opening it with <kbd>Enter</kbd>.</td></tr>
+<tr><td class="term"><span>Inspect and edit</span></td><td>In Status (<kbd>1</kbd>), select a file and press <kbd>Enter</kbd>. In Diff, use <kbd>n</kbd>/<kbd>p</kbd> for hunks and <kbd>b</kbd> for blame. <kbd>O</kbd> opens your tools; configure the editor with <kbd>c</kbd>. After GUI edits, return to Home or Repo and press <kbd>r</kbd>; reopen Diff if its file list is stale.</td></tr>
+<tr><td class="term"><span>Resume a worktree</span></td><td>Home <kbd>W</kbd> lists local worktrees. Search with <kbd>/</kbd>, add a purpose note with <kbd>m</kbd>, toggle a favorite with <kbd>*</kbd>, and filter favorites with <kbd>f</kbd>. <kbd>Enter</kbd> opens tools in the selected worktree. The Repo Worktrees tab (<kbd>7</kbd>) instead opens its shell directly with <kbd>Enter</kbd>.</td></tr>
+<tr><td class="term"><span>Find a change across repositories</span></td><td>Home <kbd>S</kbd> searches commit messages. Enter a term, select a result and press <kbd>Enter</kbd> to inspect its diff. This searches messages, not file contents. Use Home <kbd>M</kbd> for cross-repository contributor totals.</td></tr>
+</tbody></table>
+<p>Keys depend on the screen: <kbd>f</kbd> fetches on Home, toggles full-file view in Diff, and filters favorites in Workspace. Use <kbd>?</kbd> for context help or the <a href="https://github.com/orapli/git-dashboard-tui/blob/main/docs/reference.md">complete keyboard/configuration reference</a>.</p>
+</section>
+<section id="freshness">
+<h2>Read status and refresh deliberately<a href="#freshness" aria-label="link">#</a></h2>
+<table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody>
+<tr><td class="term"><span>Needs attention</span></td><td>Unresolved conflicts, an operation in progress, or a CI result classified as failure (failure, cancelled, timed_out, action_required). <kbd>n</kbd> filters these rows. Dirty files or ahead/behind counts alone do not qualify.</td></tr>
+<tr><td class="term"><span>Unverified</span></td><td>Local data has not loaded, or GitHub data is unavailable, unauthenticated, failed, unsupported or at least five minutes old. It does not mean clean or CI success. A cached CI failure can count as both attention and unverified.</td></tr>
+<tr><td class="term"><span>Counts and timestamps</span></td><td>Summary counts cover the current group and text search, before the attention-only filter. Categories can overlap. Local checked is the analysis time, not a network fetch time. CI checked time describes retrieved data, not when the run finished. Small terminals hide some context; enlarge the window.</td></tr>
+<tr><td class="term"><span>CI scope and PR count</span></td><td>CI is the repository-wide latest run returned by gh, across branches and workflows; it is not proof that your checked-out branch passed. Check the displayed branch and press <kbd>C</kbd> to open that run. No runs, fetch failure and success are distinct. PR lists request at most 100 entries: <code>100+</code> means at least 100, including exactly 100.</td></tr>
+<tr><td class="term"><span>Reload, fetch, pull</span></td><td><kbd>r</kbd> rereads local data without git fetch. Home <kbd>f</kbd>/<kbd>F</kbd> fetch remote refs for one/the filtered repositories. <kbd>p</kbd>/<kbd>P</kbd> pull and may merge or rebase. Ahead/behind uses locally available upstream refs, so reload alone cannot discover new remote commits.</td></tr>
+</tbody></table>
+<p>GitHub uses a process-local five-minute cache after a successful check, or a one-minute retry delay after failure. Expiry does not schedule a request: the next reload does. Home auto-refresh is off by default; Settings <kbd>i</kbd> cycles off / 30 seconds / 1 minute / 5 minutes. There is no dedicated force-GitHub-refresh key. Failed requests retain the last successful values with their old timestamps. Restarting clears the in-memory GitHub cache; disk snapshots may still appear until refreshed.</p>
+</section>
+<section id="editor-examples">
+<h2>Editor command examples<a href="#editor-examples" aria-label="link">#</a></h2>
+<p>Press <kbd>O</kbd>, then <kbd>c</kbd>, enter a command, and confirm with <kbd>Enter</kbd>. Set waiting with <kbd>w</kbd> in the same menu. These are configuration examples, not a claim of integration testing with every editor.</p>
+<table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody>
+<tr><td class="term"><span>VS Code</span></td><td><code>code "{path}"</code> — wait off. To return after closing the editor target, use <code>code --wait "{path}"</code> and wait on.</td></tr>
+<tr><td class="term"><span>Neovim / Vim</span></td><td><code>nvim "{path}"</code> or <code>vim "{path}"</code> — wait on, so the editor owns the terminal until it exits.</td></tr>
+<tr><td class="term"><span>Absolute path with spaces</span></td><td><code>"/opt/editor tools/editor" "{path}"</code>. On Windows use an actual executable, for example <code>"C:/Program Files/Neovim/bin/nvim.exe" "{path}"</code>, with wait on.</td></tr>
+</tbody></table>
+<p>Commands are split into a program and arguments; they are not shell scripts. Quoting is supported, but shell aliases, $HOME, ~, pipes and redirections are not expanded. Use an absolute executable path or an exact executable name on an absolute PATH entry. The repository path is appended if {path} is absent. Settings <kbd>c</kbd> configures the separate external diff command; its placeholders are documented in the reference.</p>
+</section>
+<section id="platforms">
+<h2>Platform and SSH support<a href="#platforms" aria-label="link">#</a></h2>
+<table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody>
+<tr><td class="term"><span>Linux / macOS</span></td><td>Local Git views, shell, editor and installed Git clients. Unix shells use $SHELL (fallback /bin/sh). Release archives cover Linux x86_64/ARM64 and macOS Intel/Apple Silicon.</td></tr>
+<tr><td class="term"><span>Windows</span></td><td>Core views are covered by Windows CI; releases target x64. Shell uses COMSPEC (fallback cmd.exe). Editor resolution does not add .exe or search PATHEXT: specify the full executable name/path. The fixed lazygit/GitUI menu commands currently cannot find ordinary .exe installations; launch those clients from the shell instead. .cmd wrappers such as code.cmd are not native executables.</td></tr>
+<tr><td class="term"><span>ssh://host/absolute/path</span></td><td>Remote status, log, diff and contributor analysis require local ssh, remote git and noninteractive key authentication. Local shell/editor/clients, GitHub PR/CI queries and the cross-repository Worktree workspace are unsupported for these entries. A local clone with an SSH origin is still a local repository and is not subject to these restrictions.</td></tr>
+<tr><td class="term"><span>Validation scope</span></td><td>CI runs Rust checks/tests on Linux x86_64/ARM64, macOS and Windows. The new tools/workspace flows were exercised in a Linux terminal with sample tools. This is not macOS/Windows GUI integration certification.</td></tr>
+</tbody></table>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting: symptom → check → fix<a href="#troubleshooting" aria-label="link">#</a></h2>
+<table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody>
+<tr><td class="term"><span>GitHub missing, unauthenticated or failed</span></td><td>Run <code>gh auth status</code> in the same environment as the TUI. From the repository, run <code>gh pr list --limit 1</code> and <code>gh run list --limit 1</code> to check repository access. For a normal local login use <code>gh auth login --hostname github.com</code>. An injected GH_TOKEN/GITHUB_TOKEN takes precedence over stored login: replace it through your environment’s secret mechanism. Wait for the one-minute failure delay, then Home <kbd>r</kbd>.</td></tr>
+<tr><td class="term"><span>Wrong CI branch or old values</span></td><td>Compare the displayed branch/timestamp with <code>gh run list --limit 1</code>. Latest CI is repository-wide. A successful GitHub cache lasts five minutes; reload after expiry. After changing origin, restart the TUI because the current cache key is the local path.</td></tr>
+<tr><td class="term"><span>Ahead/behind does not change after reload</span></td><td>Inspect <code>git remote -v</code> and <code>git status -sb</code> in the repository. Use Home <kbd>f</kbd> to update its remote refs, then inspect status. Reload is not fetch; a branch without an upstream has no upstream comparison.</td></tr>
+<tr><td class="term"><span>Changes missing after leaving a tool</span></td><td>Compare with <code>git status --short</code> in the tool’s directory. Close and reopen Diff to refresh its file list. For GUI edits or a worktree registered through a symlink, return to Home and press <kbd>r</kbd>. Registering canonical paths avoids path-spelling mismatches.</td></tr>
+<tr><td class="term"><span>Tool not installed or terminal input conflicts</span></td><td>On Unix check <code>command -v nvim</code>; on Windows use <code>where.exe nvim.exe</code>. Configure that absolute executable path with menu <kbd>c</kbd>. Enable <kbd>w</kbd> waiting for terminal editors. Shell aliases and relative PATH entries are not used. See the Windows limitations above.</td></tr>
+<tr><td class="term"><span>Registration or preferences do not persist</span></td><td>Check the error and configuration-directory permissions. If GIT_DASHBOARD_CONFIG_DIR is set, create that directory before launch; the current override does not create it. Use the reference’s isolated-config commands. Preserve config.json, members.json and prefs.json when troubleshooting; removing cache files is not a settings reset.</td></tr>
+<tr><td class="term"><span>Worktree missing or errors counted</span></td><td>Run <code>git -C /absolute/repository worktree list --porcelain</code> for each registered local repository. Check missing paths and access rights. SSH entries are excluded. The current workspace may show only an error count when healthy rows remain, so check repositories individually. Press Workspace <kbd>r</kbd> after resolving the error.</td></tr>
+<tr><td class="term"><span>SSH repository cannot load</span></td><td>Test <code>ssh -o BatchMode=yes host git --version</code>, then <code>ssh -o BatchMode=yes host "git -C /absolute/repository status --short"</code>. Configure keys, host trust and the remote path outside the TUI. The app never prompts for an SSH password.</td></tr>
+<tr><td class="term"><span>Command missing, old features, or macOS launch blocked</span></td><td>Check <code>command -v git-dashboard-tui</code> (Windows: <code>where.exe git-dashboard-tui</code>) for an older binary earlier on PATH. Add the install directory to PATH or run the binary by its full path. Compare the installed release with the version section above. On macOS, allow the downloaded app in System Settings → Privacy &amp; Security if Gatekeeper blocked it.</td></tr>
+</tbody></table>
+<p>If unresolved, report the OS, installation method and release/commit, screen and keys used, expected/actual behavior, and complete error text. Remove credentials and private repository URLs before sharing logs.</p>
+</section>
 <section id="dashboard">
 <h2>The dashboard<a href="#dashboard" aria-label="link">#</a></h2>
 <p>Every row is one repository. The colours carry the meaning, so the table is readable at a glance rather than something you parse column by column.</p>
 <table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody>
-<tr><td class="k"><code>Name</code></td><td>The alias you gave it, prefixed by its group in yellow.</td></tr>
-<tr><td class="k"><code>Branch</code></td><td>Current branch, followed by badges: <b class='red'>⚠MERGE</b>, <b class='red'>⚠REBASE</b>, <b class='red'>⚠CHERRY-PICK</b> or <b class='red'>⚠REVERT</b> when an operation was left unfinished, and a conflict count. Badges are drawn first so they survive if the column is too narrow for everything.</td></tr>
-<tr><td class="k"><code>Sync</code></td><td>Commits ahead of and behind the upstream, <b class='yellow'>yellow</b> when either is non-zero. Replaced by a spinner while a pull or fetch runs.</td></tr>
-<tr><td class="k"><code>Dirty</code></td><td>Uncommitted changes — <b class='green'>green</b> at zero, <b class='red'>red</b> otherwise.</td></tr>
-<tr><td class="k"><code>Last commit</code></td><td>Date of the most recent commit across all refs.</td></tr>
-<tr><td class="k"><code>PR / CI</code></td><td>Open pull requests and the latest CI conclusion, for repositories with a GitHub remote and an authenticated <code>gh</code>. A failing, cancelled, timed-out or action-required run counts as needing attention.</td></tr>
+<tr><td class="term"><span>Name</span></td><td>The alias you gave it, prefixed by its group in yellow.</td></tr>
+<tr><td class="term"><span>Branch</span></td><td>Current branch, followed by badges: <b class='red'>⚠MERGE</b>, <b class='red'>⚠REBASE</b>, <b class='red'>⚠CHERRY-PICK</b> or <b class='red'>⚠REVERT</b> when an operation was left unfinished, and a conflict count. Badges are drawn first so they survive if the column is too narrow for everything.</td></tr>
+<tr><td class="term"><span>Sync</span></td><td>Commits ahead of and behind the upstream, <b class='yellow'>yellow</b> when either is non-zero. Replaced by a spinner while a pull or fetch runs.</td></tr>
+<tr><td class="term"><span>Dirty</span></td><td>Uncommitted changes — <b class='green'>green</b> at zero, <b class='red'>red</b> otherwise.</td></tr>
+<tr><td class="term"><span>Last commit</span></td><td>Date of the most recent commit across all refs.</td></tr>
+<tr><td class="term"><span>PR / CI</span></td><td>Open pull requests and the latest CI conclusion, for repositories with a GitHub remote and an authenticated <code>gh</code>. A failing, cancelled, timed-out or action-required run counts as needing attention.</td></tr>
 </tbody></table>
 <figure><img src="img/home-attention.svg" loading="lazy" alt="&lt;kbd&gt;n&lt;/kbd&gt; narrows the list to what actually needs a response: a failing CI run, an unresolved conflict, or an interru"><figcaption><kbd>n</kbd> narrows the list to what actually needs a response: a failing CI run, an unresolved conflict, or an interrupted operation. Uncommitted changes and being behind are normal working state, so they are deliberately not included.</figcaption></figure>
 <figure><img src="img/home-sorted.svg" loading="lazy" alt="Click a column header to sort by it; click the same one again to reverse. The sorted column carries a ▲ or ▼. &lt;kbd&gt;o&lt;/kb"><figcaption>Click a column header to sort by it; click the same one again to reverse. The sorted column carries a ▲ or ▼. <kbd>o</kbd> cycles the same orders from the keyboard. Repositories whose row has not loaded yet sort last, so the order does not churn while the dashboard fills in.</figcaption></figure>
@@ -214,13 +283,13 @@ footer a{color:var(--muted)}
 <figure><img src="img/settings.svg" loading="lazy" alt="&lt;kbd&gt;s&lt;/kbd&gt; from the dashboard. Language, theme, external diff command, and the Home auto-refresh interval."><figcaption><kbd>s</kbd> from the dashboard. Language, theme, external diff command, and the Home auto-refresh interval.</figcaption></figure>
 <p>Configuration lives in the OS config directory — <code>~/Library/Application Support/com.git-dashboard.git-dashboard/</code> on macOS, <code>~/.config/git-dashboard/</code> on Linux, <code>%APPDATA%\git-dashboard\git-dashboard\config\</code> on Windows.</p>
 <table><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody>
-<tr><td class="k"><code>config.json</code></td><td>Registered repositories: name, path, group.</td></tr>
-<tr><td class="k"><code>members.json</code></td><td>Team members and the commit-author aliases merged into them.</td></tr>
-<tr><td class="k"><code>prefs.json</code></td><td>Language, theme, diff toggles, sort order, refresh interval.</td></tr>
-<tr><td class="k"><code>tech_rules.json</code></td><td>Rules for detecting language and framework versions.</td></tr>
-<tr><td class="k"><code>cache/</code></td><td>Cached dashboard rows and repository snapshots. Safe to delete; rebuilt on the next refresh.</td></tr>
+<tr><td class="term"><span>config.json</span></td><td>Registered repositories: name, path, group.</td></tr>
+<tr><td class="term"><span>members.json</span></td><td>Team members and the commit-author aliases merged into them.</td></tr>
+<tr><td class="term"><span>prefs.json</span></td><td>Language, theme, sidebar, diff toggles, recent comparisons, sort order, refresh interval, external diff command, editor command/wait, onboarding dismissal, and worktree notes/favorites.</td></tr>
+<tr><td class="term"><span>tech_rules.json</span></td><td>Rules for detecting language and framework versions.</td></tr>
+<tr><td class="term"><span>cache/</span></td><td>Cached dashboard rows and repository snapshots. Safe to delete; rebuilt on the next refresh.</td></tr>
 </tbody></table>
-<div class="aside">Auto-refresh is off by default. Local reload does not fetch remote Git refs. GitHub information is cached for five minutes, with a one-minute retry delay after failure. Home shows the selected repository's local check time, latest repository-wide CI branch, authentication/fetch state and stale cache. Press <kbd>C</kbd> to open its CI run. PR counts of 100 or more are shown as <code>100+</code>.</div>
+<div class="aside">Auto-refresh is off by default. Local reload does not fetch remote Git refs. GitHub information is cached for five minutes, with a one-minute retry delay after failure; the next reload after expiry triggers the request. Home shows the selected repository's local check time, latest repository-wide CI branch, authentication/fetch state and stale cache. Press <kbd>C</kbd> to open its CI run. PR counts of 100 or more are shown as <code>100+</code>.</div>
 </section>
 <section id="trust">
 <h2>What it does with a repository you do not trust<a href="#trust" aria-label="link">#</a></h2>
@@ -238,5 +307,5 @@ footer a{color:var(--muted)}
 <tr><td class="k"><kbd>t / T</kbd></td><td>Open a shell in the repository directory</td></tr>
 </tbody></table>
 </section>
-<footer><p>Screenshots are captured from the running program by <code>docs/gen_shots.py</code> against the demo workspace built by <code>docs/gen_demo.py</code> — so they cannot drift from what the tool actually draws.</p></footer>
+<footer><p>Screenshots are captured from the running program by <code>docs/gen_shots.py</code> against the demo workspace built by <code>docs/gen_demo.py</code>. They record the captured build, not a live view; timestamps and environment can change on regeneration.</p></footer>
 </div></body></html>

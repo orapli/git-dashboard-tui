@@ -68,6 +68,8 @@ th{color:var(--faint);font-weight:600;font-size:.8rem;text-transform:uppercase;
    letter-spacing:.04em}
 tbody tr:last-child td{border-bottom:none}
 td.k{white-space:nowrap;width:1%}
+td.term{width:26%;font-weight:600}
+th,td{overflow-wrap:anywhere}
 code,kbd{font-family:var(--mono);font-size:.88em}
 code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
 kbd{background:var(--code-bg);border:1px solid var(--line);border-bottom-width:2px;
@@ -105,6 +107,12 @@ footer a{color:var(--muted)}
 <li><a href="#what">これは何か</a></li>
 <li><a href="#install">インストール</a></li>
 <li><a href="#first-run">最初の起動</a></li>
+<li><a href="#versions">リリース版と開発版</a></li>
+<li><a href="#tasks">目的別の操作手順</a></li>
+<li><a href="#freshness">状態表示と更新の使い分け</a></li>
+<li><a href="#editor-examples">エディタコマンドの設定例</a></li>
+<li><a href="#platforms">OS・SSHの対応範囲</a></li>
+<li><a href="#troubleshooting">トラブルシューティング：症状 → 確認 → 対処</a></li>
 <li><a href="#dashboard">ダッシュボード</a></li>
 <li><a href="#repository">リポジトリの中</a></li>
 <li><a href="#diff">差分を読む</a></li>
@@ -123,10 +131,10 @@ footer a{color:var(--muted)}
 </section>
 <section id="install">
 <h2>インストール<a href="#install" aria-label="link">#</a></h2>
-<p>インストーラはプラットフォームを判定し、対応するリリースバイナリを取得し、リリースと同時に公開される SHA-256 と照合してから <code>~/.local/bin</code> に配置します。sudo は一切使いません。</p>
+<p>インストーラはプラットフォームを判定し、対応するリリースバイナリを取得し、リリースと同時に公開される SHA-256 と照合し、<code>~/.local/bin</code>（PATH上にあり書込可能なら <code>/usr/local/bin</code>）に配置します。sudo は一切使いません。</p>
 <pre><code>curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh</code></pre>
 <p>スクリプトをシェルに流し込むのはそれを信頼するということなので、気になる場合は先に読んでください（短く、依存もありません）。<code>INSTALL_DIR</code> と <code>VERSION</code> で既定値を上書きできます。ビルド済みバイナリは Linux (x86_64, ARM64)、macOS (Apple Silicon, Intel)、Windows (x64) を用意しています。<code>cargo install --git</code> でも導入できます。</p>
-<p>必要なもの: PATH の通った <code>git</code>。GitHub 連携列を使う場合は認証済みの <code>gh</code> CLI が追加で必要です。なければその列が空欄になるだけで、他の機能に影響はありません。</p>
+<p>必要なもの: PATH の通った <code>git</code>。GitHub 連携列を使う場合は認証済みの <code>gh</code> CLI が追加で必要です。利用できない場合はGitHub情報が未確認となりますが、ローカルGit表示は使えます。</p>
 </section>
 <section id="first-run">
 <h2>最初の起動<a href="#first-run" aria-label="link">#</a></h2>
@@ -135,16 +143,77 @@ footer a{color:var(--muted)}
 <p>各リポジトリの解析が終わるごとに行が埋まり、結果はキャッシュされます。そのため次回の起動では、読み直しを待つ間の空欄ではなく、前回の内容が即座に表示されます。</p>
 <figure><img src="img/progress.ja.svg" loading="lazy" alt="処理中の様子。更新中のリポジトリは、これから変わる値の位置にスピナーを表示し、タイトルバーには残りジョブ数が出ます。ここで始めた処理は別の画面に移っても続くため、この表示は全画面共通です。"><figcaption>処理中の様子。更新中のリポジトリは、これから変わる値の位置にスピナーを表示し、タイトルバーには残りジョブ数が出ます。ここで始めた処理は別の画面に移っても続くため、この表示は全画面共通です。</figcaption></figure>
 </section>
+<section id="versions">
+<h2>リリース版と開発版<a href="#versions" aria-label="link">#</a></h2>
+<p>このマニュアルは未リリースの変更を含む <code>main</code> を対象とします。インストーラのスクリプトはmainから取得しますが、導入するバイナリは最新リリースです。初回登録ガイド、Homeの詳細な取得状態、Oメニュー、W一覧はv0.3.1以降の開発版機能です。<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴のUnreleased</a>を参照してください。過去版の説明はそのリリースタグのREADMEで確認できます。</p>
+<pre><code>cargo install --git https://github.com/orapli/git-dashboard-tui --branch main --locked</code></pre>
+<p>mainのビルドにはRust 1.88以上とネイティブのリンカ・ビルド環境が必要です。配布バイナリにはRustは不要です。インストーラでバージョンを固定する場合は <code>sh</code> を <code>VERSION=v0.3.1 sh</code> に置き換えます。</p>
+</section>
+<section id="tasks">
+<h2>目的別の操作手順<a href="#tasks" aria-label="link">#</a></h2>
+<table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
+<tr><td class="term"><span>作業を始める</span></td><td>Homeで <kbd>r</kbd> を押してローカル情報を再読込します。リモート参照の更新が必要なら、1件は <kbd>f</kbd>、絞り込み中の一覧は <kbd>F</kbd>。<kbd>n</kbd> で要対応に絞り、理由を読んで <kbd>Enter</kbd> で詳細を開きます。</td></tr>
+<tr><td class="term"><span>差分を確認して編集する</span></td><td>Status（<kbd>1</kbd>）でファイルを選び <kbd>Enter</kbd>。Diffでは <kbd>n</kbd>/<kbd>p</kbd> でhunk移動、<kbd>b</kbd> でblameを表示します。<kbd>O</kbd> のツールメニュー内で <kbd>c</kbd> を押してエディタを設定します。GUIでの編集後はHomeまたは詳細で <kbd>r</kbd>。差分のファイル一覧が古ければDiffを開き直してください。</td></tr>
+<tr><td class="term"><span>Worktreeの作業を再開する</span></td><td>Homeの <kbd>W</kbd> でローカルWorktreeを一覧します。<kbd>/</kbd> で検索、<kbd>m</kbd> で用途メモ、<kbd>*</kbd> でお気に入り、<kbd>f</kbd> で絞り込み。<kbd>Enter</kbd> は選択Worktreeのツールメニューです。詳細のWorktreesタブ（<kbd>7</kbd>）では <kbd>Enter</kbd> で直接シェルを開きます。</td></tr>
+<tr><td class="term"><span>変更をリポジトリ横断で探す</span></td><td>Homeの <kbd>S</kbd> でコミットメッセージを検索し、結果を選んで <kbd>Enter</kbd> で差分を開きます。ファイル内容の検索ではありません。貢献者の横断集計はHomeの <kbd>M</kbd> です。</td></tr>
+</tbody></table>
+<p>キーの意味は画面で異なります。<kbd>f</kbd> はHomeでfetch、Diffで全文表示、Workspaceでお気に入り絞り込みです。<kbd>?</kbd> の画面別ヘルプ、または<a href="https://github.com/orapli/git-dashboard-tui/blob/main/docs/reference.ja.md">操作・設定リファレンス</a>を参照してください。</p>
+</section>
+<section id="freshness">
+<h2>状態表示と更新の使い分け<a href="#freshness" aria-label="link">#</a></h2>
+<table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
+<tr><td class="term"><span>要対応</span></td><td>未解決コンフリクト、進行中のGit操作、失敗扱いのCI結果（failure、cancelled、timed_out、action_required）が対象です。<kbd>n</kbd> で絞れます。未コミットやahead/behindだけでは要対応に含めません。</td></tr>
+<tr><td class="term"><span>未確認</span></td><td>ローカル情報の未取得、GitHubの未導入・未認証・取得失敗・非対応・取得から5分以上の経過等を示します。クリーンやCI成功という意味ではありません。古いCI失敗は要対応と未確認の両方に含まれる場合があります。</td></tr>
+<tr><td class="term"><span>集計範囲と時刻</span></td><td>集計は現在のグループ・文字検索の範囲で、要対応フィルタ適用前の値です。区分は重複します。ローカル取得時刻は解析時刻で、ネットワークfetch時刻ではありません。CI取得時刻も実行終了時刻とは異なります。狭い端末では詳細が隠れるため、必要なら広げてください。</td></tr>
+<tr><td class="term"><span>CIの対象とPR件数</span></td><td>CIはghが返すリポジトリ全体の最新1実行で、ブランチ・ワークフローを限定しません。作業中ブランチの成功を保証しないため、表示ブランチを確認し <kbd>C</kbd> で実行ページを開いてください。実行なし・取得失敗・成功は別の状態です。PRは最大100件を取得し、ちょうど100件の場合も <code>100+</code> と表示します。</td></tr>
+<tr><td class="term"><span>再読込・fetch・pull</span></td><td><kbd>r</kbd> はgit fetchせずローカル情報を読み直します。Homeの <kbd>f</kbd>/<kbd>F</kbd> は1件／絞り込み中のリポジトリのリモート参照をfetchします。<kbd>p</kbd>/<kbd>P</kbd> はpullし、merge/rebaseする場合があります。ahead/behindは手元のupstream参照との比較なので、再読込だけでは新しいリモートコミットを検出できません。</td></tr>
+</tbody></table>
+<p>GitHubはプロセス内で成功後5分キャッシュし、失敗後は1分再試行を抑制します。時間経過だけでは取得せず、その後の再読込で再試行します。Homeの自動更新は既定でオフで、設定の <kbd>i</kbd> でオフ／30秒／1分／5分を切り替えます。GitHubだけを強制更新するキーはありません。取得失敗時は前回成功値と古い取得時刻を保持します。再起動でGitHubのメモリ内キャッシュは消えますが、更新まではディスク上のスナップショットが表示される場合があります。</p>
+</section>
+<section id="editor-examples">
+<h2>エディタコマンドの設定例<a href="#editor-examples" aria-label="link">#</a></h2>
+<p> <kbd>O</kbd> → <kbd>c</kbd> でコマンドを入力し <kbd>Enter</kbd> で保存します。同じメニューの <kbd>w</kbd> で終了待機を設定します。以下は設定例で、すべてのエディタとの実機連携を検証したものではありません。</p>
+<table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
+<tr><td class="term"><span>VS Code</span></td><td><code>code "{path}"</code> — 待機オフ。対象を閉じてから復帰する場合は <code>code --wait "{path}"</code> と待機オンを組み合わせます。</td></tr>
+<tr><td class="term"><span>Neovim / Vim</span></td><td><code>nvim "{path}"</code> または <code>vim "{path}"</code> — 待機オン。エディタ終了まで端末を渡します。</td></tr>
+<tr><td class="term"><span>空白を含む絶対パス</span></td><td><code>"/opt/editor tools/editor" "{path}"</code>。Windowsでは実行ファイルを指定します。例: <code>"C:/Program Files/Neovim/bin/nvim.exe" "{path}"</code>、待機オン。</td></tr>
+</tbody></table>
+<p>コマンドは実行ファイルと引数に分解され、シェルスクリプトとしては実行しません。引用符には対応しますが、シェルのalias、$HOME、~、パイプ、リダイレクトは展開しません。実行ファイルの絶対パスか、絶対パスのPATH要素上にある正確なファイル名を使ってください。{path} がなければリポジトリパスを追加します。設定画面の <kbd>c</kbd> は別の外部diffコマンド用です。プレースホルダはリファレンスを参照してください。</p>
+</section>
+<section id="platforms">
+<h2>OS・SSHの対応範囲<a href="#platforms" aria-label="link">#</a></h2>
+<table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
+<tr><td class="term"><span>Linux / macOS</span></td><td>ローカルGit表示、シェル、エディタ、導入済みGitクライアントに対応します。シェルは$SHELL（未設定時 /bin/sh）。配布対象はLinux x86_64/ARM64とmacOS Intel/Apple Siliconです。</td></tr>
+<tr><td class="term"><span>Windows</span></td><td>主要機能はWindows CIの対象で、配布対象はx64です。シェルはCOMSPEC（未設定時cmd.exe）。エディタの解決では.exe補完やPATHEXT検索を行わないため、拡張子を含む実行ファイル名／パスを指定します。固定名のlazygit/GitUIメニューは通常の.exeを見つけられないため、シェルから起動してください。code.cmd等の.cmdラッパーはネイティブ実行ファイルではありません。</td></tr>
+<tr><td class="term"><span>ssh://host/absolute/path</span></td><td>リモートの状態・ログ・差分・貢献者解析にはローカルのssh、接続先のgit、非対話の鍵認証が必要です。この形式の登録ではローカルシェル・エディタ・クライアント、GitHub PR/CI取得、横断Worktree一覧は非対応です。originがSSH URLのローカルクローンにはこの制限はありません。</td></tr>
+<tr><td class="term"><span>検証範囲</span></td><td>CIはLinux x86_64/ARM64・macOS・WindowsでRustのチェックとテストを実行します。新しいツール起動・Workspaceの操作はLinuxの端末とサンプルツールで確認しています。macOS/WindowsのGUI連携を実機検証済みという意味ではありません。</td></tr>
+</tbody></table>
+</section>
+<section id="troubleshooting">
+<h2>トラブルシューティング：症状 → 確認 → 対処<a href="#troubleshooting" aria-label="link">#</a></h2>
+<table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
+<tr><td class="term"><span>GitHub情報が出ない・未認証・取得失敗</span></td><td>TUIと同じ環境で <code>gh auth status</code> を実行します。リポジトリ内で <code>gh pr list --limit 1</code> と <code>gh run list --limit 1</code> を実行してアクセスを確認します。通常のローカル認証は <code>gh auth login --hostname github.com</code>。注入されたGH_TOKEN/GITHUB_TOKENは保存済み認証より優先するため、環境のシークレット管理で差し替えます。失敗後1分待ってHomeの <kbd>r</kbd> で再取得してください。</td></tr>
+<tr><td class="term"><span>CIブランチが違う・値が古い</span></td><td>表示ブランチ・取得時刻と <code>gh run list --limit 1</code> を比較します。CIはリポジトリ全体の最新です。成功キャッシュは5分なので経過後に再読込します。originを変更した場合、現状のキャッシュキーはローカルパスのためTUIを再起動してください。</td></tr>
+<tr><td class="term"><span>再読込しても同期差分が変わらない</span></td><td>対象内で <code>git remote -v</code> と <code>git status -sb</code> を確認します。Homeの <kbd>f</kbd> でリモート参照を更新してから状態を確認してください。再読込はfetchではなく、upstream未設定のブランチにはその比較がありません。</td></tr>
+<tr><td class="term"><span>ツールから戻っても変更が見えない</span></td><td>ツールの作業ディレクトリで <code>git status --short</code> と比較します。Diffのファイル一覧は画面を閉じて開き直してください。GUI編集後やシンボリックリンク経由のWorktree登録ではHomeへ戻って <kbd>r</kbd>。正規化された実体パスで登録するとパス表記の不一致を避けられます。</td></tr>
+<tr><td class="term"><span>ツールが未導入扱い・端末入力が競合する</span></td><td>Unixでは <code>command -v nvim</code>、Windowsでは <code>where.exe nvim.exe</code> で確認し、その実行ファイルの絶対パスをメニューの <kbd>c</kbd> に設定します。端末内エディタは <kbd>w</kbd> で待機をオンにしてください。シェルaliasや相対PATH要素は使いません。Windowsの制限は上表を参照してください。</td></tr>
+<tr><td class="term"><span>登録や設定が保存されない</span></td><td>エラーと設定先ディレクトリの権限を確認します。GIT_DASHBOARD_CONFIG_DIRを指定した場合、現状は自動作成しないので起動前にディレクトリを作成してください。リファレンスに設定分離コマンドがあります。調査時はconfig.json・members.json・prefs.jsonを保持してください。cacheの削除は設定リセットではありません。</td></tr>
+<tr><td class="term"><span>Worktreeがない・エラー件数が出る</span></td><td>登録したローカルリポジトリごとに <code>git -C /absolute/repository worktree list --porcelain</code> を実行し、パスの存在と権限を確認します。SSH登録は対象外です。現状は正常な行があるとエラー件数だけの表示になる場合があるため、個別に確認してください。解決後はWorkspaceの <kbd>r</kbd> で再取得します。</td></tr>
+<tr><td class="term"><span>SSH登録を読み込めない</span></td><td><code>ssh -o BatchMode=yes host git --version</code>、次に <code>ssh -o BatchMode=yes host "git -C /absolute/repository status --short"</code> を確認します。鍵・接続先の信頼設定・リモートパスはTUIの外で設定してください。TUIはSSHパスワードを要求しません。</td></tr>
+<tr><td class="term"><span>起動できない・新機能がない・macOSでブロックされる</span></td><td><code>command -v git-dashboard-tui</code>（Windows: <code>where.exe git-dashboard-tui</code>）でPATH上に古い実行ファイルがないか確認します。導入先をPATHに追加するか絶対パスで起動してください。上のバージョン説明と導入したリリースを照合します。macOSのGatekeeperにブロックされた場合はシステム設定 → プライバシーとセキュリティから許可してください。</td></tr>
+</tbody></table>
+<p>解決しない場合はOS、導入方法とリリース／コミット、画面と操作キー、期待結果と実際の結果、エラー全文を報告してください。ログを共有する前に認証情報や非公開リポジトリURLを除いてください。</p>
+</section>
 <section id="dashboard">
 <h2>ダッシュボード<a href="#dashboard" aria-label="link">#</a></h2>
 <p>1行が1リポジトリです。意味は色が担っているので、列を順に読み解くのではなく一目で状況をつかめます。</p>
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
-<tr><td class="k"><code>名前</code></td><td>設定した表示名。前に黄色でグループ名が付きます。</td></tr>
-<tr><td class="k"><code>ブランチ</code></td><td>現在のブランチと、その後に付くバッジ。操作が中断されたままの場合に <b class='red'>⚠MERGE</b> / <b class='red'>⚠REBASE</b> / <b class='red'>⚠CHERRY-PICK</b> / <b class='red'>⚠REVERT</b> と、コンフリクト件数が出ます。列幅が足りない場合でも残るよう、バッジを先に描画しています。</td></tr>
-<tr><td class="k"><code>同期</code></td><td>upstream に対する先行・遅れのコミット数。どちらかが 0 でなければ<b class='yellow'>黄色</b>になります。pull / fetch 実行中はスピナーに変わります。</td></tr>
-<tr><td class="k"><code>未コミット</code></td><td>未コミットの変更数。0 なら<b class='green'>緑</b>、それ以外は<b class='red'>赤</b>。</td></tr>
-<tr><td class="k"><code>最終コミット</code></td><td>全 ref のうち最新コミットの日時。</td></tr>
-<tr><td class="k"><code>PR / CI</code></td><td>GitHub リモートがあり <code>gh</code> が認証済みの場合の、オープン中の PR 数と最新の CI 結果。failure / cancelled / timed_out / action_required は「要対応」として扱われます。</td></tr>
+<tr><td class="term"><span>名前</span></td><td>設定した表示名。前に黄色でグループ名が付きます。</td></tr>
+<tr><td class="term"><span>ブランチ</span></td><td>現在のブランチと、その後に付くバッジ。操作が中断されたままの場合に <b class='red'>⚠MERGE</b> / <b class='red'>⚠REBASE</b> / <b class='red'>⚠CHERRY-PICK</b> / <b class='red'>⚠REVERT</b> と、コンフリクト件数が出ます。列幅が足りない場合でも残るよう、バッジを先に描画しています。</td></tr>
+<tr><td class="term"><span>同期</span></td><td>upstream に対する先行・遅れのコミット数。どちらかが 0 でなければ<b class='yellow'>黄色</b>になります。pull / fetch 実行中はスピナーに変わります。</td></tr>
+<tr><td class="term"><span>未コミット</span></td><td>未コミットの変更数。0 なら<b class='green'>緑</b>、それ以外は<b class='red'>赤</b>。</td></tr>
+<tr><td class="term"><span>最終コミット</span></td><td>全 ref のうち最新コミットの日時。</td></tr>
+<tr><td class="term"><span>PR / CI</span></td><td>GitHub リモートがあり <code>gh</code> が認証済みの場合の、オープン中の PR 数と最新の CI 結果。failure / cancelled / timed_out / action_required は「要対応」として扱われます。</td></tr>
 </tbody></table>
 <figure><img src="img/home-attention.ja.svg" loading="lazy" alt="&lt;kbd&gt;n&lt;/kbd&gt; で「本当に対応が要るもの」だけに絞り込みます — CI 失敗、未解決のコンフリクト、中断された操作。未コミットや遅れは通常の作業状態なので、意図的に含めていません。"><figcaption><kbd>n</kbd> で「本当に対応が要るもの」だけに絞り込みます — CI 失敗、未解決のコンフリクト、中断された操作。未コミットや遅れは通常の作業状態なので、意図的に含めていません。</figcaption></figure>
 <figure><img src="img/home-sorted.ja.svg" loading="lazy" alt="列ヘッダをクリックするとその列で並び替え、同じ列を再クリックで昇降が反転します。並び替え中の列には ▲ / ▼ が付きます。&lt;kbd&gt;o&lt;/kbd&gt; でも同じ順序を切り替えられます。まだ読み込まれていない行は末尾に置かれるため、ダッシュボー"><figcaption>列ヘッダをクリックするとその列で並び替え、同じ列を再クリックで昇降が反転します。並び替え中の列には ▲ / ▼ が付きます。<kbd>o</kbd> でも同じ順序を切り替えられます。まだ読み込まれていない行は末尾に置かれるため、ダッシュボードが埋まっていく間に並びが乱れません。</figcaption></figure>
@@ -214,13 +283,13 @@ footer a{color:var(--muted)}
 <figure><img src="img/settings.ja.svg" loading="lazy" alt="ダッシュボードで &lt;kbd&gt;s&lt;/kbd&gt;。表示言語、テーマ、外部 diff コマンド、Home の自動更新間隔を設定できます。"><figcaption>ダッシュボードで <kbd>s</kbd>。表示言語、テーマ、外部 diff コマンド、Home の自動更新間隔を設定できます。</figcaption></figure>
 <p>設定は OS の設定ディレクトリに保存されます — macOS は <code>~/Library/Application Support/com.git-dashboard.git-dashboard/</code>、Linux は <code>~/.config/git-dashboard/</code>、Windows は <code>%APPDATA%\git-dashboard\git-dashboard\config\</code>。</p>
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
-<tr><td class="k"><code>config.json</code></td><td>登録済みリポジトリ（名前・パス・グループ）。</td></tr>
-<tr><td class="k"><code>members.json</code></td><td>チームメンバーと、そこへ統合するコミット作者の別名。</td></tr>
-<tr><td class="k"><code>prefs.json</code></td><td>表示言語・テーマ・差分トグル・並び順・更新間隔。</td></tr>
-<tr><td class="k"><code>tech_rules.json</code></td><td>言語・フレームワークのバージョン検出ルール。</td></tr>
-<tr><td class="k"><code>cache/</code></td><td>ダッシュボード行とリポジトリ解析結果のキャッシュ。削除しても次回更新時に再生成されます。</td></tr>
+<tr><td class="term"><span>config.json</span></td><td>登録済みリポジトリ（名前・パス・グループ）。</td></tr>
+<tr><td class="term"><span>members.json</span></td><td>チームメンバーと、そこへ統合するコミット作者の別名。</td></tr>
+<tr><td class="term"><span>prefs.json</span></td><td>表示言語・テーマ・サイドバー・差分トグル・最近の比較・並び順・更新間隔・外部diffコマンド・エディタと終了待機・初回案内の表示済み状態・Worktreeメモとお気に入り。</td></tr>
+<tr><td class="term"><span>tech_rules.json</span></td><td>言語・フレームワークのバージョン検出ルール。</td></tr>
+<tr><td class="term"><span>cache/</span></td><td>ダッシュボード行とリポジトリ解析結果のキャッシュ。削除しても次回更新時に再生成されます。</td></tr>
 </tbody></table>
-<div class="aside">自動更新は既定でオフです。ローカルの再読み込みではリモートのGit参照をfetchしません。GitHub情報は5分間キャッシュし、取得失敗後は1分待って再試行します。Homeにはローカル取得時刻、リポジトリ全体の最新CI実行のブランチ、未認証・取得失敗・古いキャッシュを表示します。<kbd>C</kbd> でCI実行ページを開けます。PRを100件取得した場合は <code>100+</code> と表示します。</div>
+<div class="aside">自動更新は既定でオフです。ローカルの再読み込みではリモートのGit参照をfetchしません。GitHub情報は5分間キャッシュし、取得失敗後は1分経過後の再読込で再試行します。Homeにはローカル取得時刻、リポジトリ全体の最新CI実行のブランチ、未認証・取得失敗・古いキャッシュを表示します。<kbd>C</kbd> でCI実行ページを開けます。PRを100件取得した場合は <code>100+</code> と表示します。</div>
 </section>
 <section id="trust">
 <h2>信頼できないリポジトリの扱い<a href="#trust" aria-label="link">#</a></h2>
@@ -238,5 +307,5 @@ footer a{color:var(--muted)}
 <tr><td class="k"><kbd>t / T</kbd></td><td>リポジトリのディレクトリでシェルを開く</td></tr>
 </tbody></table>
 </section>
-<footer><p>スクリーンショットは <code>docs/gen_demo.py</code> が生成するデモ環境に対して <code>docs/gen_shots.py</code> が実行中のプログラムから取得しています。そのため実際の表示と乖離しません。</p></footer>
+<footer><p>スクリーンショットは <code>docs/gen_demo.py</code> が生成するデモ環境に対して <code>docs/gen_shots.py</code> が実行中のプログラムから取得しています。撮影したビルドの表示を記録したもので、ライブ表示ではありません。再生成時は取得時刻や環境によって変わる場合があります。</p></footer>
 </div></body></html>

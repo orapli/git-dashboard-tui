@@ -16,6 +16,8 @@ import argparse
 import html
 from pathlib import Path
 
+from manual_tasks import sections as task_sections
+
 EN, JA = 0, 1
 
 
@@ -69,9 +71,9 @@ SECTIONS = [
             ("p", t(
                 "The installer detects your platform, downloads the matching release binary, "
                 "verifies its SHA-256 against the checksum published with the release, and "
-                "installs to <code>~/.local/bin</code>. It never uses sudo.",
+                "installs to <code>~/.local/bin</code> (or writable <code>/usr/local/bin</code> already on PATH). It never uses sudo.",
                 "インストーラはプラットフォームを判定し、対応するリリースバイナリを取得し、"
-                "リリースと同時に公開される SHA-256 と照合してから <code>~/.local/bin</code> に配置します。"
+                "リリースと同時に公開される SHA-256 と照合し、<code>~/.local/bin</code>（PATH上にあり書込可能なら <code>/usr/local/bin</code>）に配置します。"
                 "sudo は一切使いません。")),
             ("code", t(
                 "curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh",
@@ -89,11 +91,9 @@ SECTIONS = [
                 "Windows (x64) を用意しています。<code>cargo install --git</code> でも導入できます。")),
             ("p", t(
                 "Requirements: <code>git</code> on your PATH. The GitHub columns additionally "
-                "need the <code>gh</code> CLI, authenticated — without it those columns stay "
-                "empty and nothing else changes.",
+                "need authenticated <code>gh</code>. If unavailable, GitHub status is unverified; local Git views still work.",
                 "必要なもの: PATH の通った <code>git</code>。GitHub 連携列を使う場合は認証済みの "
-                "<code>gh</code> CLI が追加で必要です。なければその列が空欄になるだけで、"
-                "他の機能に影響はありません。")),
+                "<code>gh</code> CLI が追加で必要です。利用できない場合はGitHub情報が未確認となりますが、ローカルGit表示は使えます。")),
         ],
     ),
     (
@@ -394,8 +394,8 @@ SECTIONS = [
                                   "登録済みリポジトリ（名前・パス・グループ）。")),
                 ("members.json", t("Team members and the commit-author aliases merged into them.",
                                    "チームメンバーと、そこへ統合するコミット作者の別名。")),
-                ("prefs.json", t("Language, theme, diff toggles, sort order, refresh interval.",
-                                 "表示言語・テーマ・差分トグル・並び順・更新間隔。")),
+                ("prefs.json", t("Language, theme, sidebar, diff toggles, recent comparisons, sort order, refresh interval, external diff command, editor command/wait, onboarding dismissal, and worktree notes/favorites.",
+                                 "表示言語・テーマ・サイドバー・差分トグル・最近の比較・並び順・更新間隔・外部diffコマンド・エディタと終了待機・初回案内の表示済み状態・Worktreeメモとお気に入り。")),
                 ("tech_rules.json", t("Rules for detecting language and framework versions.",
                                       "言語・フレームワークのバージョン検出ルール。")),
                 ("cache/", t("Cached dashboard rows and repository snapshots. Safe to delete; "
@@ -405,12 +405,12 @@ SECTIONS = [
             ]),
             ("note", t(
                 "Auto-refresh is off by default. Local reload does not fetch remote Git refs. "
-                "GitHub information is cached for five minutes, with a one-minute retry delay after failure. "
+                "GitHub information is cached for five minutes, with a one-minute retry delay after failure; the next reload after expiry triggers the request. "
                 "Home shows the selected repository's local check time, latest repository-wide CI branch, "
                 "authentication/fetch state and stale cache. Press <kbd>C</kbd> to open its CI run. "
                 "PR counts of 100 or more are shown as <code>100+</code>.",
                 "自動更新は既定でオフです。ローカルの再読み込みではリモートのGit参照をfetchしません。"
-                "GitHub情報は5分間キャッシュし、取得失敗後は1分待って再試行します。"
+                "GitHub情報は5分間キャッシュし、取得失敗後は1分経過後の再読込で再試行します。"
                 "Homeにはローカル取得時刻、リポジトリ全体の最新CI実行のブランチ、未認証・取得失敗・"
                 "古いキャッシュを表示します。<kbd>C</kbd> でCI実行ページを開けます。"
                 "PRを100件取得した場合は <code>100+</code> と表示します。")),
@@ -486,6 +486,8 @@ SECTIONS = [
 
 
 # --- rendering -------------------------------------------------------------
+SECTIONS[3:3] = task_sections(t)
+
 CSS = """
 :root{
   --bg:#ffffff; --page:#f7f8fb; --ink:#1b2430; --muted:#5a6779; --faint:#8b98a9;
@@ -545,6 +547,8 @@ th{color:var(--faint);font-weight:600;font-size:.8rem;text-transform:uppercase;
    letter-spacing:.04em}
 tbody tr:last-child td{border-bottom:none}
 td.k{white-space:nowrap;width:1%}
+td.term{width:26%;font-weight:600}
+th,td{overflow-wrap:anywhere}
 code,kbd{font-family:var(--mono);font-size:.88em}
 code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
 kbd{background:var(--code-bg);border:1px solid var(--line);border-bottom-width:2px;
@@ -588,11 +592,10 @@ STRINGS = {
     "generated": t(
         "Screenshots are captured from the running program by "
         "<code>docs/gen_shots.py</code> against the demo workspace built by "
-        "<code>docs/gen_demo.py</code> — so they cannot drift from what the tool "
-        "actually draws.",
+        "<code>docs/gen_demo.py</code>. They record the captured build, not a live view; timestamps and environment can change on regeneration.",
         "スクリーンショットは <code>docs/gen_demo.py</code> が生成するデモ環境に対して "
         "<code>docs/gen_shots.py</code> が実行中のプログラムから取得しています。"
-        "そのため実際の表示と乖離しません。"),
+        "撮影したビルドの表示を記録したもので、ライブ表示ではありません。再生成時は取得時刻や環境によって変わる場合があります。"),
 }
 
 
@@ -665,8 +668,9 @@ def render(lang: int) -> str:
                            f"<th>{esc(h2)}</th></tr></thead><tbody>")
                 for name, desc in block[1]:
                     label = name[L] if isinstance(name, tuple) else name
-                    tag = "kbd" if kind == "keys" else "code"
-                    out.append(f'<tr><td class="k"><{tag}>{esc(label)}</{tag}></td>'
+                    tag = "kbd" if kind == "keys" else "span"
+                    cell_class = "k" if kind == "keys" else "term"
+                    out.append(f'<tr><td class="{cell_class}"><{tag}>{esc(label)}</{tag}></td>'
                                f"<td>{desc[L]}</td></tr>")
                 out.append("</tbody></table>")
         out.append("</section>")
@@ -755,7 +759,7 @@ def render_index() -> str:
            "git-dashboard-tui/main/install.sh | sh</code></pre>",
            '<p style="color:var(--muted);font-size:.93rem">Linux (x86_64, ARM64), macOS '
            "(Apple Silicon, Intel) and Windows (x64). Verifies the published SHA-256 and "
-           "never uses sudo.</p></section>",
+           "never uses sudo. The shell installer supports Linux/macOS; Windows uses the release ZIP.</p><p>This site documents development main; the installer downloads the latest release. / このサイトはmainの開発版、インストーラは最新リリースを対象とします。 <a href='manual.html#versions'>Version details</a> · <a href='manual.ja.html#versions'>バージョンの説明</a></p></section>",
            "<section><h2>What it is</h2>", '<div class="grid">']
     for title, body in INDEX["points"]:
         out.append(f'<div class="card"><h3>{esc(title[EN])}</h3><p>{body[EN]}</p></div>')

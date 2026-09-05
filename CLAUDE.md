@@ -10,8 +10,10 @@ For user-facing feature overview and setup, see [README.md](README.md).
 * **Release build & run**: `cargo run --release`
 * **Run tests**: `cargo test`
 
-Verification steps after any change: `cargo fmt` → `cargo clippy --all-targets` (zero warnings)
-→ `cargo test` → `cargo run`.
+Verification steps for Rust changes: `cargo fmt` → `cargo clippy --all-targets` (zero warnings)
+→ `cargo test` → `cargo run` for interactive changes.
+For documentation-only changes, run `python3 docs/check_docs.py`; preview changed HTML in a browser.
+MSRV is Rust 1.88: `cargo +1.88.0 check --locked --all-targets`.
 CI (`.github/workflows/ci.yml`) runs `fmt --check` / `clippy -D warnings` / `test`, so
 **a commit that doesn't pass fmt and clippy will fail CI**.
 
@@ -19,7 +21,10 @@ CI (`.github/workflows/ci.yml`) runs `fmt --check` / `clippy -D warnings` / `tes
 
 | File | Content |
 |---|---|
-| `README.md` | User-facing: features, setup, keybindings |
+| `README.md` / `README.ja.md` | Introduction, installation, quick start |
+| `docs/reference.md` / `docs/reference.ja.md` | Keyboard and configuration reference |
+| `docs/gen_manual.py` / `docs/manual_tasks.py` | Bilingual manual source |
+| `docs/README.md` | Generation, validation and publishing checklist |
 | `CLAUDE.md` (this file) | Developer/AI-facing: commands, structure, implementation rules |
 
 ## 📂 Project Structure and Responsibilities
@@ -31,11 +36,11 @@ git-dashboard-tui/
 ├── src/
 │   ├── main.rs         # Binary entry point (calls git_dashboard_tui::run)
 │   ├── lib.rs          # Event loop, terminal setup, external diff runner
-│   ├── app.rs          # Application state, keybindings, background job worker
+│   ├── app/            # Application state, keybindings, background job worker
 │   ├── ui.rs           # Ratatui rendering (Home, Repo, Diff, Settings, Help, Log)
 │   ├── colors.rs       # Color palette definitions (Catppuccin Mocha theme)
 │   ├── config.rs       # Config file read/write (repositories, members, preferences)
-│   ├── git.rs          # Git command execution and parsing
+│   ├── git/            # Git command execution and parsing
 │   ├── i18n.rs         # i18n helper (rust-i18n)
 │   └── syntax.rs       # Lightweight syntax tokenizer
 ├── docs/               # Generated manual + screenshots (see docs/README.md)

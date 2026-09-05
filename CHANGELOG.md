@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+These entries describe development on `main`, not the latest release binary.
+
+### Added
+
+- First-run repository import flow and English/Japanese product walkthrough.
+- Home attention reasons, separate unverified-data counts, GitHub freshness and CI-run context.
+- `O` menu for shell, editor, lazygit and GitUI, with editor command/wait preferences.
+- `W` cross-repository local Worktree workspace with persistent notes and favorites.
+- Task-oriented bilingual manual, editor examples, platform/SSH matrix and troubleshooting.
+- Documentation checks for generated output, local links/anchors, SVG assets and language structure.
+
+### Changed
+
+- Shortened READMEs; moved complete keyboard/configuration tables to `docs/reference*.md`.
+- Declared Rust 1.88 as the minimum supported version and added an MSRV CI check.
+  The previous Rust 1.85 claim did not match current language features and locked dependencies.
+
 ## [0.3.1] - 2026-08-27
 
 ### Added

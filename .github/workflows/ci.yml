@@ -29,3 +29,30 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Run Tests (Unit + Integration)
         run: cargo test --all-targets
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Check generated pages, links, images and language parity
+        run: python3 docs/check_docs.py
+      - name: Test documentation gate failures
+        run: python3 -m unittest discover -s docs -p 'test_check_docs.py'
+
+  msrv:
+    name: Minimum Rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.88.0"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: msrv-1.88
+      - name: Check locked dependencies and all targets on MSRV
+        run: cargo check --locked --all-targets

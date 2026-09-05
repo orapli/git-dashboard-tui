@@ -2,6 +2,7 @@
 name = "git-dashboard-tui"
 version = "0.3.1"
 edition = "2024"
+rust-version = "1.88"
 description = "Fast, multi-repository Git dashboard with interactive TUI, commit graphs, Worktree support, diff views, and contributor analytics"
 authors = ["orapli"]
 license = "MIT"

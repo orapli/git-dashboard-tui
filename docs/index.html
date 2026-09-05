@@ -67,6 +67,8 @@ th{color:var(--faint);font-weight:600;font-size:.8rem;text-transform:uppercase;
    letter-spacing:.04em}
 tbody tr:last-child td{border-bottom:none}
 td.k{white-space:nowrap;width:1%}
+td.term{width:26%;font-weight:600}
+th,td{overflow-wrap:anywhere}
 code,kbd{font-family:var(--mono);font-size:.88em}
 code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
 kbd{background:var(--code-bg);border:1px solid var(--line);border-bottom-width:2px;
@@ -118,7 +120,7 @@ footer a{color:var(--muted)}
 </div>
 <section><h2>Install</h2>
 <pre><code>curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | sh</code></pre>
-<p style="color:var(--muted);font-size:.93rem">Linux (x86_64, ARM64), macOS (Apple Silicon, Intel) and Windows (x64). Verifies the published SHA-256 and never uses sudo.</p></section>
+<p style="color:var(--muted);font-size:.93rem">Linux (x86_64, ARM64), macOS (Apple Silicon, Intel) and Windows (x64). Verifies the published SHA-256 and never uses sudo. The shell installer supports Linux/macOS; Windows uses the release ZIP.</p><p>This site documents development main; the installer downloads the latest release. / このサイトはmainの開発版、インストーラは最新リリースを対象とします。 <a href='manual.html#versions'>Version details</a> · <a href='manual.ja.html#versions'>バージョンの説明</a></p></section>
 <section><h2>What it is</h2>
 <div class="grid">
 <div class="card"><h3>See every repository at once</h3><p>Branch, ahead/behind, uncommitted changes, open PRs and CI, for as many checkouts as you have registered.</p></div>
@@ -126,5 +128,5 @@ footer a{color:var(--muted)}
 <div class="card"><h3>Careful with repositories you did not write</h3><p>Config keys that can execute commands are neutralised on every git call, and escape sequences are stripped from repository content before it reaches your terminal.</p></div>
 <div class="card"><h3>Bilingual, themed, mouse-aware</h3><p>English and Japanese throughout, Catppuccin Mocha and Latte, and click to sort, select and compare.</p></div>
 </div></section>
-<footer><p>Screenshots are captured from the running program by <code>docs/gen_shots.py</code> against the demo workspace built by <code>docs/gen_demo.py</code> — so they cannot drift from what the tool actually draws.</p></footer>
+<footer><p>Screenshots are captured from the running program by <code>docs/gen_shots.py</code> against the demo workspace built by <code>docs/gen_demo.py</code>. They record the captured build, not a live view; timestamps and environment can change on regeneration.</p></footer>
 </div></body></html>
