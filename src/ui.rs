@@ -348,6 +348,7 @@ fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         y: parts[1].y.saturating_add(2),
         height: parts[1].height.saturating_sub(3),
         x: parts[1].x + 1,
+        width: parts[1].width.saturating_sub(2),
         offset: selection.offset(),
     });
     let detail = if let Some(row) = app.selected_workspace_row() {
@@ -1596,6 +1597,7 @@ fn draw_worktrees(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         y: inner.y.saturating_add(1),
         height: inner.height.saturating_sub(1),
         x: inner.x,
+        width: inner.width,
         offset: state.offset(),
     });
 }
@@ -1877,6 +1879,18 @@ fn draw_settings(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         app.tt("1 Repositories", "1 リポジトリ"),
         app.tt("2 Members (Committers)", "2 メンバー管理"),
     ];
+    app.settings_viewport.set(ListViewport::default());
+    let tab_inner = split[1].inner(Margin::new(1, 1));
+    app.settings_tab_row.set(tab_inner.y);
+    let mut x = tab_inner.x;
+    let mut bounds = Vec::new();
+    for label in &tab_labels {
+        let w = label.width() as u16;
+        x = x.saturating_add(1);
+        bounds.push((x, x.saturating_add(w)));
+        x = x.saturating_add(w + 1 + 1); // right padding and divider
+    }
+    *app.settings_tab_bounds.borrow_mut() = bounds;
     let tab_idx = match app.settings_tab {
         crate::app::SettingsTab::Repositories => 0,
         crate::app::SettingsTab::Members => 1,
@@ -1915,7 +1929,7 @@ fn draw_settings(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     ]))
                 })
                 .collect();
-            render_items(
+            app.settings_viewport.set(render_items(
                 frame,
                 split[2],
                 pal,
@@ -1930,7 +1944,7 @@ fn draw_settings(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     "No repositories. Press a to add, A to bulk add.",
                     "リポジトリなし。a で追加、A で一括追加。",
                 ),
-            );
+            ));
         }
         crate::app::SettingsTab::Members => {
             let items: Vec<ListItem> = app
@@ -1962,7 +1976,7 @@ fn draw_settings(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     ]))
                 })
                 .collect();
-            render_items(
+            app.settings_viewport.set(render_items(
                 frame,
                 split[2],
                 pal,
@@ -1977,7 +1991,7 @@ fn draw_settings(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     "No members registered. Press a to add member.",
                     "メンバーが登録されていません。a で追加。",
                 ),
-            );
+            ));
         }
     }
 }
@@ -2292,6 +2306,7 @@ fn draw_repo_finder(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     let Some(finder) = &app.repo_finder else {
         return;
     };
+    app.finder_viewport.set(ListViewport::default());
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(5), Constraint::Min(1)])
@@ -2420,7 +2435,7 @@ fn draw_repo_finder(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         )
     };
 
-    render_items(
+    app.finder_viewport.set(render_items(
         frame,
         chunks[1],
         pal,
@@ -2436,7 +2451,7 @@ fn draw_repo_finder(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             "このフォルダ内に Git リポジトリは見つかりませんでした。'r' で別フォルダをスキャンしてください。",
         )
         },
-    );
+    ));
 }
 
 fn draw_help(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
@@ -2937,6 +2952,7 @@ fn render_items(
         y: inner.y,
         height: inner.height,
         x: inner.x,
+        width: inner.width,
         offset: state.offset(),
     }
 }

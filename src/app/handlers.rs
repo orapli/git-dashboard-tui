@@ -20,7 +20,7 @@ impl App {
     }
 
     pub fn handle_mouse_scroll(&mut self, delta: isize) {
-        if self.tool_menu.is_some() {
+        if self.confirm.is_some() || self.input.is_some() || self.tool_menu.is_some() {
             return;
         }
         match self.screen {
@@ -32,19 +32,9 @@ impl App {
                 }
             }
             Screen::Repo => {
-                if let Some(ref data) = self.repo_data {
-                    let len = match self.repo_tab {
-                        RepoTab::Status => data.working_files.len(),
-                        RepoTab::Commits => data.commits.len(),
-                        RepoTab::Branches => data.branches.len(),
-                        RepoTab::Tags => data.tags.len(),
-                        RepoTab::Contributors => data.contributors.len(),
-                        RepoTab::Stash => data.stashes.len(),
-                        RepoTab::Worktrees => data.worktrees.len(),
-                    };
-                    if len > 0 {
-                        self.list_selected = move_index(self.list_selected, len, delta.signum());
-                    }
+                let len = self.visible_indices().len();
+                if len > 0 {
+                    self.list_selected = move_index(self.list_selected, len, delta.signum());
                 }
             }
             Screen::Diff => {
@@ -80,11 +70,11 @@ impl App {
                 }
             }
             Screen::RepoFinder => {
-                if let Some(ref mut finder) = self.repo_finder {
-                    let len = finder.repos.len();
-                    if len > 0 {
-                        finder.selected_idx = move_index(finder.selected_idx, len, delta.signum());
-                    }
+                let len = self.filtered_finder_repos().len();
+                if len > 0
+                    && let Some(ref mut finder) = self.repo_finder
+                {
+                    finder.selected_idx = move_index(finder.selected_idx, len, delta.signum());
                 }
             }
             Screen::Log => {
@@ -211,12 +201,52 @@ impl App {
                 }
             }
             Screen::Settings => {
-                // Tab click in settings
-                if row == 1 || row == 2 {
-                    if col < 20 {
-                        self.settings_tab = SettingsTab::Repositories;
+                if row == self.settings_tab_row.get()
+                    && let Some((idx, _)) = self
+                        .settings_tab_bounds
+                        .borrow()
+                        .iter()
+                        .enumerate()
+                        .find(|(_, (x1, x2))| col >= *x1 && col < *x2)
+                {
+                    self.settings_tab = if idx == 0 {
+                        SettingsTab::Repositories
                     } else {
-                        self.settings_tab = SettingsTab::Members;
+                        SettingsTab::Members
+                    };
+                    return;
+                }
+                let vp = self.settings_viewport.get();
+                if let Some(idx) = vp.index_at_position(col, row) {
+                    match self.settings_tab {
+                        SettingsTab::Repositories if idx < self.repos.len() => {
+                            self.settings_selected = idx;
+                        }
+                        SettingsTab::Members if idx < self.members.len() => {
+                            self.settings_member_selected = idx;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Screen::RepoFinder => {
+                let Some(vp_idx) = self.finder_viewport.get().index_at_position(col, row) else {
+                    return;
+                };
+                let vis = self.filtered_finder_repos();
+                let Some(&raw_idx) = vis.get(vp_idx) else {
+                    return;
+                };
+                let vp = self.finder_viewport.get();
+                if let Some(finder) = self.repo_finder.as_mut() {
+                    if finder.selected_idx != vp_idx {
+                        finder.selected_idx = vp_idx;
+                    }
+                    if col >= vp.x.saturating_add(2)
+                        && col < vp.x.saturating_add(5)
+                        && !finder.repos[raw_idx].is_already_added
+                    {
+                        finder.repos[raw_idx].is_selected = !finder.repos[raw_idx].is_selected;
                     }
                 }
             }

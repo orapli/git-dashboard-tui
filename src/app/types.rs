@@ -516,6 +516,8 @@ pub struct ListViewport {
     pub height: u16,
     /// Screen x of the first item cell (inside the border).
     pub x: u16,
+    /// Width of the item area (excluding the border).
+    pub width: u16,
     /// Index, within the visible/filtered list, of the item drawn at `y`.
     pub offset: usize,
 }
@@ -529,6 +531,13 @@ impl ListViewport {
             return None;
         }
         Some(self.offset + (row - self.y) as usize)
+    }
+
+    pub fn index_at_position(&self, col: u16, row: u16) -> Option<usize> {
+        if col < self.x || col >= self.x.saturating_add(self.width) {
+            return None;
+        }
+        self.index_at(row)
     }
 }
 

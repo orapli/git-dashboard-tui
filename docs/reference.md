@@ -1,5 +1,7 @@
 # Keyboard and configuration reference
 
+Mouse selection for Settings and Repository Finder is available in the next unreleased build.
+
 Covers v0.4.0. [User manual](manual.html) · [README](../README.md)
 
 ## Keybindings
@@ -19,6 +21,8 @@ Covers v0.4.0. [User manual](manual.html) · [README](../README.md)
 | **Mouse click** | Switch tabs or select items directly |
 | **Click a column header** | Sort the Home list by that column; click again to reverse |
 | **Click a list row** | Select it; click the selected row again to open it |
+| **Settings row/tab click** | Select a repository or member, or switch the visible tab |
+| **Finder row/checkbox click** | Select a row; click its `[ ]` area to toggle import selection |
 | **Click the `[ ]` marker** | In Commits and Tags, pick the compare base, then the target (same as `space`). Clicking a marked row again clears it |
 
 ### 1. Home (multi-repo hub)

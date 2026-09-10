@@ -68,6 +68,10 @@ pub struct App {
     /// click carries screen coordinates, and only the renderer knows what row
     /// they landed on.
     pub list_viewport: std::cell::Cell<ListViewport>,
+    pub settings_viewport: std::cell::Cell<ListViewport>,
+    pub finder_viewport: std::cell::Cell<ListViewport>,
+    pub settings_tab_bounds: std::cell::RefCell<Vec<(u16, u16)>>,
+    pub settings_tab_row: std::cell::Cell<u16>,
     /// Screen x-range of each repository tab, recorded by the renderer. The
     /// click handler used fixed ranges computed from the English labels, so it
     /// mapped clicks to the wrong tab in Japanese — and would again whenever a
@@ -204,6 +208,10 @@ impl App {
             home_table_bounds: std::cell::Cell::new((2, u16::MAX)),
             home_col_bounds: std::cell::RefCell::new(Vec::new()),
             list_viewport: std::cell::Cell::new(ListViewport::default()),
+            settings_viewport: std::cell::Cell::new(ListViewport::default()),
+            finder_viewport: std::cell::Cell::new(ListViewport::default()),
+            settings_tab_bounds: std::cell::RefCell::new(Vec::new()),
+            settings_tab_row: std::cell::Cell::new(0),
             tab_bounds: std::cell::RefCell::new(Vec::new()),
             help_scroll: std::cell::Cell::new(0),
             home_rows: HashMap::new(),

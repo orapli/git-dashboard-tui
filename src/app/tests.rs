@@ -1,7 +1,7 @@
 use super::*;
 use crate::config::{Member, Repository};
 use crate::git::{CommitSummary, DiffRowKind, TimeSpan};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -1245,6 +1245,180 @@ fn test_mouse_scroll_home() {
     };
     app.handle_mouse(scroll_up);
     assert_eq!(app.home_selected, 0);
+}
+
+fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
+    MouseEvent {
+        kind,
+        column,
+        row,
+        modifiers: KeyModifiers::NONE,
+    }
+}
+
+#[test]
+fn mouse_settings_uses_rendered_bilingual_tabs_and_rows() {
+    let mut app = App::new();
+    app.repos = (0..30)
+        .map(|i| repo(&format!("repo-{i}"), &format!("/repo-{i}")))
+        .collect();
+    app.members = vec![
+        Member {
+            canonical_name: "Alice".into(),
+            aliases: vec![],
+            is_active: true,
+        },
+        Member {
+            canonical_name: "Bob".into(),
+            aliases: vec![],
+            is_active: true,
+        },
+    ];
+    app.settings_selected = 29;
+    app.screen = Screen::Settings;
+    crate::ui::tests::render(&app, 40, 24);
+    let vp = app.settings_viewport.get();
+    assert!(vp.offset > 0);
+    app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), vp.x, vp.y));
+    assert_eq!(app.settings_selected, vp.offset);
+    // Change only this test instance; the key binding persists preferences and
+    // would contaminate later tests that construct a fresh App.
+    app.set_language_for_test(crate::config::Language::Japanese);
+    crate::ui::tests::render(&app, 100, 24);
+    let member_x = app.settings_tab_bounds.borrow()[1].0;
+    app.handle_mouse(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        member_x,
+        app.settings_tab_row.get(),
+    ));
+    assert_eq!(app.settings_tab, SettingsTab::Members);
+    // The row hitbox follows the Japanese layout and remains bounded.
+    crate::ui::tests::render(&app, 100, 24);
+    let vp = app.settings_viewport.get();
+    app.handle_mouse(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        vp.x + vp.width - 1,
+        vp.y + 1,
+    ));
+    assert_eq!(app.settings_member_selected, 1);
+}
+
+#[test]
+fn mouse_finder_selects_checkbox_registered_rows_and_filtered_wheel() {
+    let mut app = App::new();
+    app.screen = Screen::RepoFinder;
+    app.repo_finder = Some(RepoFinderState {
+        loading: false,
+        errors: vec![],
+        scan_root: PathBuf::from("/tmp"),
+        selected_idx: 0,
+        filter: String::new(),
+        repos: (0..12)
+            .map(|i| FoundRepo {
+                path: PathBuf::from(format!("/repo-{i}")),
+                name: match i {
+                    0 => "alpha".into(),
+                    1 => "beta".into(),
+                    2 => "gamma".into(),
+                    _ => format!("repo-{i}"),
+                },
+                branch: "main".into(),
+                is_already_added: i == 1,
+                is_selected: i == 1,
+            })
+            .collect(),
+    });
+    app.repo_finder.as_mut().unwrap().selected_idx = 11;
+    crate::ui::tests::render(&app, 40, 12);
+    let vp = app.finder_viewport.get();
+    assert!(vp.offset > 0);
+    app.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), vp.x, vp.y));
+    assert_eq!(app.repo_finder.as_ref().unwrap().selected_idx, vp.offset);
+    app.repo_finder.as_mut().unwrap().selected_idx = 0;
+    crate::ui::tests::render(&app, 100, 24);
+    let vp = app.finder_viewport.get();
+    app.handle_mouse(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        vp.x + 2,
+        vp.y,
+    ));
+    assert!(app.repo_finder.as_ref().unwrap().repos[0].is_selected);
+    // Clicking an unselected row's checkbox selects that row and toggles it
+    // in the same event.
+    app.handle_mouse(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        vp.x + 2,
+        vp.y + 2,
+    ));
+    assert_eq!(app.repo_finder.as_ref().unwrap().selected_idx, 2);
+    assert!(app.repo_finder.as_ref().unwrap().repos[2].is_selected);
+    // A registered row can be selected but its checkbox cannot be changed.
+    app.handle_mouse(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        vp.x,
+        vp.y + 1,
+    ));
+    app.handle_mouse(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        vp.x + 2,
+        vp.y + 1,
+    ));
+    assert!(app.repo_finder.as_ref().unwrap().repos[1].is_selected);
+    app.repo_finder.as_mut().unwrap().filter = "gamma".into();
+    crate::ui::tests::render(&app, 100, 24);
+    assert_eq!(app.filtered_finder_repos(), vec![2]);
+    app.handle_mouse(mouse(MouseEventKind::ScrollDown, vp.x, vp.y));
+    assert_eq!(app.repo_finder.as_ref().unwrap().selected_idx, 0);
+}
+
+#[test]
+fn mouse_scroll_and_click_are_blocked_by_input_and_home_reclick_opens() {
+    let mut app = App::new();
+    app.screen = Screen::RepoFinder;
+    app.repo_finder = Some(RepoFinderState {
+        loading: false,
+        errors: vec![],
+        scan_root: PathBuf::from("/tmp"),
+        selected_idx: 0,
+        filter: String::new(),
+        repos: vec![
+            FoundRepo {
+                path: PathBuf::from("/one"),
+                name: "one".into(),
+                branch: "main".into(),
+                is_already_added: false,
+                is_selected: false,
+            },
+            FoundRepo {
+                path: PathBuf::from("/two"),
+                name: "two".into(),
+                branch: "main".into(),
+                is_already_added: false,
+                is_selected: false,
+            },
+        ],
+    });
+    app.input = Some(InputKind::FinderScanPath);
+    app.handle_mouse(mouse(MouseEventKind::ScrollDown, 2, 2));
+    assert_eq!(app.repo_finder.as_ref().unwrap().selected_idx, 0);
+    app.input = None;
+    app.handle_mouse(mouse(MouseEventKind::ScrollDown, 2, 2));
+    assert_eq!(app.repo_finder.as_ref().unwrap().selected_idx, 1);
+    app.repos = vec![repo("one", "/one"), repo("two", "/two")];
+    app.screen = Screen::Home;
+    crate::ui::tests::render(&app, 120, 24);
+    let (header, _) = app.home_table_bounds.get();
+    app.handle_mouse(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        5,
+        header + 1,
+    ));
+    app.handle_mouse(mouse(
+        MouseEventKind::Down(MouseButton::Left),
+        5,
+        header + 1,
+    ));
+    assert_eq!(app.screen, Screen::Repo);
 }
 
 #[test]
