@@ -70,6 +70,37 @@ pub fn draw(frame: &mut Frame, app: &App) {
             rect,
         );
     }
+    if app.nav_popup {
+        let rect = navigation_popup_rect(area);
+        app.nav_popup_rect.set(rect);
+        frame.render_widget(Clear, rect);
+        let labels = [
+            app.tt("Settings", "設定"),
+            app.tt("Worktrees", "Worktree"),
+            app.tt("Global Members", "横断メンバー"),
+            app.tt("Commit Search", "コミット検索"),
+        ];
+        let lines = labels
+            .into_iter()
+            .enumerate()
+            .map(|(i, label)| {
+                Line::from(vec![
+                    Span::raw(if i == app.nav_popup_selected {
+                        "▸ "
+                    } else {
+                        "  "
+                    }),
+                    Span::raw(label),
+                ])
+            })
+            .collect::<Vec<_>>();
+        frame.render_widget(
+            Paragraph::new(lines)
+                .block(Block::bordered().title(app.tt("Navigate", "移動")))
+                .style(Style::default().bg(pal.surface).fg(pal.text)),
+            rect,
+        );
+    }
     if app.is_adding_repo() {
         draw_prompt(frame, area, &app.prompt_title(), app.input_buf(), pal);
     }
@@ -79,6 +110,39 @@ pub fn draw(frame: &mut Frame, app: &App) {
 }
 
 fn draw_title(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    app.nav_button_bounds.borrow_mut().clear();
+    let mut x = area.x;
+    let buttons = [
+        (
+            app.tt("[Back]", "[戻る]"),
+            crate::app::NavigationAction::Back,
+        ),
+        (
+            app.tt("[Home]", "[Home]"),
+            crate::app::NavigationAction::Home,
+        ),
+        (
+            app.tt("[Navigate]", "[移動]"),
+            crate::app::NavigationAction::Move,
+        ),
+    ];
+    let mut spans = Vec::new();
+    for (label, action) in buttons {
+        use unicode_width::UnicodeWidthStr;
+        let width = label.width() as u16;
+        if x.saturating_add(width) > area.right() {
+            continue;
+        }
+        app.nav_button_bounds
+            .borrow_mut()
+            .push((x, x.saturating_add(width), action));
+        spans.push(Span::styled(
+            label,
+            Style::default().fg(pal.bg).bg(pal.accent),
+        ));
+        spans.push(Span::raw(" "));
+        x = x.saturating_add(width + 1);
+    }
     let title = match app.screen {
         Screen::Home => app.tt("Repositories", "リポジトリ一覧"),
         Screen::Workspace => app.tt("Local worktrees", "ローカルWorktree一覧"),
@@ -103,7 +167,7 @@ fn draw_title(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             .map(|l| l.title.clone())
             .unwrap_or_else(|| app.tt("Log", "ログ")),
     };
-    let mut spans = vec![
+    spans.extend([
         Span::styled(
             format!(" {title} "),
             Style::default()
@@ -112,7 +176,7 @@ fn draw_title(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled("  git-dashboard-tui", Style::default().fg(pal.muted)),
-    ];
+    ]);
     // Work started from Home keeps running while the user moves elsewhere, so
     // the "still working" indicator lives in the title bar, which every screen
     // has, rather than on the screen that started it.
@@ -125,6 +189,17 @@ fn draw_title(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     }
     let bar = Paragraph::new(Line::from(spans));
     frame.render_widget(bar, area);
+}
+
+pub fn navigation_popup_rect(area: Rect) -> Rect {
+    let width = 34.min(area.width.saturating_sub(2));
+    let height = 6.min(area.height.saturating_sub(2));
+    Rect {
+        x: area.x + area.width.saturating_sub(width) / 2,
+        y: area.y + area.height.saturating_sub(height) / 2,
+        width,
+        height,
+    }
 }
 
 /// How many rows the hint bar needs: one, or two when the hints overflow.
@@ -2019,6 +2094,7 @@ fn draw_log(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
 }
 
 fn draw_commit_search(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    app.commit_search_viewport.set(ListViewport::default());
     let Some(search) = app.commit_search.as_ref() else {
         frame.render_widget(
             Paragraph::new(app.tt(
@@ -2079,7 +2155,7 @@ fn draw_commit_search(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         search.query,
         search.hits.len()
     );
-    render_items(
+    let viewport = render_items(
         frame,
         area,
         pal,
@@ -2092,9 +2168,13 @@ fn draw_commit_search(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             "一致するコミットはどのリポジトリにもありません。",
         ),
     );
+    app.commit_search_viewport.set(viewport);
 }
 
 fn draw_global_members(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    app.global_members_viewport.set(ListViewport::default());
+    app.global_member_repos_viewport
+        .set(ListViewport::default());
     // The aggregation walks git log in every repository on a worker thread, so
     // the screen opens before any results exist.
     if app.global_members_loading && app.global_members.is_empty() {
@@ -2202,6 +2282,14 @@ fn draw_global_members(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         left_state.select(Some(app.global_member_selected.min(vis.len() - 1)));
     }
     frame.render_stateful_widget(left_list, split[0], &mut left_state);
+    let left_inner = split[0].inner(Margin::new(1, 1));
+    app.global_members_viewport.set(ListViewport {
+        y: left_inner.y,
+        height: left_inner.height,
+        x: left_inner.x,
+        width: left_inner.width,
+        offset: left_state.offset(),
+    });
 
     // Right pane: Repositories of selected member
     let selected_member = vis
@@ -2288,6 +2376,16 @@ fn draw_global_members(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             ));
         }
         frame.render_stateful_widget(table, split[1], &mut right_state);
+        let inner = split[1].inner(Margin::new(1, 1));
+        // The first inner row is the table header; clicks and offsets refer
+        // only to data rows below it.
+        app.global_member_repos_viewport.set(ListViewport {
+            y: inner.y.saturating_add(1),
+            height: inner.height.saturating_sub(1),
+            x: inner.x,
+            width: inner.width,
+            offset: right_state.offset(),
+        });
     } else {
         let empty_msg =
             Paragraph::new(app.tt("No member selected.", "メンバーが選択されていません。"))
@@ -3258,7 +3356,7 @@ pub(crate) mod tests {
         ] {
             app.screen = screen;
             render(&app, 15, 4);
-            render(&app, 80, 24);
+            tests::render(&app, 80, 24);
             render(&app, 200, 60);
         }
     }
@@ -3303,7 +3401,7 @@ pub(crate) mod tests {
             is_prunable: false,
         });
         app.repo_data = Some(snap);
-        render(&app, 80, 24);
+        tests::render(&app, 80, 24);
     }
 
     #[test]
@@ -3938,6 +4036,114 @@ mod commit_click_tests {
         app.handle_mouse_click(30, 1);
         assert_eq!(app.repo_tab, RepoTab::Branches);
     }
+}
+
+#[test]
+fn title_navigation_popup_mouse_routes_all_destinations_in_both_languages() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let click = |app: &mut App, x: u16, y: u16| {
+        app.handle_mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: x,
+            row: y,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        });
+    };
+    for language in [
+        crate::config::Language::English,
+        crate::config::Language::Japanese,
+    ] {
+        for (row, expected) in [
+            (0, Screen::Settings),
+            (1, Screen::Workspace),
+            (2, Screen::GlobalMembers),
+        ] {
+            let mut app = App::new();
+            app.set_language_for_test(language);
+            tests::render(&app, 80, 24);
+            let (x1, _, _) = app.nav_button_bounds.borrow()[2];
+            click(&mut app, x1, 0);
+            tests::render(&app, 80, 24);
+            let popup = app.nav_popup_rect.get();
+            click(&mut app, popup.x + 1, popup.y + 1 + row);
+            assert_eq!(app.screen, expected);
+            assert!(!app.nav_popup);
+        }
+        let mut app = App::new();
+        app.set_language_for_test(language);
+        tests::render(&app, 80, 24);
+        let (x1, _, _) = app.nav_button_bounds.borrow()[2];
+        click(&mut app, x1, 0);
+        tests::render(&app, 80, 24);
+        let popup = app.nav_popup_rect.get();
+        click(&mut app, popup.x + 1, popup.y + 4);
+        let text = tests::render_to_text(&app, 80, 24);
+        let dense: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+        let prompt = match language {
+            crate::config::Language::English => "Searchcommit",
+            crate::config::Language::Japanese => "コミットメッセージを検索",
+        };
+        assert!(dense.contains(prompt), "{text}");
+    }
+}
+
+#[test]
+fn title_navigation_respects_modal_and_popup_outer_click_boundaries() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let click = |app: &mut App, x: u16, y: u16| {
+        app.handle_mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: x,
+            row: y,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        });
+    };
+    let mut app = App::new();
+    tests::render(&app, 80, 24);
+    let (x1, _, _) = app.nav_button_bounds.borrow()[2];
+    click(&mut app, x1, 0);
+    tests::render(&app, 80, 24);
+    let popup = app.nav_popup_rect.get();
+    click(&mut app, popup.x.saturating_sub(1), popup.y);
+    assert!(!app.nav_popup);
+    app.open_tool_menu("/tmp/repo".into());
+    click(&mut app, x1, 0);
+    assert!(!app.nav_popup);
+}
+
+#[test]
+fn title_navigation_does_not_register_buttons_past_terminal_edge() {
+    let app = App::new();
+    tests::render(&app, 20, 8);
+    assert!(
+        app.nav_button_bounds
+            .borrow()
+            .iter()
+            .all(|(x1, x2, _)| *x2 <= 20 && *x1 < *x2)
+    );
+    assert!(!tests::render_to_text(&app, 20, 8).contains("Navigate"));
+}
+
+#[test]
+fn commit_search_loading_clears_previous_mouse_viewport() {
+    use crate::app::CommitSearchState;
+    let mut app = App::new();
+    app.commit_search_viewport.set(ListViewport {
+        x: 1,
+        y: 2,
+        width: 10,
+        height: 3,
+        offset: 4,
+    });
+    app.commit_search = Some(CommitSearchState {
+        query: "needle".into(),
+        hits: vec![],
+        selected: 0,
+        loading: true,
+    });
+    app.screen = Screen::CommitSearch;
+    tests::render(&app, 80, 24);
+    assert_eq!(app.commit_search_viewport.get(), ListViewport::default());
 }
 
 #[cfg(test)]

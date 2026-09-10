@@ -276,6 +276,66 @@ fn diff_screen_toggles_ignore_whitespace_and_full_file() {
 }
 
 #[test]
+fn navigation_back_preserves_diff_repo_state_then_cleans_up_home() {
+    let mut app = App::new();
+    app.repo_index = Some(0);
+    app.repo_data = Some(RepoSnapshot {
+        summary: crate::git::Summary {
+            repo_name: "kept".into(),
+            repo_path: "/kept".into(),
+            current_branch: "main".into(),
+            total_commits: 0,
+            total_contributors: 0,
+            total_branches: 0,
+            total_files: 0,
+            total_size_bytes: 0,
+            total_size_formatted: "0".into(),
+            has_upstream: false,
+            ahead: 0,
+            behind: 0,
+            has_remote: false,
+            uncommitted_changes: 0,
+            remote_ci_pr: None,
+            op_state: crate::git::GitOpState::None,
+            conflicts: 0,
+        },
+        commits: vec![],
+        commits_err: None,
+        branches: vec![],
+        branches_err: None,
+        tags: vec![],
+        tags_err: None,
+        stashes: vec![],
+        stashes_err: None,
+        working_files: vec![],
+        working_err: None,
+        contributors: vec![],
+        contributors_err: None,
+        worktrees: vec![],
+        worktrees_err: None,
+    });
+    app.diff = Some(sample_diff_view());
+    app.screen = Screen::Diff;
+    app.execute_navigation(NavigationAction::Back);
+    assert_eq!(app.screen, Screen::Repo);
+    assert!(app.diff.is_none());
+    assert!(app.repo_data.is_some());
+    app.diff = Some(sample_diff_view());
+    app.screen = Screen::Diff;
+    app.handle_key(KeyEvent::from(KeyCode::Char('?')));
+    app.execute_navigation(NavigationAction::Back);
+    assert_eq!(app.screen, Screen::Diff);
+    assert!(app.diff.is_some());
+    app.execute_navigation(NavigationAction::Back);
+    assert_eq!(app.screen, Screen::Repo);
+    assert!(app.diff.is_none());
+    app.execute_navigation(NavigationAction::Back);
+    assert_eq!(app.screen, Screen::Home);
+    assert!(app.repo_data.is_none());
+    assert!(app.repo_index.is_none());
+}
+
+#[test]
 fn diff_blame_toggle_reverts_when_there_is_nothing_to_blame_yet() {
     // No repo_index and no diff.files: request_blame can't launch a job.
     // The preference must revert (not stick at "on" with no data and no
@@ -1142,6 +1202,84 @@ fn test_global_members_navigation() {
 }
 
 #[test]
+fn mouse_global_member_viewports_apply_filter_offset_and_reclick_open() {
+    let mut app = App::new();
+    app.repos = vec![repo("repo-a", "/repo-a"), repo("repo-b", "/repo-b")];
+    app.global_members = vec![
+        GlobalMember {
+            canonical_name: "Alice".into(),
+            aliases: vec![],
+            is_active: true,
+            total_commits: 1,
+            repo_count: 1,
+            latest_commit_date: "".into(),
+            contributions: vec![MemberRepoContribution {
+                repo_name: "repo-a".into(),
+                repo_path: "/repo-a".into(),
+                repo_index: 0,
+                commit_count: 1,
+                first_commit: "".into(),
+                last_commit: "".into(),
+            }],
+        },
+        GlobalMember {
+            canonical_name: "Bob".into(),
+            aliases: vec!["bobby".into()],
+            is_active: true,
+            total_commits: 2,
+            repo_count: 1,
+            latest_commit_date: "".into(),
+            contributions: vec![MemberRepoContribution {
+                repo_name: "repo-b".into(),
+                repo_path: "/repo-b".into(),
+                repo_index: 1,
+                commit_count: 2,
+                first_commit: "".into(),
+                last_commit: "".into(),
+            }],
+        },
+    ];
+    app.screen = Screen::GlobalMembers;
+    app.global_member_filter.clear();
+    app.global_members_viewport.set(ListViewport {
+        x: 1,
+        y: 5,
+        width: 20,
+        height: 1,
+        offset: 1,
+    });
+    app.global_member_repos_viewport.set(ListViewport {
+        x: 25,
+        y: 5,
+        width: 20,
+        height: 1,
+        offset: 0,
+    });
+    app.global_member_selected = 0;
+    app.handle_mouse_click(2, 5);
+    assert_eq!(app.filtered_global_members(), vec![0, 1]);
+    assert_eq!(app.global_member_selected, 1);
+    assert_eq!(app.global_member_repo_selected, 0);
+    assert_eq!(app.global_member_pane, FocusPane::List);
+    app.global_member_filter = "bob".into();
+    app.global_member_selected = 0;
+    assert_eq!(app.filtered_global_members(), vec![1]);
+    app.handle_mouse_click(25, 4); // table header is outside the recorded data viewport
+    assert_eq!(app.screen, Screen::GlobalMembers);
+    assert_eq!(
+        app.global_member_repos_viewport
+            .get()
+            .index_at_position(25, 5),
+        Some(0)
+    );
+    app.handle_mouse_click(25, 5);
+    assert_eq!(app.global_member_pane, FocusPane::Content);
+    app.handle_mouse_click(25, 5);
+    assert_eq!(app.screen, Screen::Repo);
+    assert_eq!(app.repo_index, Some(1));
+}
+
+#[test]
 fn test_open_terminal_request() {
     let mut app = App::new();
     let temp = std::env::temp_dir();
@@ -1964,4 +2102,19 @@ fn finder_completion_preserves_selection_when_discovery_order_differs() {
     let finder = app.repo_finder.as_ref().unwrap();
     assert!(finder.repos[0].is_selected);
     assert!(!finder.repos[1].is_selected);
+}
+
+#[test]
+fn navigation_popup_keyboard_selects_a_destination_and_wheel_does_not_reach_screen() {
+    let mut app = App::new();
+    app.repos = vec![repo("one", "/one"), repo("two", "/two")];
+    app.nav_popup = true;
+    app.home_selected = 0;
+    app.handle_mouse_scroll(1);
+    assert_eq!(app.home_selected, 0);
+
+    app.handle_key(KeyEvent::from(KeyCode::Down));
+    app.handle_key(KeyEvent::from(KeyCode::Enter));
+    assert_eq!(app.screen, Screen::Workspace);
+    assert!(!app.nav_popup);
 }

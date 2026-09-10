@@ -19,6 +19,17 @@ pub enum Screen {
     Log,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NavigationAction {
+    Back,
+    Home,
+    Move,
+    Settings,
+    Worktrees,
+    GlobalMembers,
+    CommitSearch,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FoundRepo {
     pub path: PathBuf,

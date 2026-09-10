@@ -63,6 +63,8 @@ pub struct App {
     /// renderer. Click-to-sort hit-tests against these rather than recomputing
     /// the layout, so the two can never disagree about where a column is.
     pub home_col_bounds: std::cell::RefCell<Vec<(u16, u16)>>,
+    pub nav_button_bounds: std::cell::RefCell<Vec<(u16, u16, NavigationAction)>>,
+    pub nav_popup_rect: std::cell::Cell<ratatui::layout::Rect>,
     /// Where the repository-detail item list is on screen and how far it has
     /// scrolled, recorded by the renderer. Same reason as `home_offset`: a
     /// click carries screen coordinates, and only the renderer knows what row
@@ -70,6 +72,10 @@ pub struct App {
     pub list_viewport: std::cell::Cell<ListViewport>,
     pub settings_viewport: std::cell::Cell<ListViewport>,
     pub finder_viewport: std::cell::Cell<ListViewport>,
+    /// Mouse hit boxes recorded by the Global Members and Commit Search renderers.
+    pub global_members_viewport: std::cell::Cell<ListViewport>,
+    pub global_member_repos_viewport: std::cell::Cell<ListViewport>,
+    pub commit_search_viewport: std::cell::Cell<ListViewport>,
     pub settings_tab_bounds: std::cell::RefCell<Vec<(u16, u16)>>,
     pub settings_tab_row: std::cell::Cell<u16>,
     /// Screen x-range of each repository tab, recorded by the renderer. The
@@ -155,6 +161,8 @@ pub struct App {
     diff_seq: u64,
     last_auto_refresh: std::time::Instant,
     pub commit_search: Option<CommitSearchState>,
+    pub nav_popup: bool,
+    pub nav_popup_selected: usize,
     search_seq: u64,
 }
 
@@ -207,9 +215,14 @@ impl App {
             home_offset: std::cell::Cell::new(0),
             home_table_bounds: std::cell::Cell::new((2, u16::MAX)),
             home_col_bounds: std::cell::RefCell::new(Vec::new()),
+            nav_button_bounds: std::cell::RefCell::new(Vec::new()),
+            nav_popup_rect: std::cell::Cell::new(ratatui::layout::Rect::default()),
             list_viewport: std::cell::Cell::new(ListViewport::default()),
             settings_viewport: std::cell::Cell::new(ListViewport::default()),
             finder_viewport: std::cell::Cell::new(ListViewport::default()),
+            global_members_viewport: std::cell::Cell::new(ListViewport::default()),
+            global_member_repos_viewport: std::cell::Cell::new(ListViewport::default()),
+            commit_search_viewport: std::cell::Cell::new(ListViewport::default()),
             settings_tab_bounds: std::cell::RefCell::new(Vec::new()),
             settings_tab_row: std::cell::Cell::new(0),
             tab_bounds: std::cell::RefCell::new(Vec::new()),
@@ -279,6 +292,8 @@ impl App {
             diff_seq: 0,
             last_auto_refresh: std::time::Instant::now(),
             commit_search: None,
+            nav_popup: false,
+            nav_popup_selected: 0,
             search_seq: 0,
         };
         if !load_errors.is_empty() {
@@ -841,6 +856,132 @@ impl App {
         }
     }
 
+    fn navigate_back(&mut self) {
+        if self.error.take().is_some() {
+            return;
+        }
+        match self.screen {
+            Screen::Home => {}
+            Screen::GlobalMembers if self.global_member_pane == FocusPane::Content => {
+                self.global_member_pane = FocusPane::List;
+            }
+            Screen::Diff => {
+                self.diff = None;
+                self.screen = Screen::Repo;
+                self.focus = FocusPane::List;
+            }
+            Screen::Repo => {
+                self.repo_data = None;
+                self.repo_index = None;
+                self.list_filter.clear();
+                self.help_return = None;
+                self.screen = Screen::Home;
+            }
+            Screen::RepoFinder => {
+                self.cancel_finder();
+                self.screen = Screen::Home;
+            }
+            Screen::Log => {
+                self.log = None;
+                self.screen = Screen::Repo;
+            }
+            Screen::Help => {
+                self.screen = self.help_return.take().unwrap_or(Screen::Home);
+                self.help_scroll.set(0);
+            }
+            _ => self.screen = Screen::Home,
+        }
+    }
+
+    pub fn execute_navigation(&mut self, action: NavigationAction) {
+        self.nav_popup = false;
+        self.nav_popup_selected = 0;
+        if !matches!(
+            action,
+            NavigationAction::Home | NavigationAction::Back | NavigationAction::Move
+        ) {
+            self.diff = None;
+            self.log = None;
+            self.repo_data = None;
+            self.repo_index = None;
+            if self.screen == Screen::RepoFinder {
+                self.cancel_finder();
+            }
+            self.help_return = None;
+            self.help_scroll.set(0);
+            self.focus = FocusPane::List;
+            self.list_selected = 0;
+            self.global_member_repo_selected = 0;
+        }
+        match action {
+            NavigationAction::Back => self.navigate_back(),
+            NavigationAction::Move => self.nav_popup = true,
+            NavigationAction::Home => {
+                if self.screen == Screen::RepoFinder {
+                    self.cancel_finder();
+                }
+                self.diff = None;
+                self.log = None;
+                self.repo_data = None;
+                self.repo_index = None;
+                self.list_filter.clear();
+                self.help_return = None;
+                self.focus = FocusPane::List;
+                self.screen = Screen::Home;
+            }
+            NavigationAction::Settings => {
+                self.settings_selected = 0;
+                self.settings_member_selected = 0;
+                self.screen = Screen::Settings;
+            }
+            NavigationAction::Worktrees => {
+                self.screen = Screen::Workspace;
+                self.reload_workspace();
+            }
+            NavigationAction::GlobalMembers => self.open_global_members(),
+            NavigationAction::CommitSearch => {
+                self.screen = Screen::Home;
+                self.input = Some(InputKind::CommitSearchQuery);
+                self.input_buf = self
+                    .commit_search
+                    .as_ref()
+                    .map(|s| s.query.clone())
+                    .unwrap_or_default();
+            }
+        }
+    }
+
+    fn navigation_options(&self) -> [NavigationAction; 4] {
+        [
+            NavigationAction::Settings,
+            NavigationAction::Worktrees,
+            NavigationAction::GlobalMembers,
+            NavigationAction::CommitSearch,
+        ]
+    }
+
+    fn handle_navigation_popup(&mut self, key: KeyEvent) -> bool {
+        if !self.nav_popup {
+            return false;
+        }
+        let n = self.navigation_options().len();
+        match key.code {
+            KeyCode::Esc => self.nav_popup = false,
+            KeyCode::Up | KeyCode::Char('k') => {
+                self.nav_popup_selected = self.nav_popup_selected.saturating_sub(1)
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                self.nav_popup_selected = (self.nav_popup_selected + 1).min(n - 1)
+            }
+            KeyCode::Enter => {
+                let action = self.navigation_options()[self.nav_popup_selected];
+                self.execute_navigation(action);
+            }
+            _ => {}
+        }
+        true
+    }
+
     pub fn handle_key(&mut self, key: KeyEvent) {
         if self.confirm.is_some() {
             self.handle_confirm(key);
@@ -852,6 +993,9 @@ impl App {
         }
         if self.tool_menu.is_some() {
             self.handle_tool_menu(key);
+            return;
+        }
+        if self.handle_navigation_popup(key) {
             return;
         }
         if key.code == KeyCode::Char('O')
@@ -1662,15 +1806,29 @@ impl App {
                 }
             }
             KeyCode::Enter => {
-                if let Some(m) = cur_member
-                    && let Some(contrib) = m.contributions.get(self.global_member_repo_selected)
-                {
-                    let repo_idx = contrib.repo_index;
-                    self.open_repo(repo_idx);
-                }
+                self.open_selected_global_member_repo();
             }
             _ => {}
         }
+    }
+
+    /// Activate the selected repository contribution. Mouse activation shares
+    /// this path with Enter so both interactions keep identical cleanup and
+    /// loading behavior.
+    pub(super) fn open_selected_global_member_repo(&mut self) {
+        let vis = self.filtered_global_members();
+        let Some(&member_idx) = vis.get(self.global_member_selected) else {
+            return;
+        };
+        let Some(repo_idx) = self
+            .global_members
+            .get(member_idx)
+            .and_then(|m| m.contributions.get(self.global_member_repo_selected))
+            .map(|c| c.repo_index)
+        else {
+            return;
+        };
+        self.open_repo(repo_idx);
     }
 
     fn move_home(&mut self, delta: isize) {

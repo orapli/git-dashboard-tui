@@ -20,7 +20,11 @@ impl App {
     }
 
     pub fn handle_mouse_scroll(&mut self, delta: isize) {
-        if self.confirm.is_some() || self.input.is_some() || self.tool_menu.is_some() {
+        if self.confirm.is_some()
+            || self.input.is_some()
+            || self.tool_menu.is_some()
+            || self.nav_popup
+        {
             return;
         }
         match self.screen {
@@ -62,13 +66,27 @@ impl App {
                     }
                 }
             }
-            Screen::GlobalMembers => {
-                let len = self.filtered_global_members().len();
-                if len > 0 {
-                    self.global_member_selected =
-                        move_index(self.global_member_selected, len, delta.signum());
+            Screen::GlobalMembers => match self.global_member_pane {
+                FocusPane::List => {
+                    let len = self.filtered_global_members().len();
+                    if len > 0 {
+                        self.global_member_selected =
+                            move_index(self.global_member_selected, len, delta.signum());
+                        self.global_member_repo_selected = 0;
+                    }
                 }
-            }
+                _ => {
+                    let len = self
+                        .filtered_global_members()
+                        .get(self.global_member_selected)
+                        .and_then(|&i| self.global_members.get(i))
+                        .map_or(0, |m| m.contributions.len());
+                    if len > 0 {
+                        self.global_member_repo_selected =
+                            move_index(self.global_member_repo_selected, len, delta.signum());
+                    }
+                }
+            },
             Screen::RepoFinder => {
                 let len = self.filtered_finder_repos().len();
                 if len > 0
@@ -148,6 +166,36 @@ impl App {
     pub fn handle_mouse_click(&mut self, col: u16, row: u16) {
         if self.confirm.is_some() || self.input.is_some() || self.tool_menu.is_some() {
             return;
+        }
+
+        if self.nav_popup {
+            let rect = self.nav_popup_rect.get();
+            let inner_x = rect.x.saturating_add(1);
+            let inner_width = rect.width.saturating_sub(2);
+            if col >= inner_x
+                && col < inner_x.saturating_add(inner_width)
+                && row > rect.y
+                && row < rect.y.saturating_add(rect.height).saturating_sub(1)
+            {
+                let first = rect.y.saturating_add(1);
+                if row >= first && row < first.saturating_add(4) {
+                    self.nav_popup_selected = (row - first) as usize;
+                    self.execute_navigation(self.navigation_options()[self.nav_popup_selected]);
+                }
+            } else {
+                self.nav_popup = false;
+            }
+            return;
+        }
+
+        if row == 0 {
+            let bounds = self.nav_button_bounds.borrow().clone();
+            if let Some((_, _, action)) = bounds.iter().find(|(x1, x2, _)| col >= *x1 && col < *x2)
+            {
+                self.execute_navigation(*action);
+                self.nav_popup_selected = 0;
+                return;
+            }
         }
 
         match self.screen {
@@ -248,6 +296,66 @@ impl App {
                     {
                         finder.repos[raw_idx].is_selected = !finder.repos[raw_idx].is_selected;
                     }
+                }
+            }
+            Screen::GlobalMembers => {
+                let vis = self.filtered_global_members();
+                if let Some(idx) = self
+                    .global_members_viewport
+                    .get()
+                    .index_at_position(col, row)
+                    && idx < vis.len()
+                {
+                    self.global_member_pane = FocusPane::List;
+                    if self.global_member_selected != idx {
+                        self.global_member_selected = idx;
+                        self.global_member_repo_selected = 0;
+                    }
+                    return;
+                }
+                let Some(repo_idx) = self
+                    .global_member_repos_viewport
+                    .get()
+                    .index_at_position(col, row)
+                else {
+                    return;
+                };
+                let Some(member_idx) = vis.get(self.global_member_selected).copied() else {
+                    return;
+                };
+                let Some(member) = self.global_members.get(member_idx) else {
+                    return;
+                };
+                if repo_idx >= member.contributions.len() {
+                    return;
+                }
+                if self.global_member_pane == FocusPane::Content
+                    && self.global_member_repo_selected == repo_idx
+                {
+                    self.open_selected_global_member_repo();
+                } else {
+                    self.global_member_repo_selected = repo_idx;
+                    self.global_member_pane = FocusPane::Content;
+                }
+            }
+            Screen::CommitSearch => {
+                let Some(idx) = self
+                    .commit_search_viewport
+                    .get()
+                    .index_at_position(col, row)
+                else {
+                    return;
+                };
+                let Some(search) = self.commit_search.as_mut() else {
+                    return;
+                };
+                if idx >= search.hits.len() {
+                    return;
+                }
+                if search.selected == idx {
+                    self.jump_to_search_hit();
+                } else {
+                    search.selected = idx;
                 }
             }
             Screen::Help => {

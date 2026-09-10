@@ -1,6 +1,9 @@
 # Keyboard and configuration reference
 
-Mouse selection for Settings and Repository Finder is available in the next unreleased build.
+The unreleased development build adds mouse selection for Settings and Repository
+Finder, plus title-bar navigation and result clicks. These extend the v0.4.0 basics.
+The title bar provides buttons for Back, Home, and Navigate. Navigate opens Settings,
+Worktrees, Global Members, or Commit Search; `Esc` closes its menu.
 
 Covers v0.4.0. [User manual](manual.html) · [README](../README.md)
 
@@ -23,6 +26,9 @@ Covers v0.4.0. [User manual](manual.html) · [README](../README.md)
 | **Click a list row** | Select it; click the selected row again to open it |
 | **Settings row/tab click** | Select a repository or member, or switch the visible tab |
 | **Finder row/checkbox click** | Select a row; click its `[ ]` area to toggle import selection |
+| **Title bar navigation** | Click `Back`, `Home`, or `Navigate`; choose a destination from the popup |
+| **Global Members member row** | Click to select a member; member rows do not open repositories |
+| **Global Members repository / Commit Search hit** | Click once to select; click the selected row again to open it |
 | **Click the `[ ]` marker** | In Commits and Tags, pick the compare base, then the target (same as `space`). Clicking a marked row again clears it |
 
 ### 1. Home (multi-repo hub)
