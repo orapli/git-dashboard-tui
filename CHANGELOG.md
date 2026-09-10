@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.4.1] - 2026-09-10
+
+### Added
+
 - Add mouse navigation buttons and a keyboard-accessible destination popup to the title bar.
 - Allow Global Members and Commit Search rows to select and open with repeated clicks.
+
+### Fixed
+
+- Enable Settings repository/member row selection and align tab clicks with the rendered layout.
+- Enable Repository Finder row and checkbox clicks, preserving registered repositories.
+- Respect filtered list lengths when scrolling and block background mouse operations during dialogs.
 
 ## [0.4.0] - 2026-09-05
 
@@ -294,7 +306,9 @@ externally; no released version was affected, as none of this had shipped.
 - Integration test suite running against real temporary Git repositories, plus CI on Linux,
   macOS, and Windows.
 
-[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/orapli/git-dashboard-tui/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/orapli/git-dashboard-tui/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.2.0...v0.2.1

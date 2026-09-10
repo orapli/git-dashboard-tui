@@ -1,11 +1,11 @@
 # Keyboard and configuration reference
 
-The unreleased development build adds mouse selection for Settings and Repository
-Finder, plus title-bar navigation and result clicks. These extend the v0.4.0 basics.
+Version v0.4.1 adds mouse selection for Settings and Repository Finder,
+plus title-bar navigation and result clicks.
 The title bar provides buttons for Back, Home, and Navigate. Navigate opens Settings,
 Worktrees, Global Members, or Commit Search; `Esc` closes its menu.
 
-Covers v0.4.0. [User manual](manual.html) · [README](../README.md)
+Covers v0.4.1. [User manual](manual.html) · [README](../README.md)
 
 ## Keybindings
 

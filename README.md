@@ -10,7 +10,7 @@ contributor analysis and a Worktree workspace.
 
 ![Import → attention → diff → shell walkthrough](docs/img/quick-tour.svg)
 
-This README and the published manual describe **v0.4.0**. The installer downloads the latest release.
+This README and the published manual describe **v0.4.1**. The installer downloads the latest release.
 This includes first-run guidance, Home freshness context, the `O` tool menu, the `W` Worktree workspace,
 untracked-file diffs and cancellable background discovery. See the [changelog](CHANGELOG.md).
 
@@ -29,7 +29,7 @@ against the one published with the release, and installs to `~/.local/bin` (or
 ```bash
 # Install somewhere specific, or pin a version
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | INSTALL_DIR=~/bin sh
-curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.4.0 sh
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.4.1 sh
 ```
 
 > Piping a script into a shell means trusting it. The script is short and dependency-free —
