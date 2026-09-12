@@ -761,6 +761,51 @@ fn snapshot_repo_name(path: &Path) -> String {
     git::get_repo_name(path)
 }
 
+/// Resolve the `PATH` operand without letting it outlive the snapshot budget.
+///
+/// The work happens on a helper thread and is waited for with the remaining
+/// budget. A thread stuck in an uninterruptible filesystem call cannot be
+/// killed, and the process is about to exit anyway, so it is left detached —
+/// the same trade `run_with_timeout` makes for its output readers.
+fn resolve_target_within(
+    path: PathBuf,
+    configured: Vec<Repository>,
+    deadline: std::time::Instant,
+) -> Result<Vec<(Repository, bool)>, String> {
+    let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+    if remaining.is_zero() {
+        return Err(TIMED_OUT_RESOLVING.to_string());
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let resolved = resolve_repository_path(&path).map(|path| {
+            match configured
+                .into_iter()
+                .find(|repo| same_repository(&repo.path, &path))
+            {
+                Some(repo) => vec![(repo, true)],
+                None => vec![(
+                    Repository {
+                        name: snapshot_repo_name(&path),
+                        path,
+                        group: None,
+                    },
+                    false,
+                )],
+            }
+        });
+        let _ = tx.send(resolved);
+    });
+    match rx.recv_timeout(remaining) {
+        Ok(resolved) => resolved,
+        Err(_) => Err(TIMED_OUT_RESOLVING.to_string()),
+    }
+}
+
+/// English, like the rest of the `--json` surface.
+const TIMED_OUT_RESOLVING: &str =
+    "timed out resolving the given path before the snapshot budget was spent";
+
 /// Build the snapshot document. `path`, when given, limits it to that one
 /// repository (which need not be registered).
 pub fn build_snapshot(path: Option<PathBuf>) -> Result<Snapshot, String> {
@@ -776,23 +821,14 @@ pub fn build_snapshot(path: Option<PathBuf>) -> Result<Snapshot, String> {
 
     let targets: Vec<(Repository, bool)> = match path {
         None => configured.into_iter().map(|repo| (repo, true)).collect(),
-        Some(path) => {
-            let path = resolve_repository_path(&path)?;
-            match configured
-                .into_iter()
-                .find(|repo| same_repository(&repo.path, &path))
-            {
-                Some(repo) => vec![(repo, true)],
-                None => vec![(
-                    Repository {
-                        name: snapshot_repo_name(&path),
-                        path,
-                        group: None,
-                    },
-                    false,
-                )],
-            }
-        }
+        // Resolving the operand canonicalises a path, asks git whether it is
+        // a work tree, and reads its name — three filesystem-and-git calls
+        // that ran outside the budget the rest of this function keeps. On a
+        // hard-mounted dead NFS path they block for as long as the mount
+        // takes, which for a surface documented as safe to call from a shell
+        // prompt is the whole problem the budget exists to prevent. Measured
+        // at 12.03 s against a 10 s budget with a deliberately slow git.
+        Some(path) => resolve_target_within(path, configured, deadline)?,
     };
 
     let now = chrono::Utc::now().timestamp();
@@ -1384,5 +1420,22 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The PATH operand's resolution — canonicalise, ask git whether it is a
+    /// work tree, read its name — used to run outside the snapshot budget,
+    /// so `--json PATH` could block for as long as a dead mount took. It is
+    /// bounded now; an exhausted budget fails instead of waiting.
+    #[test]
+    fn resolving_the_path_operand_cannot_outlive_the_budget() {
+        let spent = std::time::Instant::now() - std::time::Duration::from_secs(1);
+        let err = resolve_target_within(PathBuf::from("."), Vec::new(), spent)
+            .expect_err("an exhausted budget must not start the work");
+        assert!(err.contains("timed out"), "{err}");
+
+        // With budget left, the ordinary path still resolves.
+        let ample = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let resolved = resolve_target_within(PathBuf::from("."), Vec::new(), ample);
+        assert!(resolved.is_ok(), "{resolved:?}");
     }
 }

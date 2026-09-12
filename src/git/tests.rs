@@ -1659,3 +1659,34 @@ fn test_get_home_summary_last_fetch_from_fetch_head() {
 
     let _ = fs::remove_dir_all(&root);
 }
+
+/// A corrupt index makes `git status` exit 128 with nothing on stdout, and
+/// the batch convention turns a failed command into an empty string — so the
+/// repository the dashboard can least read rendered as the one state that
+/// needs no attention: clean, no conflicts. Reported against v0.5.0.
+#[test]
+fn an_unreadable_status_is_a_failed_row_not_a_clean_one() {
+    let dir = std::env::temp_dir().join("git_test_unreadable_status");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    git_in(&dir, &["init", "-q", "-b", "main"]);
+    git_in(&dir, &["config", "user.email", "a@b.c"]);
+    git_in(&dir, &["config", "user.name", "A"]);
+    std::fs::write(dir.join("a.txt"), "hi\n").unwrap();
+    git_in(&dir, &["add", "-A"]);
+    git_in(&dir, &["commit", "-qm", "initial"]);
+    // An uncommitted change that must not be reported as absent.
+    std::fs::write(dir.join("a.txt"), "hi\nthere\n").unwrap();
+
+    // Healthy first, so the test proves the corruption is what changes it.
+    let healthy = get_home_summary(&dir).expect("a readable repository");
+    assert_eq!(healthy.uncommitted_changes, 1);
+
+    std::fs::write(dir.join(".git").join("index"), b"GARBAGE-NOT-AN-INDEX").unwrap();
+    let err = get_home_summary(&dir).expect_err("an unreadable status is not a clean tree");
+    assert!(err.contains("index"), "the reason should survive: {err}");
+    let err = get_summary(&dir, &[]).expect_err("the detail screen must agree");
+    assert!(err.contains("index"), "the reason should survive: {err}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}

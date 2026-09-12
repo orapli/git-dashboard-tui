@@ -297,11 +297,26 @@ pub fn get_summary(repo_path: &Path, members: &[Member]) -> Result<Summary, Stri
     let (total_files, total_size_bytes) = parse_ls_tree_long(out(3));
 
     let has_remote = !out(4).trim().is_empty();
-    let uncommitted_changes = out(5).lines().filter(|l| !l.trim().is_empty()).count();
+    // Same reasoning as `get_home_summary`: an unreadable status is not an
+    // empty one, and the detail screen would otherwise say "clean".
+    let status_porcelain = match r.get(5) {
+        Some(Ok(text)) => text.as_str(),
+        other => {
+            let detail = match other {
+                Some(Err(e)) => e.trim().to_string(),
+                _ => "git status did not run".to_string(),
+            };
+            return Err(format!("{}: {detail}", repo_path.display()));
+        }
+    };
+    let uncommitted_changes = status_porcelain
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .count();
     let has_upstream = !out(6).trim().is_empty();
     let sync_status = parse_sync_status(has_upstream, out(7));
     let total_contributors = process_contributor_log(out(8), members).len();
-    let conflicts = count_conflicts(out(5));
+    let conflicts = count_conflicts(status_porcelain);
     let op_state = if r.get(9).is_some_and(|x| x.is_ok()) {
         GitOpState::Merge
     } else if rebase_in_progress(repo_path, r.get(10).is_some_and(|x| x.is_ok())) {
@@ -437,7 +452,23 @@ pub fn get_home_summary(repo_path: &Path) -> Result<HomeSummary, String> {
         ));
     }
 
-    let status_porcelain = out(1);
+    // `git status` failing is not "no changes": a corrupt index exits 128
+    // with an empty stdout, and the empty-string-on-failure convention above
+    // would turn that into a clean working tree — a repository the dashboard
+    // cannot read at all, rendered as the one state that needs no attention.
+    // Reproduced by truncating .git/index. Everything else in this batch can
+    // legitimately fail (no upstream, no pseudo-ref), which is why only this
+    // one and --git-dir are fatal.
+    let status_porcelain = match r.get(1) {
+        Some(Ok(text)) => text.as_str(),
+        other => {
+            let detail = match other {
+                Some(Err(e)) => e.trim().to_string(),
+                _ => "git status did not run".to_string(),
+            };
+            return Err(format!("{}: {detail}", repo_path.display()));
+        }
+    };
     let has_upstream = !out(2).trim().is_empty();
     let sync_status = parse_sync_status(has_upstream, out(3));
     let op_state = if r.get(4).is_some_and(|x| x.is_ok()) {
