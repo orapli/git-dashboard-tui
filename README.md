@@ -8,6 +8,10 @@ See uncommitted changes, sync differences and failing CI together, inspect a dif
 and open your usual work tools. Includes cross-repository commit search,
 contributor analysis and a Worktree workspace.
 
+v0.5.0 makes refreshing a 30-repository dashboard about sixty times faster, stops the
+table reporting confident answers it does not have, reads out as JSON for a script or a
+shell prompt, and hands the file and line you are looking at to the tool you open next.
+
 ![Import → attention → diff → shell walkthrough](docs/img/quick-tour.svg)
 
 This README and the published manual describe **v0.5.0**. The installer downloads the latest release.

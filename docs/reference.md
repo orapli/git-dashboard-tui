@@ -21,7 +21,7 @@ Covers v0.5.0. [User manual](manual.html) · [README](../README.md)
 | `j` / `k` (or `↓` / `↑`) | Move selection |
 | `g` / `G` | Jump to top / bottom of list |
 | `t` | Open `$SHELL` in the current repository<br>(except the Contributors tab, where `t` toggles member status) |
-| `y` | Copy the identifier for the current selection |
+| `y` | Copy the identifier for the current selection — the commit hash, branch, tag, stash ref, author e-mail, file path, worktree path or repository path, depending on where you are.<br>Home, repository details, the diff view, the worktree view and the tools menu; elsewhere it does nothing |
 | **Mouse wheel** | Scroll lists, commit logs, diff views, and the help screen |
 | **Mouse click** | Switch tabs or select items directly |
 | **Click a column header** | Sort the Home list by that column; click again to reverse |
@@ -195,12 +195,32 @@ above a size limit.
 | Cell | Meaning |
 |---|---|
 | `↑2 ↓1` | Commits ahead of / behind the upstream, as of the last fetch |
-| `↑? ↓?` | There is nothing to compare against — no remote, or a branch that was never pushed. Which of the two is named in the selected-repository panel |
+| `↑? ↓?` | There is nothing to compare against — no remote, or a branch that was never pushed; the panel names which. A row restored from a cache written before v0.5.0 shows it too, because that cache did not record the answer, and then the panel has nothing to add |
 | `2M 5?` | Two tracked files changed and five untracked files. A row restored from an older cache shows one unsuffixed total instead of inventing an attribution |
 | `0` | A clean working tree |
 | `⚠ path missing` / `⚠ not a git repo` / `⚠ unreadable` | The registration could not be read at all. Every other cell shows `—`, the panel prints the full reason, and `n` surfaces the row |
 | `…` | Not loaded yet |
+| `~/…/repo` | A shortened path: the middle is elided, never the leaf, so the distinguishing end of the path survives |
 | Spinner and an operation name | A pull, fetch or row refresh is running; it replaces the Sync cell, which is the value it is about to change |
+
+The Branch cell carries the branch name, then what is happening to it. Everything after
+the branch name is dropped whole — never cut in half — when the cell is too narrow, least
+actionable first, so a `[PR:50]` can disappear but can never become a `[PR:5]`.
+
+| Mark | Meaning |
+|---|---|
+| `⚠MERGE` / `⚠REBASE` / `⚠2conflict` | An operation left mid-flight, or unresolved conflicts. Kept whichever way the cell is squeezed |
+| `#42` | The pull request opened from this branch |
+| `✗rev` / `✓rev` | That pull request has changes requested / is approved. Nothing is shown while a review is merely outstanding, which is every open PR's default |
+| `draft` | That pull request is a draft. First to be dropped: being a draft is a choice, not a task |
+| `[REV:3]` | Three open pull requests in this repository are waiting on **your** review |
+| `[PR:7]` | Seven open pull requests in total, `100+` above a hundred |
+| `✓CI` / `✗CI` / `●CI` | The latest CI run on this branch succeeded / failed / is something else (running, cancelled, action required) |
+| `—CI` / `⏱CI` / `?CI` | There is no CI answer: the repository is on a detached HEAD, the fetch timed out, or it failed. The mark is there because a blank space reads as "nothing wrong" |
+
+Three marks use `?`, each in its own column and each meaning "not known": `↑? ↓?` in Sync,
+`5?` in Dirty (the count of untracked files), and `?CI` in Branch. The em dash likewise
+means "no value" in both places it appears — a failed row's other cells, and `—CI`.
 
 The selected-repository panel shows two ages side by side, because they answer different
 questions: **Local read (working tree)** is when the dashboard last ran git here, and

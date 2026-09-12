@@ -1131,7 +1131,7 @@ pub const MAX_GH_FIELD_CHARS: usize = 200;
 /// Filter one string that came out of `gh` before it is shown or stored.
 ///
 /// `gh` stdout is **not** git output, so it never passes through
-/// [`strip_control_sequences`] — and `serde_json` decodes `` into a
+/// [`strip_control_sequences`] — and `serde_json` decodes `<ESC>` into a
 /// real ESC, so a JSON string field arrives with its control characters
 /// intact. These values are rendered into terminal rows *and* persisted to
 /// the home cache, which means anything that slipped through would replay on

@@ -215,7 +215,7 @@ footer a{color:var(--muted)}
 <tr><td class="term"><span>同期</span></td><td>upstream に対する先行・遅れのコミット数。どちらかが 0 でなければ<b class='yellow'>黄色</b>になります。比較対象がない場合 — リモートがない、あるいは一度も push していないブランチ — は <code>↑0 ↓0</code> を装わず <code>↑? ↓?</code> と表示し、どちらであるかは下のパネルに出ます。pull / fetch 実行中はスピナーに変わります。</td></tr>
 <tr><td class="term"><span>未コミット</span></td><td>未コミットの変更数。0 なら<b class='green'>緑</b>。追跡対象の変更と未追跡は Status タブと同じ記号で分けて示すため、編集2件とビルド生成物5件は <code>7</code> ではなく <code>2M 5?</code> と表示します。</td></tr>
 <tr><td class="term"><span>最終コミット</span></td><td>全 ref のうち最新コミットの日時。</td></tr>
-<tr><td class="term"><span>PR / CI</span></td><td>GitHub リモートがあり <code>gh</code> が認証済みの場合の、オープン中の PR 数と<em>そのリポジトリが今いるブランチ</em>の最新 CI 結果。failure / cancelled / timed_out / action_required は「要対応」として扱われます。</td></tr>
+<tr><td class="term"><span>Branch（PR と CI）</span></td><td>Branch 列はブランチ名の後ろに、GitHub リモートがあり <code>gh</code> が認証済みの場合の、オープン中の PR 数と<em>そのリポジトリが今いるブランチ</em>の最新 CI 結果も表示します。failure / cancelled / timed_out / action_required は「要対応」として扱われます。</td></tr>
 </tbody></table>
 <p>読み取れなかった登録は、正常なリポジトリでも読み込み中でもない独立した状態です。セルには <b class='red'>⚠ パスなし</b> / <b class='red'>⚠ Git管理外</b> / <b class='red'>⚠ 読取不可</b> と表示し、パネルに理由と対処を全文表示し、<kbd>n</kbd> でも抽出します。パネルは混同しやすい2つの時刻も分けて表示します。作業ツリーを最後に読んだ時刻と、git が最後にリモートと通信した時刻（<code>FETCH_HEAD</code> の時刻）です。後者が ahead/behind の鮮度であり、fetch でしか新しくなりません。</p>
 <figure><img src="img/home-attention.ja.svg" loading="lazy" alt="&lt;kbd&gt;n&lt;/kbd&gt; で「本当に対応が要るもの」だけに絞り込みます — このブランチの CI 失敗、未解決のコンフリクト、中断された操作、読み取れない登録、自分へのレビュー依頼、このブランチの PR への変更要求。未コミットや遅れは通常"><figcaption><kbd>n</kbd> で「本当に対応が要るもの」だけに絞り込みます — このブランチの CI 失敗、未解決のコンフリクト、中断された操作、読み取れない登録、自分へのレビュー依頼、このブランチの PR への変更要求。未コミットや遅れは通常の作業状態なので、意図的に含めていません。遅れだけで絞るとほぼ全件が該当してしまいます。</figcaption></figure>

@@ -397,6 +397,19 @@ impl App {
             - std::time::Duration::from_secs(self.prefs.auto_refresh_secs + 1);
     }
 
+    /// Report the outcome of something the user just asked for.
+    ///
+    /// The footer gives a standing error precedence over the status line, and
+    /// a registration that cannot be read re-posts its error on every
+    /// refresh — so without retiring it here, the answer to a keypress (the
+    /// yank confirmation, a pull's result) was never seen at all on a
+    /// dashboard with one broken row. Nothing is lost: a failed row keeps
+    /// its full reason in the selected-repository panel.
+    pub fn post_status(&mut self, message: String) {
+        self.error = None;
+        self.status = message;
+    }
+
     pub fn busy_count(&self) -> usize {
         let flags = [
             self.repo_loading,
@@ -2193,6 +2206,17 @@ impl App {
         self.send_job(job);
     }
 
+    /// Issue the next order number for this row's analysis.
+    ///
+    /// Monotonic across generations on purpose: resetting per refresh would
+    /// let a job issued before the reset compare as newer than one issued
+    /// after it.
+    fn next_home_seq(&mut self, index: usize) -> u64 {
+        let next = self.home_seq.entry(index).or_insert(0);
+        *next += 1;
+        *next
+    }
+
     /// Start a new home-refresh generation, retiring the previous one.
     ///
     /// `Activity::Refresh` entries in `busy` are generation-scoped, and that
@@ -2209,17 +2233,6 @@ impl App {
     /// so they have to survive. That index is also why `busy` is not
     /// re-indexed when a repository is removed: the key has to keep matching
     /// the one the in-flight job will report, not the row's new position.
-    /// Issue the next order number for this row's analysis.
-    ///
-    /// Monotonic across generations on purpose: resetting per refresh would
-    /// let a job issued before the reset compare as newer than one issued
-    /// after it.
-    fn next_home_seq(&mut self, index: usize) -> u64 {
-        let next = self.home_seq.entry(index).or_insert(0);
-        *next += 1;
-        *next
-    }
-
     fn begin_home_generation(&mut self) -> u64 {
         self.busy
             .retain(|_, activity| *activity != Activity::Refresh);
@@ -4106,7 +4119,10 @@ impl App {
                     self.error = Some(text);
                     return;
                 }
-                self.status = text;
+                // The result of an operation the user started, so it retires
+                // whatever error was standing in the footer — otherwise a
+                // single broken registration hides every pull's outcome.
+                self.post_status(text);
                 if let Some(idx) = self.repo_index {
                     self.reload_repo(idx);
                 } else if let Some(idx) = repo_index {

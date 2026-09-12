@@ -1050,8 +1050,6 @@ fn ci_unknown_mark(info: &crate::git::RemoteCiPrInfo) -> Option<&'static str> {
     }
 }
 
-/// Width `Tabs` needs for these labels: each is padded by a space on both
-/// sides and separated by a divider.
 /// Short, localized reason for a Home row that could not be read. The cell
 /// it lands in is one table column wide, so the full message stays in the
 /// selected-repository panel and this only has to say which kind of broken.
@@ -1063,6 +1061,8 @@ fn home_failure_reason(app: &App, err: &str) -> String {
     }
 }
 
+/// Width `Tabs` needs for these labels: each is padded by a space on both
+/// sides and separated by a divider.
 fn tab_bar_width(labels: &[String]) -> usize {
     use unicode_width::UnicodeWidthStr;
     labels.iter().map(|l| l.width() + 2).sum::<usize>() + labels.len().saturating_sub(1)
@@ -3050,15 +3050,29 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
                 help_row(
                     "n",
                     app.tt(
-                        "toggle: only repos needing attention (failing CI,",
-                        "要対応のみ表示（CI 失敗・未解決のコンフリクト・",
+                        "toggle: only repos needing attention — CI failing on",
+                        "要対応のみ表示 — このブランチの CI 失敗・未解決の",
                     ),
                 ),
                 help_row(
                     "",
                     app.tt(
-                        "unresolved conflict, or a mid-operation merge/rebase)",
-                        "中断中の merge/rebase）の切替",
+                        "this branch, an unresolved conflict, a mid-operation",
+                        "コンフリクト・中断中の merge/rebase・読み取れない",
+                    ),
+                ),
+                help_row(
+                    "",
+                    app.tt(
+                        "merge/rebase, a registration that cannot be read, a PR",
+                        "登録・自分のレビュー待ちのPR・このブランチのPRに",
+                    ),
+                ),
+                help_row(
+                    "",
+                    app.tt(
+                        "awaiting your review, or changes requested on yours",
+                        "来た変更要求",
                     ),
                 ),
                 help_row(
@@ -5299,6 +5313,36 @@ fn commit_search_loading_clears_previous_mouse_viewport() {
 
 #[cfg(test)]
 mod footer_and_help_tests {
+
+    /// A registration that cannot be read re-posts its error on every
+    /// refresh, so before this the footer was permanently occupied by it and
+    /// the yank confirmation — and every pull result — was never seen on a
+    /// dashboard with one broken row.
+    #[test]
+    fn a_fresh_status_message_is_not_hidden_by_a_standing_error() {
+        let mut app = App::new();
+        app.repos = vec![crate::config::Repository {
+            name: "gone".into(),
+            path: "/tmp/gone".into(),
+            group: None,
+        }];
+        app.error = Some("gone: No such file or directory (os error 2)".into());
+        let text = render_to_text(&app, 120, 12);
+        assert!(
+            text.contains("No such file"),
+            "an error still has the footer"
+        );
+
+        // The answer to something the user just did retires the standing
+        // error, so it is not shouted over by a row that was already broken.
+        app.post_status("Copied path (OSC 52 — your terminal may ignore it): /tmp/x".into());
+        let text = render_to_text(&app, 120, 12);
+        assert!(
+            text.contains("Copied path"),
+            "the confirmation is hidden: {text}"
+        );
+        assert!(app.error.is_none(), "the answered error should be retired");
+    }
     use super::commit_click_tests::column_of;
     use super::tests::render_to_text;
     use super::*;

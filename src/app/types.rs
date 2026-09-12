@@ -476,7 +476,7 @@ impl Job {
     }
 
     /// A Home refresh enqueues one of these *per registered repository*, and
-    /// each one is a batch of `git` calls plus, for GitHub remotes, two `gh`
+    /// each one is a batch of `git` calls plus, for GitHub remotes, three `gh`
     /// calls. On a single worker that serialises the whole dashboard behind
     /// itself, so they run on their own small pool (see
     /// [`crate::app::worker::spawn_home_pool`]) — which also keeps them off

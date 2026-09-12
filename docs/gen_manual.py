@@ -175,13 +175,15 @@ SECTIONS = [
                 (t("Last commit", "最終コミット"), t(
                     "Date of the most recent commit across all refs.",
                     "全 ref のうち最新コミットの日時。")),
-                (t("PR / CI", "PR / CI"), t(
-                    "Open pull requests and the latest CI conclusion <em>on the branch this "
+                (t("Branch (pull requests and CI)", "Branch（PR と CI）"), t(
+                    "The Branch cell also carries, after the branch name, open pull requests "
+                    "and the latest CI conclusion <em>on the branch this "
                     "repository is on</em>, for repositories with a GitHub remote and an "
                     "authenticated <code>gh</code>. A failing, cancelled, timed-out or "
                     "action-required run counts as needing attention.",
-                    "GitHub リモートがあり <code>gh</code> が認証済みの場合の、"
-                    "オープン中の PR 数と<em>そのリポジトリが今いるブランチ</em>の最新 CI 結果。"
+                    "Branch 列はブランチ名の後ろに、GitHub リモートがあり <code>gh</code> が"
+                    "認証済みの場合の、オープン中の PR 数と"
+                    "<em>そのリポジトリが今いるブランチ</em>の最新 CI 結果も表示します。"
                     "failure / cancelled / timed_out / action_required は「要対応」として扱われます。")),
             ]),
             ("p", t(

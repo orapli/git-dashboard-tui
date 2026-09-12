@@ -90,9 +90,10 @@ readable from outside its own terminal.
   diff queued behind every repository still being analysed; Home refresh now has its own
   small pool and the interactive lane is its own.
   Measured by driving the real binary under a PTY, before and after, on the same
-  fixtures: 30 repositories, cold refresh **13.83 s → 0.23 s**; pressing `r` and
-  immediately opening a repository **14.49 s → 0.17 s**; 10 repositories including one
-  with 20,000 commits **4.96 s → 0.21 s**. Those fixtures have no GitHub remotes, so the
+  fixtures: 30 repositories, cold refresh **13.98 s → 0.22 s**; pressing `r` and
+  immediately opening a repository, timed until its commit list is populated,
+  **14.61 s → 0.24 s**; 10 repositories including one with 20,000 commits
+  **4.90 s → 0.21 s**. These are single runs, not medians. Those fixtures have no GitHub remotes, so the
   figures measure local git work only — a cold refresh of repositories with GitHub
   remotes is still bounded by `gh` calls.
 - **CI is the current branch's, not the repository's.** The indicator asked for the newest

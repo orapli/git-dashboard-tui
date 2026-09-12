@@ -305,14 +305,14 @@ impl App {
             .len()
             .saturating_sub(MAX_CUSTOM_COMMANDS);
         if hidden > 0 {
-            lines.push(format!(
-                "   {} {}",
-                self.tt(
-                    "further custom commands are not shown:",
-                    "件の追加コマンドは表示されません:"
-                ),
-                hidden
-            ));
+            lines.push(match self.lang() {
+                crate::config::Language::English => {
+                    format!("   {hidden} further custom commands are not shown")
+                }
+                crate::config::Language::Japanese => {
+                    format!("   他 {hidden} 件の追加コマンドは表示されません")
+                }
+            });
         }
         lines.push(self.tt("c  Configure editor command", "c  エディタコマンドを設定"));
         lines.push(format!(
@@ -677,10 +677,11 @@ impl App {
     /// hand-off.
     pub(super) fn yank_current(&mut self) {
         let Some((label, value)) = self.yank_target() else {
-            self.status = self.tt(
+            let message = self.tt(
                 "Nothing to copy here",
                 "ここにはコピーできる項目がありません",
             );
+            self.post_status(message);
             return;
         };
         self.yank(&label, &value);
@@ -694,7 +695,7 @@ impl App {
                 // `set-clipboard on`) drop it silently. The caveat comes
                 // before the value because the footer is one line: a long
                 // path must truncate away the value, never the caveat.
-                self.status = format!(
+                let message = format!(
                     "{} {label} {}: {copied}",
                     self.tt("Copied", "コピー送信"),
                     self.tt(
@@ -702,6 +703,7 @@ impl App {
                         "（OSC 52・無視する端末もあります）"
                     )
                 );
+                self.post_status(message);
             }
             Err(ClipboardError::Empty) => {
                 self.error = Some(self.tt("Nothing to copy", "コピーできる文字列がありません"));

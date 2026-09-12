@@ -37,7 +37,7 @@ const HOME_POOL_MIN: usize = 2;
 /// Upper bound on the Home pool. These jobs are process-spawn and I/O bound
 /// rather than CPU bound, so more threads than cores would still help in
 /// principle — but each one spawns several `git` processes and, for a GitHub
-/// remote, two `gh` processes. An unbounded pool would thrash a laptop's
+/// remote, three `gh` processes. An unbounded pool would thrash a laptop's
 /// process table and disk and hammer the GitHub API rate limit, so the win is
 /// capped here well before that.
 const HOME_POOL_MAX: usize = 8;
@@ -807,7 +807,7 @@ pub fn save_tui_cache(path: &std::path::Path, snap: &RepoSnapshot) {
 /// the next launch instead of a screen of `…` placeholders.
 ///
 /// This matters because building one row is not cheap: a batch of git commands
-/// plus, for GitHub repositories, two `gh` calls. Measured on a real
+/// plus, for GitHub repositories, three `gh` calls. Measured on a real
 /// repository, that is ~1.7 s with GitHub integration and ~0.45 s without —
 /// and the rows are built one at a time on a worker, so the wait scales with
 /// the number of repositories. The cached values are replaced as each refresh
