@@ -4,7 +4,7 @@ use crate::app::{
     sort_is_ascending,
 };
 use crate::colors::Palette;
-use crate::git::{CommitRef, DiffRowKind, GitOpState, UpstreamState};
+use crate::git::{CommitRef, DiffRowKind, GitOpState, GithubState, UpstreamState};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style};
@@ -826,6 +826,55 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                         Style::default().fg(pal.red).add_modifier(Modifier::BOLD),
                     ));
                 }
+                // What follows is ordered by how much it asks of the reader,
+                // because the cell truncates from the right and what is left
+                // of a cut-off row is its left-hand end: the review that came
+                // back on *this* branch's pull request, then the reviews
+                // waiting on this user, then the repository-wide open-PR
+                // count (a number, not a task), and last the CI glyph.
+                let github = row_data.github.as_ref();
+                if let Some(pr) = github.and_then(|g| g.branch_pr.as_deref()) {
+                    branch_spans.push(Span::raw(" "));
+                    branch_spans.push(Span::styled(
+                        format!("#{}", pr.number),
+                        Style::default().fg(pal.accent),
+                    ));
+                    // Only the two decisions that mean something changed are
+                    // shown: `REVIEW_REQUIRED` is the default state of every
+                    // open PR, and a badge on every row is not a signal. The
+                    // panel spells the rest out in words.
+                    let review = if pr.changes_requested() {
+                        Some(("✗rev", pal.red))
+                    } else if pr.approved() {
+                        Some(("✓rev", pal.green))
+                    } else {
+                        None
+                    };
+                    if let Some((text, color)) = review {
+                        branch_spans.push(Span::raw(" "));
+                        branch_spans.push(Span::styled(text, Style::default().fg(color)));
+                    }
+                    // After the review marker, not before it: being a draft
+                    // is a choice rather than a problem, so it is the first
+                    // thing this cell can afford to lose.
+                    if pr.is_draft {
+                        branch_spans.push(Span::raw(" "));
+                        branch_spans.push(Span::styled(
+                            app.tt("draft", "下書き"),
+                            Style::default().fg(pal.muted),
+                        ));
+                    }
+                }
+                if let Some(revs) = github.and_then(|g| g.review_requests).filter(|&n| n > 0) {
+                    branch_spans.push(Span::raw(" "));
+                    branch_spans.push(Span::styled(
+                        format!("[REV:{revs}{}]", if revs >= 100 { "+" } else { "" }),
+                        // Warning, not accent: someone else is blocked on
+                        // this user, which is why it also drives the
+                        // "needs attention" filter.
+                        Style::default().fg(pal.yellow),
+                    ));
+                }
                 if let Some(prs) = row_data.open_prs {
                     branch_spans.push(Span::raw(" "));
                     branch_spans.push(Span::styled(
@@ -834,6 +883,8 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     ));
                 }
                 if let Some(ref ci) = row_data.ci_status {
+                    // The glyph is now about the branch this repository is
+                    // on, not the repository's latest run anywhere.
                     let (ci_text, ci_style) = match classify_ci_status(ci) {
                         CiOutcome::Success => ("✓CI", Style::default().fg(pal.green)),
                         CiOutcome::Failure => ("✗CI", Style::default().fg(pal.red)),
@@ -841,6 +892,13 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     };
                     branch_spans.push(Span::raw(" "));
                     branch_spans.push(Span::styled(ci_text, ci_style));
+                } else if github.is_some_and(|g| g.ci_state == GithubState::Detached) {
+                    // On a detached HEAD there is no branch to scope the run
+                    // query to, so there is no answer — and an empty space
+                    // where the glyph goes reads as "nothing wrong". The em
+                    // dash is this table's existing mark for "no value here".
+                    branch_spans.push(Span::raw(" "));
+                    branch_spans.push(Span::styled("—CI", Style::default().fg(pal.muted)));
                 }
             }
             Row::new(vec![
@@ -1154,16 +1212,25 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                         CiOutcome::Failure => ("✗ failing", Style::default().fg(pal.red)),
                         CiOutcome::Other => (ci.as_str(), Style::default().fg(pal.yellow)),
                     };
+                    // The run list is queried scoped to the checked-out
+                    // branch, so this names that branch. Without one there is
+                    // nothing the answer could be about — "all" claimed a
+                    // repository-wide latest run that is no longer what is
+                    // fetched.
+                    let scope = match ci_pr.ci_branch.as_deref() {
+                        Some(branch) => branch.to_string(),
+                        None => app.tt("no branch", "ブランチなし"),
+                    };
                     spans.push(Span::styled(
-                        format!("  CI({}): ", ci_pr.ci_branch.as_deref().unwrap_or("all")),
+                        format!("  CI({scope}): "),
                         Style::default().fg(pal.muted),
                     ));
                     spans.push(Span::styled(
                         format!(
                             "{ci_icon} {}",
                             app.tt(
-                                "(repo latest; Home: context)",
-                                "（全体最新・Homeに取得状態）"
+                                "(branch latest; Home: context)",
+                                "（ブランチ最新・Homeに取得状態）"
                             )
                         ),
                         ci_style,
@@ -2932,8 +2999,15 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
                 help_row(
                     "C",
                     app.tt(
-                        "open the selected repository's latest CI run (Home)",
-                        "選択リポジトリ全体の最新CI実行を開く（Home）",
+                        "open the latest CI run for the branch you are on",
+                        "現在のブランチの最新CI実行を開く（Home）",
+                    ),
+                ),
+                help_row(
+                    "y",
+                    app.tt(
+                        "copy the repository path to the clipboard (OSC 52)",
+                        "リポジトリのパスをクリップボードへコピー（OSC 52）",
                     ),
                 ),
                 help_row(
@@ -3039,6 +3113,13 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
                     ),
                 ),
                 help_row(
+                    "y",
+                    app.tt(
+                        "copy the selected commit/branch/tag/stash/author/file",
+                        "選択中のコミット/ブランチ/タグ/stash/作者/ファイルをコピー",
+                    ),
+                ),
+                help_row(
                     "r",
                     app.tt(
                         "reload without leaving the tab",
@@ -3095,6 +3176,13 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
                         "blame 表示の切替（行ごとのハッシュと作者）",
                     ),
                 ),
+                help_row(
+                    "y",
+                    app.tt(
+                        "copy the shown file's path, or the commit being viewed",
+                        "表示中のファイルのパス、または表示中のコミットをコピー",
+                    ),
+                ),
             ],
         },
         HelpSection {
@@ -3138,6 +3226,13 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
                     app.tt(
                         "toggle language / change diff tool",
                         "表示言語の切替 / diff ツールの変更",
+                    ),
+                ),
+                help_row(
+                    "x",
+                    app.tt(
+                        "edit your own external commands (they appear in the O menu)",
+                        "ユーザー定義の外部コマンドを編集（O メニューに表示）",
                     ),
                 ),
                 help_row(
@@ -3228,6 +3323,13 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
                     app.tt(
                         "shell in the selected worktree",
                         "選択中のWorktreeでシェルを開く",
+                    ),
+                ),
+                help_row(
+                    "y",
+                    app.tt(
+                        "copy the selected worktree's path",
+                        "選択中のWorktreeのパスをコピー",
                     ),
                 ),
                 help_row(
@@ -3344,6 +3446,20 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
                     app.tt(
                         "wait for the editor (on for terminal editors)",
                         "エディタの終了を待つ（ターミナル用エディタで有効に）",
+                    ),
+                ),
+                help_row(
+                    "x",
+                    app.tt(
+                        "add, edit or remove the custom commands listed above",
+                        "上に並ぶ追加コマンドの登録・編集・削除",
+                    ),
+                ),
+                help_row(
+                    "y",
+                    app.tt(
+                        "copy this path to the clipboard (OSC 52)",
+                        "このパスをクリップボードへコピー（OSC 52）",
                     ),
                 ),
                 help_row("Esc / q", app.tt("close the menu", "メニューを閉じる")),
@@ -3964,6 +4080,133 @@ pub(crate) mod tests {
         // remote's age, which the columns have no room for.
         assert!(text.contains("Remote fetched"), "{text}");
         assert!(text.contains("/tmp/synced"), "{text}");
+    }
+
+    /// The branch's own pull request, its review decision and the queue of
+    /// reviews waiting on this user are collected per repository and already
+    /// drive the "needs attention" filter. The Home row showed none of them:
+    /// the most actionable signals were gathered and then hidden.
+    #[test]
+    fn home_branch_cell_shows_the_branch_pull_request_and_the_review_queue() {
+        use crate::app::HomeRow;
+        use crate::git::{BranchPr, RemoteCiPrInfo};
+
+        let repo = |name: &str| crate::config::Repository {
+            name: name.to_string(),
+            path: std::path::PathBuf::from(format!("/tmp/{name}")),
+            group: None,
+        };
+        let pr = |number: usize, decision: &str, is_draft: bool| {
+            Some(Box::new(BranchPr {
+                number,
+                title: "t".to_string(),
+                url: String::new(),
+                is_draft,
+                review_decision: Some(decision.to_string()),
+            }))
+        };
+
+        let mut app = App::new();
+        app.repos = vec![repo("chips"), repo("wip"), repo("det"), repo("quiet")];
+        app.home_rows.clear();
+        app.home_rows.insert(
+            0,
+            HomeRow {
+                branch: "fix".to_string(),
+                open_prs: Some(5),
+                github: Some(RemoteCiPrInfo {
+                    ci_state: GithubState::Ready,
+                    pr_state: GithubState::Ready,
+                    review_state: GithubState::Ready,
+                    open_prs: Some(5),
+                    branch_pr: pr(42, "CHANGES_REQUESTED", false),
+                    review_requests: Some(3),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        );
+        app.home_rows.insert(
+            1,
+            HomeRow {
+                branch: "b".to_string(),
+                github: Some(RemoteCiPrInfo {
+                    pr_state: GithubState::Ready,
+                    branch_pr: pr(7, "APPROVED", true),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        );
+        app.home_rows.insert(
+            2,
+            HomeRow {
+                branch: "HEAD".to_string(),
+                github: Some(RemoteCiPrInfo {
+                    ci_state: GithubState::Detached,
+                    pr_state: GithubState::Ready,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        );
+        // No GitHub remote at all: this row must render exactly as it did
+        // before any of the chips above existed.
+        app.home_rows.insert(
+            3,
+            HomeRow {
+                branch: "main".to_string(),
+                ..Default::default()
+            },
+        );
+
+        let width = 110usize;
+        let text = render_to_text(&app, width as u16, 20);
+        let lines: Vec<String> = text
+            .chars()
+            .collect::<Vec<_>>()
+            .chunks(width)
+            .map(|c| c.iter().collect())
+            .collect();
+        let row = |name: &str| {
+            lines
+                .iter()
+                .find(|l| l.contains(name))
+                .unwrap_or_else(|| panic!("no row for {name:?} in:\n{text}"))
+                .clone()
+        };
+
+        let chips = row("chips");
+        for needle in ["#42", "✗rev", "[REV:3]", "[PR:5]"] {
+            assert!(chips.contains(needle), "{needle:?} missing from {chips:?}");
+        }
+        // Left to right in order of what it asks of the reader, because the
+        // cell truncates from the right.
+        let at = |needle: &str| chips.find(needle).unwrap();
+        assert!(at("#42") < at("✗rev"));
+        assert!(at("✗rev") < at("[REV:3]"));
+        assert!(at("[REV:3]") < at("[PR:5]"));
+
+        let drafted = row("wip");
+        assert!(drafted.contains("#7"), "{drafted:?}");
+        assert!(drafted.contains("✓rev"), "{drafted:?}");
+        assert!(drafted.contains("draft"), "{drafted:?}");
+        // The draft marker is what a tight cell should lose first, so it
+        // comes after the review decision.
+        assert!(drafted.find("✓rev").unwrap() < drafted.find("draft").unwrap());
+
+        // A detached HEAD has no branch to scope the run query to, so there
+        // is no CI answer — and an empty cell would read as "nothing wrong".
+        assert!(row("det").contains("—CI"), "{:?}", row("det"));
+
+        let quiet = row("quiet");
+        assert!(quiet.contains("main"), "{quiet:?}");
+        for absent in ["#", "REV", "CI", "rev"] {
+            assert!(
+                !quiet.contains(absent),
+                "{absent:?} should not appear on a row with no GitHub data: {quiet:?}"
+            );
+        }
     }
 
     #[test]
@@ -5144,12 +5387,41 @@ mod footer_and_help_tests {
             "back to the repository",
             "t / e / l / g",
             "wait for the editor",
+            // `y` (copy the identifier under the cursor) and `x` (edit the
+            // user-defined external commands) were reachable on four screens
+            // and in the tools menu without appearing here at all.
+            "copy the repository path",
+            "copy the selected commit/branch/tag",
+            "copy the shown file's path",
+            "copy the selected worktree's path",
+            "edit your own external commands",
+            "add, edit or remove the custom commands",
+            "copy this path to the clipboard",
         ] {
             assert!(
                 text.contains(needle),
                 "{needle:?} missing from the help:\n{text}"
             );
         }
+    }
+
+    /// The footer is the other half of discoverability: a key documented
+    /// only in the help is one nobody finds while working.
+    #[test]
+    fn the_copy_and_custom_command_keys_reach_the_footer() {
+        let mut app = home_app();
+        for screen in [Screen::Home, Screen::Repo, Screen::Diff, Screen::Workspace] {
+            app.screen = screen;
+            assert!(
+                app.footer_hints().iter().any(|(k, _)| k == "y"),
+                "no y hint on {screen:?}"
+            );
+        }
+        app.screen = Screen::Settings;
+        assert!(
+            app.footer_hints().iter().any(|(k, _)| k == "x"),
+            "no x hint on the Settings screen"
+        );
     }
 
     #[test]

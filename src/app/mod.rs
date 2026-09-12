@@ -722,6 +722,7 @@ impl App {
                 pair("m", "note", "メモ"),
                 pair("[/]", "errors", "取得失敗"),
                 pair("Enter/O", "open tools", "ツールで開く"),
+                pair("y", "copy", "コピー"),
                 pair("t", "shell", "シェル"),
                 pair("r", "reload", "再読込"),
                 pair("Esc", "Home", "Home"),
@@ -733,10 +734,11 @@ impl App {
                 pair("/", "filter", "絞込"),
                 pair("t", "shell", "シェル"),
                 pair("O", "open tools", "ツールで開く"),
+                pair("y", "copy", "コピー"),
                 pair("P/F", "pull/fetch all", "一括P/F"),
                 pair("M", "members", "横断メンバー"),
                 pair("S", "search commits", "コミット検索"),
-                pair("n", "needs attention", "要対応"),
+                pair("n", "attention", "要対応"),
                 pair("C", "CI run", "CI実行"),
                 pair("W", "worktrees", "横断Worktree"),
                 pair("o", "sort", "並替"),
@@ -769,6 +771,7 @@ impl App {
                     ],
                     RepoTab::Worktrees => vec![pair("enter/t", "shell", "シェル起動")],
                 });
+                h.push(pair("y", "copy", "コピー"));
                 h.push(pair("t", "shell", "シェル"));
                 h.push(pair("r", "reload", "再読込"));
                 h.push(pair("?", "help", "ヘルプ"));
@@ -798,6 +801,7 @@ impl App {
                     pair("b", "blame", "blame"),
                     pair("t", "shell", "シェル"),
                     pair("O", "open tools", "ツールで開く"),
+                    pair("y", "copy", "コピー"),
                     pair("?", "help", "ヘルプ"),
                     pair("esc", "back", "戻る"),
                     pair("q", "quit", "終了"),
@@ -817,6 +821,7 @@ impl App {
                     h.push(pair("a/e/d", "add/edit/del", "追加/編集/削除"));
                 }
                 h.push(pair("l", "lang", "言語"));
+                h.push(pair("x", "custom commands", "追加コマンド"));
                 h.push(pair("i", "auto-refresh", "自動更新"));
                 h.push(pair("T", "theme", "テーマ"));
                 h.push(pair("?", "help", "ヘルプ"));

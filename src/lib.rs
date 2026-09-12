@@ -17,6 +17,7 @@ use crossterm::{cursor, execute};
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use std::time::Duration;
 
 pub use app::{App, RepoTab, Screen, SettingsTab};
@@ -32,11 +33,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// thing this adds — the path is never written to `config.json`.
 pub fn run_with_focus(focus: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     let orig_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        let _ = execute!(io::stdout(), DisableMouseCapture);
-        ratatui::restore();
-        orig_hook(info);
-    }));
+    // The hook is process-wide, but only this thread owns the terminal: it is
+    // the one that entered raw mode and the alternate screen, and the one
+    // that keeps drawing. Record its id now so the hook can tell its own
+    // panic from a worker's.
+    std::panic::set_hook(terminal_panic_hook(
+        std::thread::current().id(),
+        Arc::new(restore_terminal),
+        orig_hook,
+    ));
 
     enter_tui();
     let mut terminal = ratatui::init();
@@ -53,6 +58,39 @@ pub fn run_with_focus(focus: Option<PathBuf>) -> Result<(), Box<dyn std::error::
 
 fn enter_tui() {
     let _ = execute!(io::stdout(), EnableMouseCapture);
+}
+
+/// Hand the terminal back to the shell: leave mouse reporting, raw mode and
+/// the alternate screen.
+fn restore_terminal() {
+    let _ = execute!(io::stdout(), DisableMouseCapture);
+    ratatui::restore();
+}
+
+type PanicHook = Box<dyn Fn(&std::panic::PanicHookInfo<'_>) + Sync + Send + 'static>;
+
+/// A panic hook that restores the terminal *only* for a panic on the thread
+/// that owns it (`ui_thread`), then defers to `orig`.
+///
+/// Restoring unconditionally was wrong once worker jobs became survivable: a
+/// panicking job is caught by `catch_unwind` in the worker pool and reported
+/// as that repository's failure, so the event loop keeps running and keeps
+/// drawing — into a terminal this hook had already dropped out of raw mode
+/// and the alternate screen. A worker panic must leave the display alone.
+///
+/// `restore` is injected so the decision can be tested without a real
+/// terminal.
+fn terminal_panic_hook(
+    ui_thread: std::thread::ThreadId,
+    restore: Arc<dyn Fn() + Sync + Send + 'static>,
+    orig: PanicHook,
+) -> PanicHook {
+    Box::new(move |info| {
+        if std::thread::current().id() == ui_thread {
+            restore();
+        }
+        orig(info);
+    })
 }
 
 fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> io::Result<()> {
@@ -314,6 +352,58 @@ mod tests {
     }
 
     use super::*;
+
+    /// A worker-thread panic must not drag the display out of raw mode and
+    /// the alternate screen: the worker pool catches the unwind and reports
+    /// it as that repository's failure, so the event loop keeps running and
+    /// keeps drawing.
+    ///
+    /// The hook is process-wide, so this installs one for the duration of the
+    /// test. It cannot pick up another test's panic — the injected action
+    /// only runs for a panic on *this* thread — and `orig` is a no-op so the
+    /// two deliberate panics below stay out of the test log (a panic on a
+    /// spawned thread escapes libtest's per-test output capture).
+    #[test]
+    fn only_a_panic_on_the_ui_thread_restores_the_terminal() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let restores = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&restores);
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(terminal_panic_hook(
+            std::thread::current().id(),
+            Arc::new(move || {
+                counter.fetch_add(1, Ordering::SeqCst);
+            }),
+            Box::new(|_| {}),
+        ));
+
+        let worker = std::thread::spawn(|| {
+            panic!("a worker job blew up");
+        });
+        let worker_panicked = worker.join().is_err();
+        let after_worker = restores.load(Ordering::SeqCst);
+
+        let own = std::panic::catch_unwind(|| {
+            panic!("the UI thread blew up");
+        });
+        let after_ui = restores.load(Ordering::SeqCst);
+
+        // Put the real hook back before asserting, so a failure here does not
+        // leave every later panic in this process silenced.
+        std::panic::set_hook(previous);
+
+        assert!(worker_panicked);
+        assert_eq!(
+            after_worker, 0,
+            "a worker panic must leave the terminal alone"
+        );
+        assert!(own.is_err());
+        assert_eq!(
+            after_ui, 1,
+            "a panic on the thread that owns the terminal must restore it"
+        );
+    }
 
     /// `run_external` spawns the resolved program with its working directory
     /// set to the repository being viewed, so a *relative* program name would
