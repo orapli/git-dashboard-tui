@@ -892,13 +892,15 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     };
                     branch_spans.push(Span::raw(" "));
                     branch_spans.push(Span::styled(ci_text, ci_style));
-                } else if github.is_some_and(|g| g.ci_state == GithubState::Detached) {
-                    // On a detached HEAD there is no branch to scope the run
-                    // query to, so there is no answer — and an empty space
-                    // where the glyph goes reads as "nothing wrong". The em
-                    // dash is this table's existing mark for "no value here".
+                } else if let Some(unknown) = github.and_then(ci_unknown_mark) {
+                    // Every way of *not* having an answer used to render as
+                    // the same empty space, which reads as "nothing wrong" —
+                    // the failure this mark exists to prevent. A detached
+                    // HEAD has no branch to scope the query to; a timeout or
+                    // a failed fetch means the question was never answered.
+                    // The em dash is this table's existing "no value here".
                     branch_spans.push(Span::raw(" "));
-                    branch_spans.push(Span::styled("—CI", Style::default().fg(pal.muted)));
+                    branch_spans.push(Span::styled(unknown, Style::default().fg(pal.muted)));
                 }
             }
             Row::new(vec![
@@ -969,6 +971,18 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     // Remember where the viewport ended up so handle_mouse_click can turn a
     // screen row back into a repository index.
     app.home_offset.set(state.offset());
+}
+
+/// The mark for a CI answer the row does not have, or `None` when the state
+/// is one where silence is correct (no GitHub remote, nothing fetched yet,
+/// a repository with no runs at all).
+fn ci_unknown_mark(info: &crate::git::RemoteCiPrInfo) -> Option<&'static str> {
+    match info.ci_state {
+        GithubState::Detached => Some("—CI"),
+        GithubState::TimedOut => Some("⏱CI"),
+        GithubState::Failed => Some("?CI"),
+        _ => None,
+    }
 }
 
 /// Width `Tabs` needs for these labels: each is padded by a space on both

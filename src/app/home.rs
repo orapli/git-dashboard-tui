@@ -18,6 +18,8 @@ pub struct HomeCounts {
 impl App {
     pub fn home_counts(&self) -> HomeCounts {
         let mut counts = HomeCounts::default();
+        // Hoisted: this used to be read once per repository inside the loop.
+        let now = chrono::Utc::now().timestamp();
         for i in filter_repo_indices(&self.repos, &self.home_filter, self.group_filter.as_deref()) {
             if let Some(row) = self.home_rows.get(&i) {
                 counts.attention += usize::from(needs_attention(row));
@@ -32,7 +34,7 @@ impl App {
                 counts.dirty += usize::from(tracked > 0);
                 counts.untracked += usize::from(untracked > 0);
                 counts.sync += usize::from(row.ahead > 0 || row.behind > 0);
-                let now = chrono::Utc::now().timestamp();
+
                 let unverified = row.github.as_ref().map_or(
                     row.ci_status.is_some() || row.open_prs.is_some(),
                     |info| {
