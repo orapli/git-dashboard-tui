@@ -1,6 +1,7 @@
 rust_i18n::i18n!("locales", fallback = "en");
 
 pub mod app;
+pub mod cli;
 pub mod colors;
 pub mod config;
 pub mod git;
@@ -21,6 +22,13 @@ pub use colors::Palette;
 pub use git::TimeSpan;
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+    run_with_focus(None)
+}
+
+/// As [`run`], but starting with the repository at `focus` shown and selected.
+/// It is an *ephemeral* view: see [`cli::focus_repository`], which is the only
+/// thing this adds — the path is never written to `config.json`.
+pub fn run_with_focus(focus: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     let orig_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let _ = execute!(io::stdout(), DisableMouseCapture);
@@ -31,6 +39,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     enter_tui();
     let mut terminal = ratatui::init();
     let mut app = App::new();
+    if let Some(path) = focus {
+        cli::focus_repository(&mut app, path);
+    }
     let result = event_loop(&mut terminal, &mut app);
     leave_tui();
     ratatui::restore();
