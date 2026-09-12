@@ -91,4 +91,5 @@ when needed. Do not hand-edit generated wiki pages.
 
 - [v0.4.0 reassessment (Japanese)](product-reassessment.ja.md): improvements, release verification, evidence and remaining limitations.
 - [First-use study kit (Japanese)](usability-study.ja.md): tasks and recording sheet for a future participant study; no participant results yet.
+- [jj support plan (Japanese)](jj-support-plan.ja.md): phased plan for Jujutsu-backed repositories, with the behaviour verified against jj 0.45.1 and the open scope decisions.
 - [v0.4.1 independent evaluation (Japanese)](product-evaluation-v0.4.1.ja.md): responsiveness measurements, display-trust and hand-off findings, numbered ①–⑮; single-run timings taken before the responsiveness fixes.

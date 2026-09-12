@@ -36,6 +36,11 @@ This backlog tracks planned, upcoming, and considered features for `git-dashboar
 
 Implemented: `O` opens the shell/editor/lazygit/GitUI menu, with editor configuration and wait mode. `W` opens the local cross-repository Worktree workspace, with deduplication, purpose notes, favorites and tool launch. Per-repository Worktree inspection and shell jump remain available.
 
+- **C-2: Jujutsu (jj) support**
+  - A colocated jj repository currently displays as branchless and clean once its user runs `jj new`, because git's HEAD is detached. Phase 1 stops that misreporting; phase 2 adds a `jj` tab shown only when `.jj` exists; phase 3 adds jj-native attention signals (`conflicts()`, `divergent()`, conflicted bookmarks).
+  - Every jj invocation must pass `--ignore-working-copy`: a plain `jj log` snapshots the working copy and writes an operation, which an observation-only tool must not do.
+  - See [the jj support plan](docs/jj-support-plan.ja.md) for the verified evidence, phased scope and open decisions.
+
 ### Category D: Reporting & Export
 - **D-1: Markdown Report Generation for Daily/Weekly Standups (`y`)**
   - Copy formatted Markdown summary of commits, contributors, or repository statuses for weekly reports, 1-on-1s, or sprint retrospectives.
