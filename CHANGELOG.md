@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.5.0] - 2026-09-12
+
 A responsiveness and trust release: refreshes stop blocking the interface, the Home
 table stops reporting confident answers it does not have, and the dashboard becomes
 readable from outside its own terminal.

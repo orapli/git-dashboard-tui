@@ -935,7 +935,7 @@ def render_index() -> str:
            "git-dashboard-tui/main/install.sh | sh</code></pre>",
            '<p style="color:var(--muted);font-size:.93rem">Linux (x86_64, ARM64), macOS '
            "(Apple Silicon, Intel) and Windows (x64). Verifies the published SHA-256 and "
-           "never uses sudo. The shell installer supports Linux/macOS; Windows uses the release ZIP.</p><p>This site documents v0.4.1; the installer downloads the latest release. / このサイトはv0.4.1、インストーラは最新リリースを対象とします。 <a href='manual.html#versions'>Version details</a> · <a href='manual.ja.html#versions'>バージョンの説明</a></p></section>",
+           "never uses sudo. The shell installer supports Linux/macOS; Windows uses the release ZIP.</p><p>This site documents v0.5.0; the installer downloads the latest release. / このサイトはv0.5.0、インストーラは最新リリースを対象とします。 <a href='manual.html#versions'>Version details</a> · <a href='manual.ja.html#versions'>バージョンの説明</a></p></section>",
            "<section><h2>What it is</h2>", '<div class="grid">']
     for title, body in INDEX["points"]:
         out.append(f'<div class="card"><h3>{esc(title[EN])}</h3><p>{body[EN]}</p></div>')

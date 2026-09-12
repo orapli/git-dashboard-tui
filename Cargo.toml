@@ -1,6 +1,6 @@
 [package]
 name = "git-dashboard-tui"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.88"
 description = "Fast, multi-repository Git dashboard with interactive TUI, commit graphs, Worktree support, diff views, and contributor analytics"

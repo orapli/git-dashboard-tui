@@ -1,15 +1,12 @@
 # Keyboard and configuration reference
 
-Version v0.4.1 adds mouse selection for Settings and Repository Finder,
-plus title-bar navigation and result clicks.
+Version v0.5.0 adds the command line and `--json`, commit-search filters, `y` to copy,
+user-defined work-tool commands, branch-scoped CI and pull-request signals, and a Home
+row that distinguishes unknown from fine.
 The title bar provides buttons for Back, Home, and Navigate. Navigate opens Settings,
 Worktrees, Global Members, or Commit Search; `Esc` closes its menu.
 
-Items marked *(main)* have landed on `main` and are not in v0.4.1: the command line,
-the commit-search filters, `y`, user-defined work-tool commands, branch-scoped CI and
-the Home unknown/failure states.
-
-Covers v0.4.1. [User manual](manual.html) · [README](../README.md)
+Covers v0.5.0. [User manual](manual.html) · [README](../README.md)
 
 ## Keybindings
 
@@ -24,7 +21,7 @@ Covers v0.4.1. [User manual](manual.html) · [README](../README.md)
 | `j` / `k` (or `↓` / `↑`) | Move selection |
 | `g` / `G` | Jump to top / bottom of list |
 | `t` | Open `$SHELL` in the current repository<br>(except the Contributors tab, where `t` toggles member status) |
-| `y` | Copy the identifier for the current selection *(main)* |
+| `y` | Copy the identifier for the current selection |
 | **Mouse wheel** | Scroll lists, commit logs, diff views, and the help screen |
 | **Mouse click** | Switch tabs or select items directly |
 | **Click a column header** | Sort the Home list by that column; click again to reverse |
@@ -46,8 +43,8 @@ Covers v0.4.1. [User manual](manual.html) · [README](../README.md)
 | `e` | Rename repository alias |
 | `o` | Cycle sort order — name, branch, sync, dirty, updated, each ↑ and ↓. The sorted column is marked ▲ / ▼ in the header, and can also be set by clicking it. |
 | `[` / `]` | Cycle repository group filter |
-| `n` | Toggle **needs-attention** filter — a failing CI run on this branch, an unresolved conflict, an interrupted operation, a registration that could not be read, a pull request waiting on your review, or changes requested on this branch’s pull request *(main)* |
-| `C` | Open the GitHub CI run for the selected repository’s current branch *(main)* |
+| `n` | Toggle **needs-attention** filter — a failing CI run on this branch, an unresolved conflict, an interrupted operation, a registration that could not be read, a pull request waiting on your review, or changes requested on this branch’s pull request |
+| `C` | Open the GitHub CI run for the selected repository’s current branch |
 | `O` | Open the shell / editor / lazygit / GitUI menu |
 | `W` | Browse local worktrees across repositories |
 | `S` | **Cross-repo commit message search** |
@@ -107,7 +104,7 @@ Covers v0.4.1. [User manual](manual.html) · [README](../README.md)
 | `d` | Delete selected repository / member |
 | `Space` / `t` | Toggle member active status (Members tab) |
 | `c` | Set external diff tool (empty = built-in viewer) |
-| `x` | Add, edit or delete user-defined work-tool commands *(main)* |
+| `x` | Add, edit or delete user-defined work-tool commands |
 | `l` | Toggle language (English / 日本語) |
 | `i` | Cycle **auto-refresh** interval (off / 30s / 1m / 5m) |
 | `T` | Toggle **theme** (Catppuccin Mocha / Latte) |
@@ -117,8 +114,8 @@ Covers v0.4.1. [User manual](manual.html) · [README](../README.md)
 | Key | Action |
 |---|---|
 | `/` | Start a new search |
-| `author:` / `path:` | Limit to an author or a path — `author:jane path:src/` *(main)* |
-| `since:` / `until:` | Limit to a date range — `since:2.weeks until:2024-01-01` *(main)* |
+| `author:` / `path:` | Limit to an author or a path — `author:jane path:src/` |
+| `since:` / `until:` | Limit to a date range — `since:2.weeks until:2024-01-01` |
 | `Enter` | Open the selected commit's diff (jumps into its repository) |
 | `Esc` | Back to Home |
 
@@ -165,7 +162,7 @@ repositories reached it.
 | `Enter` / `O` | Tools menu for the selected worktree |
 | `t` | Shell in the selected worktree |
 | `r` | Refresh in the background |
-| `[` / `]` | Show the previous / next problem — first the repositories whose worktree list could not be read, then the individual rows whose directory could not be inspected *(main)* |
+| `[` / `]` | Show the previous / next problem — first the repositories whose worktree list could not be read, then the individual rows whose directory could not be inspected |
 
 A row whose directory could not be inspected reads `unknown` instead of `Dirty ?`, is
 counted in the header's `unknown` total rather than absorbed into a healthy count, and
@@ -176,11 +173,11 @@ carries its own reason in the `[` / `]` inspector.
 | Key | Action |
 |---|---|
 | `t` / `e` / `l` / `g` | Shell / editor / lazygit / GitUI |
-| `1` – `6` | Run the matching user-defined command *(main)* |
+| `1` – `6` | Run the matching user-defined command |
 | `c` | Set editor command (default: `code`) |
 | `w` | Wait for editor (default: off; enable for terminal editors) |
-| `x` | Add, edit or delete user-defined commands *(main)* |
-| `y` | Copy this path *(main)* |
+| `x` | Add, edit or delete user-defined commands |
+| `y` | Copy this path |
 | `Esc` / `q` | Close menu |
 
 See the [manual](manual.html#editor-examples) for command examples and support limits.
@@ -198,10 +195,10 @@ above a size limit.
 | Cell | Meaning |
 |---|---|
 | `↑2 ↓1` | Commits ahead of / behind the upstream, as of the last fetch |
-| `↑? ↓?` | There is nothing to compare against — no remote, or a branch that was never pushed. Which of the two is named in the selected-repository panel *(main)* |
-| `2M 5?` | Two tracked files changed and five untracked files. A row restored from an older cache shows one unsuffixed total instead of inventing an attribution *(main)* |
+| `↑? ↓?` | There is nothing to compare against — no remote, or a branch that was never pushed. Which of the two is named in the selected-repository panel |
+| `2M 5?` | Two tracked files changed and five untracked files. A row restored from an older cache shows one unsuffixed total instead of inventing an attribution |
 | `0` | A clean working tree |
-| `⚠ path missing` / `⚠ not a git repo` / `⚠ unreadable` | The registration could not be read at all. Every other cell shows `—`, the panel prints the full reason, and `n` surfaces the row *(main)* |
+| `⚠ path missing` / `⚠ not a git repo` / `⚠ unreadable` | The registration could not be read at all. Every other cell shows `—`, the panel prints the full reason, and `n` surfaces the row |
 | `…` | Not loaded yet |
 | Spinner and an operation name | A pull, fetch or row refresh is running; it replaces the Sync cell, which is the value it is about to change |
 
@@ -209,22 +206,22 @@ The selected-repository panel shows two ages side by side, because they answer d
 questions: **Local read (working tree)** is when the dashboard last ran git here, and
 **Remote fetched (↑↓)** is the modification time of `FETCH_HEAD` — the age of the ahead/behind
 counts, which only a fetch can refresh. It reads `never fetched`, `not recorded`, or
-`unavailable (remote repo)` for an `ssh://` entry *(main)*.
+`unavailable (remote repo)` for an `ssh://` entry.
 
 The CI line names the branch its answer is about, and its state is one of ready, no runs,
 not fetched, unauthenticated, fetch failed, `gh` not installed, SSH unsupported,
 no branch (detached HEAD) or timed out. The PR line shows the open pull-request count, this
 branch's own pull request with its draft state and review decision, and how many pull requests
-are waiting on your review *(main)*.
+are waiting on your review.
 
 ## Command line
 
 | Form | Effect |
 |---|---|
 | `git-dashboard-tui` | Start the dashboard |
-| `git-dashboard-tui PATH` | Start focused on the repository at PATH *(main)* |
-| `git-dashboard-tui --json` | Print a status snapshot of the registered repositories and exit *(main)* |
-| `git-dashboard-tui PATH --json` | Snapshot of that one repository *(main)* |
+| `git-dashboard-tui PATH` | Start focused on the repository at PATH |
+| `git-dashboard-tui --json` | Print a status snapshot of the registered repositories and exit |
+| `git-dashboard-tui PATH --json` | Snapshot of that one repository |
 | `-h` / `--help` · `-V` / `--version` | Usage / version |
 | `--` | End flag parsing, so a directory really named `--json` can still be opened |
 
@@ -285,7 +282,7 @@ fields later. `schema_version` is bumped only for a breaking change: adding a fi
 {
   "schema": "git-dashboard-tui.status-snapshot",
   "schema_version": 1,
-  "tool_version": "0.4.1",
+  "tool_version": "0.5.0",
   "generated_at": "2026-09-12T09:15:04Z",
   "generated_at_unix": 1789204504,
   "repository_count": 1,
