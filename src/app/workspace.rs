@@ -107,6 +107,44 @@ fn porcelain_count(status: &str) -> usize {
 }
 
 impl App {
+    /// The screen `?` was opened from.
+    ///
+    /// The help renderer leads with the keys for that screen, so it needs to
+    /// know it; `help_return` itself stays private so that only the key
+    /// handler can set it.
+    pub fn help_context(&self) -> Screen {
+        self.help_return.unwrap_or(Screen::Home)
+    }
+
+    /// Everything the `[` / `]` inspector can step through: the repositories
+    /// whose worktree list could not be read at all, then the individual
+    /// worktrees whose state could not be determined.
+    ///
+    /// Row failures used to be reachable only by selecting that exact row,
+    /// so a broken row below the fold had no way of announcing itself.
+    pub fn workspace_issues(&self) -> Vec<String> {
+        self.workspace
+            .errors
+            .iter()
+            .cloned()
+            .chain(self.workspace.rows.iter().filter_map(|row| {
+                row.error
+                    .as_ref()
+                    .map(|e| format!("{}: {}: {e}", row.parent, row.path.display()))
+            }))
+            .collect()
+    }
+
+    /// Rows whose directory could not be inspected. They are not clean rows,
+    /// and the header must not count them as such.
+    pub fn workspace_unknown(&self) -> usize {
+        self.workspace
+            .rows
+            .iter()
+            .filter(|row| row.error.is_some())
+            .count()
+    }
+
     pub fn workspace_note(&self, path: &std::path::Path) -> config::WorktreeNote {
         self.prefs
             .worktree_notes
@@ -223,18 +261,12 @@ impl App {
             }
             KeyCode::Char('r') => self.reload_workspace(),
             KeyCode::Char('[') => {
-                self.workspace.error_selected = move_index(
-                    self.workspace.error_selected,
-                    self.workspace.errors.len(),
-                    -1,
-                );
+                let len = self.workspace_issues().len();
+                self.workspace.error_selected = move_index(self.workspace.error_selected, len, -1);
             }
             KeyCode::Char(']') => {
-                self.workspace.error_selected = move_index(
-                    self.workspace.error_selected,
-                    self.workspace.errors.len(),
-                    1,
-                );
+                let len = self.workspace_issues().len();
+                self.workspace.error_selected = move_index(self.workspace.error_selected, len, 1);
             }
             KeyCode::Down | KeyCode::Char('j') => self.move_workspace(1),
             KeyCode::Up | KeyCode::Char('k') => self.move_workspace(-1),
@@ -418,6 +450,37 @@ mod tests {
         );
         assert_eq!(count, 1);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// A row whose directory could not be inspected is neither clean nor
+    /// invisible: it has to be counted, and its reason has to be reachable
+    /// from the `[` / `]` inspector rather than only from its own row.
+    #[test]
+    fn row_failures_join_the_issue_inspector_and_the_unknown_count() {
+        let mut a = App::new();
+        a.screen = Screen::Workspace;
+        a.workspace.rows.push(row("/clean"));
+        let mut broken = row("/broken");
+        broken.dirty = None;
+        broken.last_commit = String::new();
+        broken.error = Some("no such file or directory".into());
+        a.workspace.rows.push(broken);
+        a.workspace.errors = vec!["parent: cannot list worktrees".into()];
+
+        assert_eq!(a.workspace_unknown(), 1);
+        let issues = a.workspace_issues();
+        assert_eq!(issues.len(), 2);
+        assert!(issues[0].contains("cannot list worktrees"));
+        assert!(
+            issues[1].contains("/broken") && issues[1].contains("no such file"),
+            "row failure missing from the inspector: {issues:?}"
+        );
+
+        // `]` used to stop at the repository-level errors.
+        a.handle_key(KeyEvent::from(KeyCode::Char(']')));
+        assert_eq!(a.workspace.error_selected, 1);
+        a.handle_key(KeyEvent::from(KeyCode::Char('[')));
+        assert_eq!(a.workspace.error_selected, 0);
     }
 
     #[test]

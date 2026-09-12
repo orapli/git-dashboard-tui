@@ -320,15 +320,14 @@ fn draw_footer(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
 }
 
 fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    // Row failures belong in the same inspector as whole-repository ones:
+    // a row that could not be read is the only place its reason exists.
+    let issues = app.workspace_issues();
     let parts = Layout::vertical([
         Constraint::Length(1),
         Constraint::Min(3),
         Constraint::Length(4),
-        Constraint::Length(if app.workspace.errors.is_empty() {
-            0
-        } else {
-            4
-        }),
+        Constraint::Length(if issues.is_empty() { 0 } else { 4 }),
     ])
     .split(area);
     let indices = app.filtered_workspace();
@@ -340,19 +339,28 @@ fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     } else {
         app.tt("ready", "取得完了")
     };
-    frame.render_widget(
-        Paragraph::new(format!(
-            "{} / {}  {}  SSH: {}  {}: {}  / {}",
-            indices.len(),
-            app.workspace.rows.len(),
-            state,
-            app.workspace.skipped_ssh,
-            app.tt("errors", "取得失敗"),
-            app.workspace.errors.len(),
-            app.workspace.filter
-        )),
-        parts[0],
-    );
+    // "ready, errors: 0" while rows read "?" told the user everything was
+    // fine when nothing had been learned about those rows at all.
+    let unknown = app.workspace_unknown();
+    let mut header = vec![Span::raw(format!(
+        "{} / {}  {}  SSH: {}  {}: {}  ",
+        indices.len(),
+        app.workspace.rows.len(),
+        state,
+        app.workspace.skipped_ssh,
+        app.tt("errors", "取得失敗"),
+        app.workspace.errors.len(),
+    ))];
+    header.push(Span::styled(
+        format!("{}: {unknown}", app.tt("unknown", "状態不明")),
+        Style::default().fg(if unknown == 0 {
+            pal.subtext
+        } else {
+            pal.yellow
+        }),
+    ));
+    header.push(Span::raw(format!("  / {}", app.workspace.filter)));
+    frame.render_widget(Paragraph::new(Line::from(header)), parts[0]);
     let rows = indices.iter().map(|&i| {
         let r = &app.workspace.rows[i];
         let note = app.workspace_note(&r.path);
@@ -364,8 +372,18 @@ fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             },
             r.parent.clone(),
             r.branch.clone(),
-            r.dirty.map(|n| n.to_string()).unwrap_or_else(|| "?".into()),
-            r.last_commit.chars().take(16).collect(),
+            match r.dirty {
+                Some(n) => n.to_string(),
+                // A bare "?" read as "clean, probably". Say which it is: the
+                // collector always fills in either a count or a reason.
+                None if r.error.is_some() => app.tt("unknown", "状態不明"),
+                None => "…".into(),
+            },
+            if r.last_commit.is_empty() && r.error.is_some() {
+                "—".into()
+            } else {
+                r.last_commit.chars().take(16).collect::<String>()
+            },
             r.path
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
@@ -433,11 +451,16 @@ fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             if row.locked { "locked  " } else { "" },
             if row.prunable { "prunable  " } else { "" },
             app.workspace_note(&row.path).note,
-            row.error.clone().unwrap_or_else(|| format!(
-                "{}: {}",
-                app.tt("Checked", "取得"),
-                crate::git::format_timestamp(row.checked_at)
-            ))
+            row.error.as_ref().map_or_else(
+                || {
+                    format!(
+                        "{}: {}",
+                        app.tt("Checked", "取得"),
+                        crate::git::format_timestamp(row.checked_at)
+                    )
+                },
+                |e| format!("{}: {e}", app.tt("Unknown state", "状態不明")),
+            )
         )
     } else {
         app.tt(
@@ -449,12 +472,18 @@ fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         Paragraph::new(detail).style(Style::default().fg(pal.subtext)),
         parts[2],
     );
-    if let Some(error) = app.workspace.errors.get(app.workspace.error_selected) {
+    // Clamp rather than index: rows stream in, so the selection can outlive
+    // the list it was made against.
+    let selected_issue = app
+        .workspace
+        .error_selected
+        .min(issues.len().saturating_sub(1));
+    if let Some(error) = issues.get(selected_issue) {
         let title = format!(
             "{} {}/{}  [/] {}",
             app.tt("Errors", "取得失敗"),
-            app.workspace.error_selected + 1,
-            app.workspace.errors.len(),
+            selected_issue + 1,
+            issues.len(),
             app.tt("previous/next", "前/次")
         );
         frame.render_widget(
@@ -2552,349 +2581,649 @@ fn draw_repo_finder(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     ));
 }
 
-fn draw_help(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
-    let head = |s: String| {
-        Line::from(Span::styled(
-            s,
-            Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
-        ))
-    };
-    // One key column for every row, so the descriptions still line up
-    // once they are twice as wide in Japanese.
-    let row = |key: &str, text: String| Line::from(format!("  {key:<14} {text}"));
-    let lines = vec![
-        head(app.tt("Global", "全体")),
-        row("q / Ctrl+C", app.tt("quit", "終了")),
-        row("Esc / h", app.tt("back one screen", "1つ前の画面へ戻る")),
-        row(
-            "?",
-            app.tt(
-                "toggle this help (returns here)",
-                "このヘルプの表示切替（元の画面に戻る）",
-            ),
-        ),
-        row("/", app.tt("filter current list", "現在の一覧を絞り込む")),
-        row("g / G", app.tt("first / last", "先頭 / 末尾へ移動")),
-        row(
-            "t / T",
-            app.tt(
-                "open terminal in repo directory",
-                "リポジトリのディレクトリでターミナルを開く",
-            ),
-        ),
-        Line::from(""),
-        head(app.t("repositories")),
-        row(
-            "j k",
-            app.tt(
-                "move    enter open    a/d add/delete",
-                "移動    enter 開く    a/d 追加/削除",
-            ),
-        ),
-        row(
-            "A",
-            app.tt(
-                "scan folder and bulk import git repositories",
-                "フォルダを走査して git リポジトリを一括登録",
-            ),
-        ),
-        row(
-            "[ / ]",
-            app.tt(
-                "switch repository group filter",
-                "リポジトリのグループフィルタを切り替え",
-            ),
-        ),
-        row(
-            "P / F",
-            app.tt(
-                "bulk pull / bulk fetch all filtered repos",
-                "絞り込み中の全リポジトリへ一括 pull / fetch",
-            ),
-        ),
-        row(
-            "p / f",
-            app.tt(
-                "pull / fetch single repo",
-                "選択中のリポジトリを pull / fetch",
-            ),
-        ),
-        row(
-            "t",
-            app.tt(
-                "open terminal in repository",
-                "リポジトリでターミナルを開く",
-            ),
-        ),
-        row(
-            "M",
-            app.tt(
-                "open Global Members view (cross-repo)",
-                "全リポジトリ横断のメンバー画面を開く",
-            ),
-        ),
-        row(
-            "S",
-            app.tt(
-                "search commit messages across all repositories",
-                "全リポジトリのコミットメッセージを検索",
-            ),
-        ),
-        row(
-            "n",
-            app.tt(
-                "toggle: only repos needing attention (failing CI,",
-                "要対応のみ表示（CI 失敗・未解決のコンフリクト・",
-            ),
-        ),
-        row(
-            "",
-            app.tt(
-                "unresolved conflict, or a mid-operation merge/rebase)",
-                "中断中の merge/rebase）の切替",
-            ),
-        ),
-        row(
-            "W",
-            app.tt(
-                "cross-repository local worktrees (Home)",
-                "ローカルWorktreeを横断表示（Home）",
-            ),
-        ),
-        row(
-            "O",
-            app.tt(
-                "open shell/editor/lazygit/GitUI menu (Home, Repo, Diff)",
-                "シェル・エディタ・lazygit・GitUIメニュー（Home・詳細・diff）",
-            ),
-        ),
-        row(
-            "C",
-            app.tt(
-                "open the selected repository's latest CI run (Home)",
-                "選択リポジトリ全体の最新CI実行を開く（Home）",
-            ),
-        ),
-        row(
-            "o / e",
-            app.tt("sort repos / rename alias", "並び替え / 表示名の変更"),
-        ),
-        row(
-            "click header",
-            app.tt(
-                "sort by that column; click again to reverse",
-                "その列で並び替え。再クリックで昇降反転",
-            ),
-        ),
-        row(
-            "r / s",
-            app.tt("reload / settings", "再読み込み / 設定画面"),
-        ),
-        Line::from(""),
-        head(app.t("global_members")),
-        row(
-            "Tab / h / l",
-            app.tt(
-                "switch pane between members and repo list",
-                "メンバー一覧とリポジトリ一覧のペインを切替",
-            ),
-        ),
-        row(
-            "Enter",
-            app.tt(
-                "jump directly into selected repository",
-                "選択したリポジトリへ直接移動",
-            ),
-        ),
-        row(
-            "space / t",
-            app.tt(
-                "toggle member active / inactive",
-                "メンバーの在籍/非在籍を切替",
-            ),
-        ),
-        row(
-            "m",
-            app.tt("filter active members only", "在籍メンバーのみ表示"),
-        ),
-        row(
-            "/",
-            app.tt(
-                "search members or repositories",
-                "メンバー / リポジトリを検索",
-            ),
-        ),
-        Line::from(""),
-        head(app.t("repo_detail")),
-        Line::from(app.tt(
-            "  1 Status  2 Commits  3 Branches  4 Tags  5 Stash  6 Contributors  7 Worktrees",
-            "  1 状態  2 コミット  3 ブランチ  4 タグ  5 Stash  6 貢献者  7 ワークツリー",
-        )),
-        row(
-            "enter",
-            app.tt(
-                "commit/file/stash diff, branch log, or shell in Worktree",
-                "コミット/ファイル/stash の差分、ブランチのログ、Worktree でシェル",
-            ),
-        ),
-        row(
-            "p / f",
-            app.tt(
-                "pull / fetch this repository",
-                "このリポジトリを pull / fetch",
-            ),
-        ),
-        row(
-            "space",
-            app.tt(
-                "mark commit/tag base+target, or toggle active in Contributors",
-                "コミット/タグの比較の基準・対象を選択、貢献者タブでは在籍切替",
-            ),
-        ),
-        row(
-            "click [ ]",
-            app.tt(
-                "same as space: pick the compare base, then the target",
-                "space と同じ。比較の基準→対象を選択（再クリックで解除）",
-            ),
-        ),
-        row(
-            "click a row",
-            app.tt(
-                "select it; click the selected row again to open it",
-                "選択。選択済みの行をもう一度クリックすると開く",
-            ),
-        ),
-        row(
-            "w",
-            app.tt(
-                "cycle time span filter (All / 1w / 1m / 3m)",
-                "集計期間を切替（全期間 / 1週 / 1月 / 3月）",
-            ),
-        ),
-        row(
-            "m",
-            app.tt(
-                "filter active members only (in Contributors tab)",
-                "在籍メンバーのみ表示（貢献者タブ）",
-            ),
-        ),
-        row(
-            "i",
-            app.tt(
-                "always open builtin TUI diff",
-                "常に内蔵の TUI 差分ビューアで開く",
-            ),
-        ),
-        row(
-            "c",
-            app.tt(
-                "set external diff (empty = builtin, e.g. hunk)",
-                "外部 diff ツールを設定（空欄で内蔵、例: hunk）",
-            ),
-        ),
-        row(
-            "r",
-            app.tt(
-                "reload without leaving the tab",
-                "タブを移動せずに再読み込み",
-            ),
-        ),
-        Line::from(""),
-        head(app.tt("Settings", "設定画面")),
-        row(
-            "Tab / 1 / 2",
-            app.tt(
-                "switch between Repositories and Members tabs",
-                "リポジトリ / メンバー管理タブを切替",
-            ),
-        ),
-        row(
-            "g",
-            app.tt("edit repository group", "リポジトリのグループを編集"),
-        ),
-        row(
-            "space / t",
-            app.tt(
-                "toggle member active / inactive",
-                "メンバーの在籍/非在籍を切替",
-            ),
-        ),
-        row(
-            "a / e / d",
-            app.tt(
-                "add / edit aliases / delete member or repo",
-                "追加 / 別名の編集 / メンバー・リポジトリの削除",
-            ),
-        ),
-        row(
-            "l / c",
-            app.tt(
-                "toggle language / change diff tool",
-                "表示言語の切替 / diff ツールの変更",
-            ),
-        ),
-        row(
-            "i",
-            app.tt(
-                "cycle Home auto-refresh interval (off/30s/1m/5m)",
-                "Home の自動更新間隔を切替（オフ/30秒/1分/5分）",
-            ),
-        ),
-        row(
-            "T",
-            app.tt(
-                "toggle theme (Catppuccin Mocha / Latte)",
-                "テーマを切替（Catppuccin Mocha / Latte）",
-            ),
-        ),
-        Line::from(""),
-        head(app.t("diff")),
-        row(
-            "Tab / h l",
-            app.tt("files ↔ hunks ↔ diff", "ファイル ↔ ハンク ↔ 差分 の移動"),
-        ),
-        row(
-            "n / p",
-            app.tt(
-                "next/prev hunk (wraps; highlights current)",
-                "次/前のハンク（末尾で先頭へ、現在位置を強調）",
-            ),
-        ),
-        row(
-            "[ / ]",
-            app.tt("previous/next changed file", "前/次の変更ファイル"),
-        ),
-        row(
-            "w",
-            app.tt("toggle ignore-whitespace", "空白差分を無視する切替"),
-        ),
-        row(
-            "f",
-            app.tt("toggle full-file context", "ファイル全体を表示する切替"),
-        ),
-        row(
-            "b",
-            app.tt(
-                "toggle blame gutter (hash + author per line)",
-                "blame 表示の切替（行ごとのハッシュと作者）",
-            ),
-        ),
-    ];
+/// One block of the help: the screens it answers for, its heading, and its
+/// key rows.
+struct HelpSection {
+    /// Screens this block is the primary answer for. The tools menu claims
+    /// none — its popup cannot be open at the same time as the help.
+    screens: &'static [Screen],
+    title: String,
+    rows: Vec<Line<'static>>,
+}
 
-    // The help is the discoverability backstop, and it was 58 lines rendered
-    // into whatever height the terminal had — on 30 rows, 33 of them could not
-    // be reached by any means. Scroll it, and say so in the title.
+/// One key column for every row, so the descriptions still line up once they
+/// are twice as wide in Japanese.
+fn help_row(key: &str, text: String) -> Line<'static> {
+    Line::from(format!("  {key:<14} {text}"))
+}
+
+fn help_head(text: String, pal: Palette) -> Line<'static> {
+    Line::from(Span::styled(
+        text,
+        Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
+    ))
+}
+
+fn help_note(text: String, pal: Palette) -> Line<'static> {
+    Line::from(Span::styled(text, Style::default().fg(pal.subtext)))
+}
+
+fn push_help_section(lines: &mut Vec<Line<'static>>, section: &HelpSection, pal: Palette) {
+    lines.push(help_head(section.title.clone(), pal));
+    lines.extend(section.rows.iter().cloned());
+    lines.push(Line::from(""));
+}
+
+/// Keys that work on every screen, shown right below the keys for the screen
+/// the help was opened from.
+fn help_global_section(app: &App) -> HelpSection {
+    HelpSection {
+        screens: &[],
+        title: app.tt("Global", "全体"),
+        rows: vec![
+            help_row("q / Ctrl+C", app.tt("quit", "終了")),
+            help_row(
+                "Esc / h",
+                app.tt(
+                    "back one screen (← too), or clear the filter",
+                    "1つ前の画面へ戻る（←も可）。絞り込み中は解除",
+                ),
+            ),
+            help_row(
+                "?",
+                app.tt(
+                    "toggle this help (returns here)",
+                    "このヘルプの表示切替（元の画面に戻る）",
+                ),
+            ),
+            help_row("/", app.tt("filter current list", "現在の一覧を絞り込む")),
+            help_row(
+                "j / k",
+                app.tt("move selection (↓ / ↑ too)", "選択を移動（↓ / ↑ も可）"),
+            ),
+            help_row("g / G", app.tt("first / last", "先頭 / 末尾へ移動")),
+            help_row(
+                "t / T",
+                app.tt(
+                    "open terminal in repo directory",
+                    "リポジトリのディレクトリでターミナルを開く",
+                ),
+            ),
+            help_row(
+                "wheel / click",
+                app.tt(
+                    "scroll and select; title bar: Back / Home / Navigate",
+                    "スクロール・選択。タイトルバー: Back / Home / Navigate",
+                ),
+            ),
+        ],
+    }
+}
+
+/// Every per-screen block, in the order they are listed once the current
+/// screen has been pulled to the top.
+fn help_sections(app: &App) -> Vec<HelpSection> {
+    vec![
+        HelpSection {
+            screens: &[Screen::Home],
+            title: app.t("repositories"),
+            rows: vec![
+                help_row(
+                    "j k",
+                    app.tt(
+                        "move    enter open    a/d add/delete",
+                        "移動    enter 開く    a/d 追加/削除",
+                    ),
+                ),
+                help_row(
+                    "A",
+                    app.tt(
+                        "scan folder and bulk import git repositories",
+                        "フォルダを走査して git リポジトリを一括登録",
+                    ),
+                ),
+                help_row(
+                    "[ / ]",
+                    app.tt(
+                        "switch repository group filter",
+                        "リポジトリのグループフィルタを切り替え",
+                    ),
+                ),
+                help_row(
+                    "P / F",
+                    app.tt(
+                        "bulk pull / bulk fetch all filtered repos",
+                        "絞り込み中の全リポジトリへ一括 pull / fetch",
+                    ),
+                ),
+                help_row(
+                    "p / f",
+                    app.tt(
+                        "pull / fetch single repo",
+                        "選択中のリポジトリを pull / fetch",
+                    ),
+                ),
+                help_row(
+                    "t",
+                    app.tt(
+                        "open terminal in repository",
+                        "リポジトリでターミナルを開く",
+                    ),
+                ),
+                help_row(
+                    "M",
+                    app.tt(
+                        "open Global Members view (cross-repo)",
+                        "全リポジトリ横断のメンバー画面を開く",
+                    ),
+                ),
+                help_row(
+                    "S",
+                    app.tt(
+                        "search commit messages across all repositories",
+                        "全リポジトリのコミットメッセージを検索",
+                    ),
+                ),
+                help_row(
+                    "n",
+                    app.tt(
+                        "toggle: only repos needing attention (failing CI,",
+                        "要対応のみ表示（CI 失敗・未解決のコンフリクト・",
+                    ),
+                ),
+                help_row(
+                    "",
+                    app.tt(
+                        "unresolved conflict, or a mid-operation merge/rebase)",
+                        "中断中の merge/rebase）の切替",
+                    ),
+                ),
+                help_row(
+                    "W",
+                    app.tt(
+                        "cross-repository local worktrees (Home)",
+                        "ローカルWorktreeを横断表示（Home）",
+                    ),
+                ),
+                help_row(
+                    "O",
+                    app.tt(
+                        "open shell/editor/lazygit/GitUI menu (Home, Repo, Diff)",
+                        "シェル・エディタ・lazygit・GitUIメニュー（Home・詳細・diff）",
+                    ),
+                ),
+                help_row(
+                    "C",
+                    app.tt(
+                        "open the selected repository's latest CI run (Home)",
+                        "選択リポジトリ全体の最新CI実行を開く（Home）",
+                    ),
+                ),
+                help_row(
+                    "o / e",
+                    app.tt("sort repos / rename alias", "並び替え / 表示名の変更"),
+                ),
+                help_row(
+                    "click header",
+                    app.tt(
+                        "sort by that column; click again to reverse",
+                        "その列で並び替え。再クリックで昇降反転",
+                    ),
+                ),
+                help_row(
+                    "r / s",
+                    app.tt("reload / settings", "再読み込み / 設定画面"),
+                ),
+            ],
+        },
+        HelpSection {
+            screens: &[Screen::Repo],
+            title: app.t("repo_detail"),
+            rows: vec![
+                Line::from(app.tt(
+                    "  1 Status  2 Commits  3 Branches  4 Tags  5 Stash  6 Contributors  7 Worktrees",
+                    "  1 状態  2 コミット  3 ブランチ  4 タグ  5 Stash  6 貢献者  7 ワークツリー",
+                )),
+                help_row(
+                    "Tab / [ / ]",
+                    app.tt(
+                        "previous / next tab (1 to 7 jump straight to one)",
+                        "前 / 次のタブへ移動（1〜7 で直接移動）",
+                    ),
+                ),
+                help_row(
+                    "enter",
+                    app.tt(
+                        "commit/file/stash diff, branch log, or shell in Worktree",
+                        "コミット/ファイル/stash の差分、ブランチのログ、Worktree でシェル",
+                    ),
+                ),
+                help_row(
+                    "p / f",
+                    app.tt(
+                        "pull / fetch this repository",
+                        "このリポジトリを pull / fetch",
+                    ),
+                ),
+                help_row(
+                    "space",
+                    app.tt(
+                        "mark commit/tag base+target, or toggle active in Contributors",
+                        "コミット/タグの比較の基準・対象を選択、貢献者タブでは在籍切替",
+                    ),
+                ),
+                help_row(
+                    "a / d",
+                    app.tt(
+                        "apply / drop the selected stash (Stash tab)",
+                        "選択中の stash を適用 / 破棄（Stash タブ）",
+                    ),
+                ),
+                help_row(
+                    "click [ ]",
+                    app.tt(
+                        "same as space: pick the compare base, then the target",
+                        "space と同じ。比較の基準→対象を選択（再クリックで解除）",
+                    ),
+                ),
+                help_row(
+                    "click a row",
+                    app.tt(
+                        "select it; click the selected row again to open it",
+                        "選択。選択済みの行をもう一度クリックすると開く",
+                    ),
+                ),
+                help_row(
+                    "w",
+                    app.tt(
+                        "cycle time span filter (All / 1w / 1m / 3m)",
+                        "集計期間を切替（全期間 / 1週 / 1月 / 3月）",
+                    ),
+                ),
+                help_row(
+                    "m",
+                    app.tt(
+                        "filter active members only (in Contributors tab)",
+                        "在籍メンバーのみ表示（貢献者タブ）",
+                    ),
+                ),
+                help_row(
+                    "i",
+                    app.tt(
+                        "always open builtin TUI diff",
+                        "常に内蔵の TUI 差分ビューアで開く",
+                    ),
+                ),
+                help_row(
+                    "c",
+                    app.tt(
+                        "set external diff (empty = builtin, e.g. hunk)",
+                        "外部 diff ツールを設定（空欄で内蔵、例: hunk）",
+                    ),
+                ),
+                help_row(
+                    "r",
+                    app.tt(
+                        "reload without leaving the tab",
+                        "タブを移動せずに再読み込み",
+                    ),
+                ),
+            ],
+        },
+        HelpSection {
+            screens: &[Screen::Diff],
+            title: app.t("diff"),
+            rows: vec![
+                help_row(
+                    "Tab / h l",
+                    app.tt("files ↔ hunks ↔ diff", "ファイル ↔ ハンク ↔ 差分 の移動"),
+                ),
+                help_row(
+                    "n / p",
+                    app.tt(
+                        "next/prev hunk (wraps; highlights current)",
+                        "次/前のハンク（末尾で先頭へ、現在位置を強調）",
+                    ),
+                ),
+                help_row(
+                    "[ / ]",
+                    app.tt("previous/next changed file", "前/次の変更ファイル"),
+                ),
+                help_row(
+                    "space / PgDn",
+                    app.tt(
+                        "scroll the diff a page (PgUp scrolls back)",
+                        "差分を1画面分スクロール（PgUp で戻る）",
+                    ),
+                ),
+                help_row(
+                    "enter",
+                    app.tt(
+                        "load the file (Files pane) or jump to the hunk (Hunks pane)",
+                        "ファイルを読み込む（ファイル欄）/ ハンクへ移動（ハンク欄）",
+                    ),
+                ),
+                help_row(
+                    "w",
+                    app.tt("toggle ignore-whitespace", "空白差分を無視する切替"),
+                ),
+                help_row(
+                    "f",
+                    app.tt("toggle full-file context", "ファイル全体を表示する切替"),
+                ),
+                help_row(
+                    "b",
+                    app.tt(
+                        "toggle blame gutter (hash + author per line)",
+                        "blame 表示の切替（行ごとのハッシュと作者）",
+                    ),
+                ),
+            ],
+        },
+        HelpSection {
+            screens: &[Screen::Settings],
+            title: app.tt("Settings", "設定画面"),
+            rows: vec![
+                help_row(
+                    "Tab / 1 / 2",
+                    app.tt(
+                        "switch between Repositories and Members tabs",
+                        "リポジトリ / メンバー管理タブを切替",
+                    ),
+                ),
+                help_row(
+                    "g",
+                    app.tt("edit repository group", "リポジトリのグループを編集"),
+                ),
+                help_row(
+                    "space / t",
+                    app.tt(
+                        "toggle member active / inactive",
+                        "メンバーの在籍/非在籍を切替",
+                    ),
+                ),
+                help_row(
+                    "a / e / d",
+                    app.tt(
+                        "add / edit aliases / delete member or repo",
+                        "追加 / 別名の編集 / メンバー・リポジトリの削除",
+                    ),
+                ),
+                help_row(
+                    "A",
+                    app.tt(
+                        "open the repository finder (Repositories tab)",
+                        "リポジトリ検出を開く（リポジトリタブ）",
+                    ),
+                ),
+                help_row(
+                    "l / c",
+                    app.tt(
+                        "toggle language / change diff tool",
+                        "表示言語の切替 / diff ツールの変更",
+                    ),
+                ),
+                help_row(
+                    "i",
+                    app.tt(
+                        "cycle Home auto-refresh interval (off/30s/1m/5m)",
+                        "Home の自動更新間隔を切替（オフ/30秒/1分/5分）",
+                    ),
+                ),
+                help_row(
+                    "T",
+                    app.tt(
+                        "toggle theme (Catppuccin Mocha / Latte)",
+                        "テーマを切替（Catppuccin Mocha / Latte）",
+                    ),
+                ),
+            ],
+        },
+        HelpSection {
+            screens: &[Screen::GlobalMembers],
+            title: app.t("global_members"),
+            rows: vec![
+                help_row(
+                    "Tab / h / l",
+                    app.tt(
+                        "switch pane between members and repo list",
+                        "メンバー一覧とリポジトリ一覧のペインを切替",
+                    ),
+                ),
+                help_row(
+                    "Enter",
+                    app.tt(
+                        "jump directly into selected repository",
+                        "選択したリポジトリへ直接移動",
+                    ),
+                ),
+                help_row(
+                    "space / t",
+                    app.tt(
+                        "toggle member active / inactive",
+                        "メンバーの在籍/非在籍を切替",
+                    ),
+                ),
+                help_row(
+                    "m",
+                    app.tt("filter active members only", "在籍メンバーのみ表示"),
+                ),
+                help_row(
+                    "/",
+                    app.tt(
+                        "search members or repositories",
+                        "メンバー / リポジトリを検索",
+                    ),
+                ),
+            ],
+        },
+        HelpSection {
+            screens: &[Screen::Workspace],
+            title: app.tt(
+                "Worktrees across repositories (Home W)",
+                "Worktree横断一覧（Home W）",
+            ),
+            rows: vec![
+                help_row(
+                    "/",
+                    app.tt(
+                        "search paths, branches and notes",
+                        "パス・ブランチ・用途メモを検索",
+                    ),
+                ),
+                help_row("m", app.tt("edit the purpose note", "用途メモを編集")),
+                help_row(
+                    "* / f",
+                    app.tt(
+                        "toggle favorite / show favorites only",
+                        "お気に入り切替 / お気に入りのみ表示",
+                    ),
+                ),
+                help_row(
+                    "Enter / O",
+                    app.tt(
+                        "tools menu for the selected worktree",
+                        "選択中のWorktreeのツールメニュー",
+                    ),
+                ),
+                help_row(
+                    "t",
+                    app.tt(
+                        "shell in the selected worktree",
+                        "選択中のWorktreeでシェルを開く",
+                    ),
+                ),
+                help_row(
+                    "r",
+                    app.tt("refresh in the background", "バックグラウンドで再取得"),
+                ),
+                help_row(
+                    "[ / ]",
+                    app.tt(
+                        "previous / next problem — why a row reads unknown",
+                        "前 / 次の取得失敗（状態不明の行の理由）",
+                    ),
+                ),
+            ],
+        },
+        HelpSection {
+            screens: &[Screen::CommitSearch],
+            title: app.tt("Commit search (Home S)", "コミット検索（Home S）"),
+            rows: vec![
+                help_row("/", app.tt("start a new search", "新しい検索を開始")),
+                help_row(
+                    "Enter",
+                    app.tt(
+                        "open the hit's diff inside its repository",
+                        "ヒットしたコミットの差分をそのリポジトリで開く",
+                    ),
+                ),
+                help_row(
+                    "click a hit",
+                    app.tt(
+                        "select it; click the selected hit again to open it",
+                        "選択。選択済みの行をもう一度クリックすると開く",
+                    ),
+                ),
+            ],
+        },
+        HelpSection {
+            screens: &[Screen::RepoFinder],
+            title: app.tt("Repository finder (Home A)", "リポジトリ検出（Home A）"),
+            rows: vec![
+                help_row(
+                    "space",
+                    app.tt(
+                        "toggle import selection for this row",
+                        "この行の取り込み選択を切替",
+                    ),
+                ),
+                help_row(
+                    "a",
+                    app.tt("select / deselect every row", "すべて選択 / 解除"),
+                ),
+                help_row(
+                    "Enter",
+                    app.tt(
+                        "import the selected repositories",
+                        "選択したリポジトリを取り込む",
+                    ),
+                ),
+                help_row("r", app.tt("scan a different folder", "別のフォルダを走査")),
+                help_row(
+                    "/",
+                    app.tt(
+                        "filter the discovered repositories",
+                        "検出されたリポジトリを絞り込む",
+                    ),
+                ),
+                help_row(
+                    "click [ ]",
+                    app.tt(
+                        "toggle that row's import selection",
+                        "その行の取り込み選択を切替",
+                    ),
+                ),
+                help_row("Esc / q", app.tt("cancel and go back", "取り消して戻る")),
+            ],
+        },
+        HelpSection {
+            screens: &[Screen::Log],
+            title: app.tt("Branch log", "ブランチログ"),
+            rows: vec![
+                help_row(
+                    "space / PgDn",
+                    app.tt(
+                        "scroll a page down (PgUp scrolls back)",
+                        "1画面分スクロール（PgUp で戻る）",
+                    ),
+                ),
+                help_row(
+                    "Esc / h",
+                    app.tt("back to the repository", "リポジトリ画面へ戻る"),
+                ),
+            ],
+        },
+        HelpSection {
+            screens: &[],
+            title: app.tt("Tools menu (O)", "ツールメニュー（O）"),
+            rows: vec![
+                help_row(
+                    "t / e / l / g",
+                    app.tt(
+                        "shell / editor / lazygit / GitUI",
+                        "シェル / エディタ / lazygit / GitUI",
+                    ),
+                ),
+                help_row(
+                    "c",
+                    app.tt(
+                        "set the editor command (default: code)",
+                        "エディタのコマンドを設定（既定: code）",
+                    ),
+                ),
+                help_row(
+                    "w",
+                    app.tt(
+                        "wait for the editor (on for terminal editors)",
+                        "エディタの終了を待つ（ターミナル用エディタで有効に）",
+                    ),
+                ),
+                help_row("Esc / q", app.tt("close the menu", "メニューを閉じる")),
+            ],
+        },
+    ]
+}
+
+fn draw_help(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
+    // One flat list starting at "Global" pushed the keys for the screen the
+    // user was actually on below the fold of any ordinary terminal, behind
+    // four sections they had not asked about. Lead with that screen instead,
+    // then the keys that work everywhere, then the rest — still one
+    // scrollable list, so nothing becomes unreachable.
+    let context = app.help_context();
+    let sections = help_sections(app);
+    let here = sections.iter().find(|s| s.screens.contains(&context));
+    let context_name = here.map_or_else(|| app.tt("Global", "全体"), |s| s.title.clone());
+    let mut lines = vec![
+        help_head(
+            format!("{} {}", app.tt("Keys for:", "この画面:"), context_name),
+            pal,
+        ),
+        help_note(
+            app.tt(
+                "global keys and other screens follow — j/k, g/G, wheel to scroll",
+                "この下に全画面共通のキーとほかの画面のキー。j/k・g/G・ホイールでスクロール",
+            ),
+            pal,
+        ),
+        Line::from(""),
+    ];
+    if let Some(section) = here {
+        push_help_section(&mut lines, section, pal);
+    }
+    push_help_section(&mut lines, &help_global_section(app), pal);
+    lines.push(help_note(
+        app.tt("── Other screens ──", "── ほかの画面 ──"),
+        pal,
+    ));
+    lines.push(Line::from(""));
+    for section in sections.iter().filter(|s| !s.screens.contains(&context)) {
+        push_help_section(&mut lines, section, pal);
+    }
+
+    // The help is the discoverability backstop, and it is longer than any
+    // ordinary terminal. Scroll it, and say so in the title.
     let inner_h = area.height.saturating_sub(2) as usize;
     let max_scroll = lines.len().saturating_sub(inner_h);
     let scroll = app.help_scroll.get().min(max_scroll);
     app.help_scroll.set(scroll);
+    let heading = format!("{} — {}", app.tt("Help", "ヘルプ"), context_name);
     let title = if max_scroll == 0 {
-        app.tt("Help", "ヘルプ")
+        heading
     } else {
         format!(
-            "{} ({}-{}/{})  {}",
-            app.tt("Help", "ヘルプ"),
+            "{heading} ({}-{}/{})  {}",
             scroll + 1,
             (scroll + inner_h).min(lines.len()),
             lines.len(),
@@ -3247,6 +3576,59 @@ pub(crate) mod tests {
         app.handle_key(KeyEvent::from(KeyCode::Char('[')));
         assert_eq!(app.workspace.error_selected, 0);
         assert_eq!(app.workspace.selected, 0);
+    }
+
+    /// A worktree whose directory cannot be read is not a clean worktree.
+    /// It used to render as `Dirty ?` with an empty Last commit under a
+    /// header reading "ready, errors: 0".
+    #[test]
+    fn an_uninspectable_worktree_row_is_named_counted_and_explained() {
+        use crate::app::WorkspaceRow;
+        use crossterm::event::{KeyCode, KeyEvent};
+        let mut app = App::new();
+        app.set_language_for_test(crate::config::Language::English);
+        app.screen = Screen::Workspace;
+        app.workspace.rows.push(WorkspaceRow {
+            parent: "gone".into(),
+            path: "/gone/review".into(),
+            branch: "topic".into(),
+            dirty: None,
+            last_commit: String::new(),
+            checked_at: 1,
+            locked: false,
+            prunable: false,
+            error: Some("no such file or directory".into()),
+        });
+        let text = render_to_text(&app, 120, 30);
+        assert!(
+            text.contains("unknown: 1"),
+            "the header should count the row it knows nothing about:\n{text}"
+        );
+        // The dump is one flat string of cells; 120 of them per row.
+        let cells: Vec<char> = text.chars().collect();
+        let line = cells
+            .chunks(120)
+            .map(|row| row.iter().collect::<String>())
+            .find(|l| l.contains("topic"))
+            .expect("the worktree row should be rendered");
+        assert!(
+            line.contains("unknown"),
+            "the Dirty cell should name the state, not print '?': {line}"
+        );
+        assert!(
+            line.contains("—"),
+            "an unknown last commit should be marked, not left blank: {line}"
+        );
+        assert!(
+            text.contains("no such file or directory"),
+            "the reason should be on screen:\n{text}"
+        );
+        // And the reason is in the [ / ] inspector, not only in the detail
+        // pane of whichever row happens to be selected.
+        assert!(text.contains("Errors 1/1"), "{text}");
+        app.handle_key(KeyEvent::from(KeyCode::Char(']')));
+        let text = render_to_text(&app, 120, 30);
+        assert!(text.contains("gone: /gone/review"), "{text}");
     }
 
     #[test]
@@ -4269,22 +4651,111 @@ mod footer_and_help_tests {
     fn the_help_scrolls_to_lines_a_short_terminal_cannot_show() {
         let mut app = help_app();
         let first = render_to_text(&app, 100, 24);
-        assert!(first.contains("Global"), "expected the top section first");
         assert!(
-            !first.contains("blame gutter"),
+            first.contains("Keys for:"),
+            "expected the context header first"
+        );
+        assert!(
+            !first.contains("close the menu"),
             "the last section should be below the fold at 24 rows"
         );
 
         app.handle_key(KeyEvent::from(KeyCode::Char('G')));
         let last = render_to_text(&app, 100, 24);
         assert!(
-            last.contains("blame gutter"),
+            last.contains("close the menu"),
             "G should reach the last line:\n{last}"
         );
 
         app.handle_key(KeyEvent::from(KeyCode::Char('g')));
         let back = render_to_text(&app, 100, 24);
-        assert!(back.contains("Global"), "g should return to the top");
+        assert!(back.contains("Keys for:"), "g should return to the top");
+    }
+
+    /// The keys the user needs are the ones for the screen they pressed `?`
+    /// on. They used to be four sections below the fold; now they open the
+    /// page, and everything else is still one scroll away.
+    #[test]
+    fn the_help_leads_with_the_screen_it_was_opened_from() {
+        let mut app = home_app();
+        app.screen = Screen::Workspace;
+        app.handle_key(KeyEvent::from(KeyCode::Char('?')));
+        assert_eq!(app.screen, Screen::Help);
+
+        // 24 rows: roughly what is left of a small terminal.
+        let first = render_to_text(&app, 100, 24);
+        for needle in [
+            "Worktrees across repositories (Home W)",
+            "edit the purpose note",
+            "previous / next problem",
+            // the keys that work everywhere stay in view too
+            "toggle this help",
+        ] {
+            assert!(
+                first.contains(needle),
+                "{needle:?} should be above the fold on Worktrees:\n{first}"
+            );
+        }
+        assert!(
+            !first.contains("blame gutter"),
+            "another screen's keys should not be in the way:\n{first}"
+        );
+        assert!(
+            first.contains("Help — Worktrees across repositories (Home W)"),
+            "the title should name the screen being described:\n{first}"
+        );
+
+        // Everything else is below, not gone.
+        app.handle_key(KeyEvent::from(KeyCode::Char('G')));
+        let last = render_to_text(&app, 100, 24);
+        assert!(last.contains("close the menu"), "{last}");
+
+        // `?` still toggles back to where it came from.
+        app.handle_key(KeyEvent::from(KeyCode::Char('?')));
+        assert_eq!(app.screen, Screen::Workspace);
+    }
+
+    /// docs/reference.md is the inventory of bindings. Splitting the help per
+    /// screen must not lose a section — or a row — on the way.
+    #[test]
+    fn no_documented_section_or_key_leaves_the_help() {
+        let app = help_app();
+        let text = render_to_text(&app, 130, 130);
+        for needle in [
+            // every section, including the four screens the flat list never
+            // mentioned at all
+            "Global",
+            "Repositories",
+            "Repository detail",
+            "Diff",
+            "Settings",
+            "Global Members",
+            "Worktrees across repositories (Home W)",
+            "Commit search (Home S)",
+            "Repository finder (Home A)",
+            "Branch log",
+            "Tools menu (O)",
+            // rows that only appear once, one per section
+            "q / Ctrl+C",
+            "wheel / click",
+            "P / F",
+            "click header",
+            "apply / drop the selected stash",
+            "blame gutter",
+            "Tab / 1 / 2",
+            "switch pane between members and repo list",
+            "* / f",
+            "open the hit's diff inside its repository",
+            "import the selected repositories",
+            "back to the repository",
+            "t / e / l / g",
+            "wait for the editor",
+        ] {
+            assert!(
+                text.contains(needle),
+                "{needle:?} missing from the help:\n{text}"
+            );
+        }
     }
 
     #[test]
@@ -4296,7 +4767,7 @@ mod footer_and_help_tests {
             "expected an x-y/total counter:\n{short}"
         );
         // Tall enough for every line plus borders, title bar and footer.
-        let tall = render_to_text(&app, 100, 70);
+        let tall = render_to_text(&app, 100, 130);
         assert!(
             !tall.contains("(1-"),
             "no counter when nothing is hidden:\n{tall}"
@@ -4311,7 +4782,7 @@ mod footer_and_help_tests {
         }
         let text = render_to_text(&app, 100, 24);
         assert!(
-            text.contains("blame gutter"),
+            text.contains("close the menu"),
             "over-scrolling should rest on the last page:\n{text}"
         );
     }
@@ -4334,12 +4805,12 @@ mod footer_and_help_tests {
     fn the_help_body_is_translated() {
         let mut app = help_app();
         app.handle_key(KeyEvent::from(KeyCode::Char('l'))); // no-op on Help
-        let en = render_to_text(&app, 120, 70);
+        let en = render_to_text(&app, 120, 130);
         assert!(en.contains("back one screen"));
 
         let mut app = help_app();
         app.set_language_for_test(crate::config::Language::Japanese);
-        let ja = render_to_text(&app, 120, 70);
+        let ja = render_to_text(&app, 120, 130);
         assert!(
             !ja.contains("back one screen"),
             "English prose left in the Japanese help:\n{ja}"
@@ -4349,6 +4820,8 @@ mod footer_and_help_tests {
             "blame表示の切替",
             "全リポジトリ横断メンバー",
             "リポジトリ詳細",
+            "ツールメニュー",
+            "用途メモを編集",
         ] {
             assert!(
                 frame_contains(&ja, expected),
