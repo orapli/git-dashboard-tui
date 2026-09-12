@@ -3654,8 +3654,24 @@ impl App {
                         }
                     }
                     Err(e) => {
-                        self.home_rows.remove(&index);
-                        self.error = Some(e);
+                        // A registration that cannot be read is a state, not
+                        // a transient: dropping the row renders it as "still
+                        // loading" for the rest of the session. Keep a row
+                        // carrying the reason instead — and attribute the
+                        // footer message, which otherwise showed a bare
+                        // "No such file or directory" belonging to nothing.
+                        self.error = Some(match self.repos.get(index) {
+                            Some(repo) => format!("{}: {e}", repo.name),
+                            None => e.clone(),
+                        });
+                        self.home_rows.insert(
+                            index,
+                            HomeRow {
+                                fetched_at: chrono::Utc::now().timestamp(),
+                                error: Some(e),
+                                ..Default::default()
+                            },
+                        );
                     }
                 }
                 // A row loading/failing can change filtered_home()'s length

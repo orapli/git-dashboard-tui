@@ -2,6 +2,7 @@ use super::types::*;
 use crate::config::Repository;
 use crate::git::{DiffRowKind, FileDiff, GitOpState};
 use std::collections::HashMap;
+use std::path::Path;
 
 /// First 7 characters of a commit id.
 ///
@@ -90,6 +91,9 @@ pub fn branch_pr_changes_requested(row: &HomeRow) -> bool {
 /// a matching reason line in the selected-repository panel — a flag the panel
 /// cannot explain would be worse than no flag:
 ///
+/// * a registration that could not be read at all — a moved directory, a
+///   path that is no longer a repository; nothing the dashboard can do
+///   about it, but the user has to,
 /// * a merge/rebase/cherry-pick/revert left mid-operation,
 /// * an unresolved conflict,
 /// * a failing CI run on the branch this repository is on,
@@ -104,11 +108,133 @@ pub fn branch_pr_changes_requested(row: &HomeRow) -> bool {
 /// (being a draft is a choice, not a problem), and so is an approved one:
 /// merging is a write operation this dashboard does not do.
 pub fn needs_attention(row: &HomeRow) -> bool {
-    row.op_state != GitOpState::None
+    row.error.is_some()
+        || row.op_state != GitOpState::None
         || row.conflicts > 0
         || ci_failed_on_branch(row)
         || review_requests(row) > 0
         || branch_pr_changes_requested(row)
+}
+
+/// Why a Home row could not be read, at the granularity the table cell can
+/// show. The detail stays in the message itself, which the
+/// selected-repository panel prints in full.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum HomeFailure {
+    /// The registered path is gone (moved, deleted, unmounted).
+    MissingPath,
+    /// The path exists but is not a git repository.
+    NotARepository,
+    /// Anything else: a permission error, a git that would not run, a
+    /// timeout.
+    Unreadable,
+}
+
+/// Classify a `Msg::HomeLoaded` error string.
+///
+/// String matching, because the worker channel carries the failure as a
+/// `String`. The "not a git repository" case is matched against a constant
+/// this crate emits itself, so only the OS-level messages are guesswork —
+/// and they fall back to `Unreadable`, which is never wrong, only vaguer.
+pub fn classify_home_error(err: &str) -> HomeFailure {
+    if err.contains(crate::git::NOT_A_REPOSITORY) {
+        HomeFailure::NotARepository
+    } else if err.contains("os error 2")
+        || err.contains("No such file or directory")
+        // Windows: ERROR_PATH_NOT_FOUND / ERROR_FILE_NOT_FOUND.
+        || err.contains("os error 3")
+        || err.contains("cannot find the path")
+        || err.contains("cannot find the file")
+    {
+        HomeFailure::MissingPath
+    } else {
+        HomeFailure::Unreadable
+    }
+}
+
+/// A row's uncommitted count split into (changes to tracked files, untracked
+/// files), or `None` when the split is not known.
+///
+/// Not knowing is a real case rather than a theoretical one: a row restored
+/// from a cache written before the split existed carries only the total, and
+/// reporting that total as "all tracked" would be a made-up attribution.
+/// Callers render the bare total in that case, which is what the row showed
+/// before this existed anyway.
+pub fn dirty_split(row: &HomeRow) -> Option<(usize, usize)> {
+    if row.dirty > 0 && row.tracked_changes == 0 && row.untracked == 0 {
+        None
+    } else {
+        Some((row.tracked_changes, row.untracked))
+    }
+}
+
+/// Shorten a repository path for the Home table's narrow `Path` column:
+/// `$HOME` becomes `~`, and anything still too wide loses whole components
+/// from the *middle*.
+///
+/// The middle is what repeats — registered repositories almost all sit under
+/// the same one or two parent directories — so truncating from the right (as
+/// a table cell does on its own) drops the only part that identifies the row
+/// and leaves a column of identical prefixes.
+pub fn shorten_path(path: &Path, max_width: usize) -> String {
+    shorten_path_with_home(path, home_dir().as_deref(), max_width)
+}
+
+fn home_dir() -> Option<std::path::PathBuf> {
+    directories::UserDirs::new().map(|d| d.home_dir().to_path_buf())
+}
+
+pub fn shorten_path_with_home(path: &Path, home: Option<&Path>, max_width: usize) -> String {
+    use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+
+    let mut text = path.display().to_string();
+    if let Some(home) = home.filter(|h| !h.as_os_str().is_empty())
+        && let Ok(rest) = path.strip_prefix(home)
+    {
+        text = if rest.as_os_str().is_empty() {
+            "~".to_string()
+        } else {
+            format!("~{}{}", std::path::MAIN_SEPARATOR, rest.display())
+        };
+    }
+    if text.width() <= max_width {
+        return text;
+    }
+
+    // Windows paths display with `\`; everything else (including the `~`
+    // rewrite above) with `/`.
+    let sep = if text.contains('/') {
+        '/'
+    } else {
+        std::path::MAIN_SEPARATOR
+    };
+    let parts: Vec<&str> = text.split(sep).collect();
+    let head = parts.first().copied().unwrap_or("");
+    let joiner = sep.to_string();
+    // Growing `start` drops one more leading component, so the first
+    // candidate that fits is also the one that keeps the most of the tail.
+    for start in 1..parts.len() {
+        let candidate = format!("{head}{sep}…{sep}{}", parts[start..].join(&joiner));
+        if candidate.width() <= max_width {
+            return candidate;
+        }
+    }
+
+    // Not even the last component fits: keep its end, since that is where
+    // repository names differ from one another.
+    let leaf = parts.last().copied().unwrap_or("");
+    let budget = max_width.saturating_sub(1);
+    let mut kept = String::new();
+    let mut width = 0usize;
+    for c in leaf.chars().rev() {
+        let cw = UnicodeWidthChar::width(c).unwrap_or(0);
+        if width + cw > budget {
+            break;
+        }
+        kept.insert(0, c);
+        width += cw;
+    }
+    format!("…{kept}")
 }
 
 pub fn filter_repo_indices(

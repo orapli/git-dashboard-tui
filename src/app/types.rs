@@ -167,14 +167,33 @@ pub struct HomeRow {
     pub fetched_at: i64,
     pub github: Option<crate::git::RemoteCiPrInfo>,
     pub branch: String,
+    /// What `ahead`/`behind` are relative to. `UpstreamState::Unknown` — the
+    /// value an older cache file deserialises into — means "not recorded",
+    /// and the renderer then falls back to showing the counts as-is.
+    pub upstream: crate::git::UpstreamState,
     pub ahead: usize,
     pub behind: usize,
+    /// Total uncommitted paths, kept as the sort key and for cache files
+    /// written before the split below existed.
     pub dirty: usize,
+    /// `dirty` split into changes to tracked files and untracked files. Both
+    /// are 0 in a row restored from an older cache, which is why readers go
+    /// through `helpers::dirty_split` instead of using them directly.
+    pub tracked_changes: usize,
+    pub untracked: usize,
+    /// Age of the remote data (`ahead`/`behind`), from `FETCH_HEAD`.
+    pub last_fetch: crate::git::LastFetch,
     pub last_commit: String,
     pub open_prs: Option<usize>,
     pub ci_status: Option<String>,
     pub op_state: GitOpState,
     pub conflicts: usize,
+    /// Why this repository could not be read. `Some` makes every other field
+    /// meaningless: the row is rendered as failed rather than as loading (an
+    /// endless `…`) or, worse, as a healthy repository whose git commands all
+    /// happened to return nothing. Never written to the on-disk cache — a
+    /// failure is about right now, not about the last good read.
+    pub error: Option<String>,
 }
 
 #[derive(Clone, Debug)]

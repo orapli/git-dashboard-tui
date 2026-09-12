@@ -1,12 +1,18 @@
 use super::*;
-use crate::git::{GitOpState, GithubState};
+use crate::git::{GitOpState, GithubState, LastFetch, UpstreamState};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct HomeCounts {
     pub attention: usize,
+    /// Repositories with at least one *tracked* file changed. Untracked
+    /// files are counted separately: five stray build artefacts are not the
+    /// same news as five edited source files.
     pub dirty: usize,
+    pub untracked: usize,
     pub sync: usize,
     pub unknown: usize,
+    /// Repositories whose row could not be read at all.
+    pub failed: usize,
 }
 
 impl App {
@@ -15,7 +21,16 @@ impl App {
         for i in filter_repo_indices(&self.repos, &self.home_filter, self.group_filter.as_deref()) {
             if let Some(row) = self.home_rows.get(&i) {
                 counts.attention += usize::from(needs_attention(row));
-                counts.dirty += usize::from(row.dirty > 0);
+                if row.error.is_some() {
+                    // A row that failed to load has no numbers to contribute.
+                    // Letting its zeros fall through would count it as clean
+                    // and in sync, which is the very lie this row reports.
+                    counts.failed += 1;
+                    continue;
+                }
+                let (tracked, untracked) = dirty_split(row).unwrap_or((row.dirty, 0));
+                counts.dirty += usize::from(tracked > 0);
+                counts.untracked += usize::from(untracked > 0);
                 counts.sync += usize::from(row.ahead > 0 || row.behind > 0);
                 let now = chrono::Utc::now().timestamp();
                 let unverified = row.github.as_ref().map_or(
@@ -41,12 +56,43 @@ impl App {
         let Some(&i) = self.filtered_home().get(self.home_selected) else {
             return vec![];
         };
-        let Some(row) = self.home_rows.get(&i) else {
-            return vec![self.tt(
-                "Local status unavailable / loading — r: reload",
-                "ローカル状態は未取得・取得中 — r: 再読み込み",
-            )];
+        // The Home table only has room for a shortened path, so the panel is
+        // where the full one lives.
+        let path_line = match self.repos.get(i) {
+            Some(repo) => format!("{}: {}", self.tt("Path", "パス"), repo.path.display()),
+            None => String::new(),
         };
+        let Some(row) = self.home_rows.get(&i) else {
+            return vec![
+                self.tt(
+                    "Local status unavailable / loading — r: reload",
+                    "ローカル状態は未取得・取得中 — r: 再読み込み",
+                ),
+                path_line,
+            ];
+        };
+        // A failed row's other fields are all defaults, so none of the usual
+        // lines below would say anything true about it.
+        if let Some(err) = &row.error {
+            return vec![
+                format!(
+                    "⚠ {}: {err}",
+                    self.tt(
+                        "cannot read this repository",
+                        "このリポジトリを読み取れません"
+                    )
+                ),
+                path_line,
+                format!(
+                    "r: {}  s: {}",
+                    self.tt("retry", "再試行"),
+                    self.tt(
+                        "settings — fix or remove this registration",
+                        "設定 — 登録の修正・削除"
+                    )
+                ),
+            ];
+        }
         let mut reasons = Vec::new();
         if row.conflicts > 0 {
             reasons.push(format!(
@@ -86,17 +132,39 @@ impl App {
         } else {
             git::format_timestamp(row.fetched_at)
         };
+        // Two different ages, deliberately side by side so neither can be
+        // mistaken for the other: when the dashboard last read the working
+        // tree, and when git last talked to the remote. The second is the age
+        // of the ahead/behind counts, which reloading here cannot refresh —
+        // only a fetch can.
+        let remote = match row.last_fetch {
+            LastFetch::At(ts) => git::format_timestamp(ts),
+            LastFetch::Never => self.tt("never fetched", "フェッチ履歴なし"),
+            LastFetch::Unavailable => self.tt("unavailable (remote repo)", "取得不可（リモート）"),
+            LastFetch::Unknown => self.tt("not recorded", "未記録"),
+        };
+        let upstream_note = match row.upstream {
+            UpstreamState::NoRemote => {
+                format!(" [{}]", self.tt("no remote", "リモートなし"))
+            }
+            UpstreamState::NoUpstream => {
+                format!(" [{}]", self.tt("no upstream branch", "上流ブランチなし"))
+            }
+            UpstreamState::Tracking | UpstreamState::Unknown => String::new(),
+        };
         let mut lines = vec![
             reasons.join(" / "),
+            path_line,
             format!(
-                "Enter: {}  t: {}  C: CI",
-                self.tt("details / diff", "詳細・差分"),
-                self.tt("shell", "シェル")
+                "{}: {local}  |  {}: {remote}{upstream_note}",
+                self.tt("Local read (working tree)", "ローカル読取（作業ツリー）"),
+                self.tt("Remote fetched (↑↓)", "リモート取得（↑↓）")
             ),
             format!(
-                "{}: {local} — r: {} / F: git fetch",
-                self.tt("Local checked", "ローカル取得"),
-                self.tt("reload local status", "ローカル再読込")
+                "Enter: {}  t: {}  C: CI  r: {}  F: git fetch",
+                self.tt("details / diff", "詳細・差分"),
+                self.tt("shell", "シェル"),
+                self.tt("reload local", "ローカル再読込")
             ),
         ];
         if let Some(info) = &row.github {
@@ -288,7 +356,9 @@ mod tests {
         app.home_rows.insert(
             1,
             HomeRow {
-                dirty: 2,
+                dirty: 5,
+                tracked_changes: 2,
+                untracked: 3,
                 behind: 3,
                 ..Default::default()
             },
@@ -300,8 +370,10 @@ mod tests {
             HomeCounts {
                 attention: 1,
                 dirty: 1,
+                untracked: 1,
                 sync: 1,
-                unknown: 2
+                unknown: 2,
+                failed: 0
             }
         );
         assert_eq!(app.filtered_home(), vec![0]);
@@ -311,10 +383,130 @@ mod tests {
             HomeCounts {
                 attention: 0,
                 dirty: 1,
+                untracked: 1,
                 sync: 1,
-                unknown: 0
+                unknown: 0,
+                failed: 0
             }
         );
+    }
+
+    /// A registered path that cannot be read must not be counted as a clean,
+    /// in-sync repository — and it must not be counted as merely "not
+    /// fetched yet" either, which is what an absent row means.
+    #[test]
+    fn unreadable_repository_counts_as_failed_and_needs_attention() {
+        let mut app = App::new();
+        app.repos = vec![
+            Repository {
+                name: "broken".into(),
+                path: "/tmp/gone".into(),
+                group: None,
+            },
+            Repository {
+                name: "fine".into(),
+                path: "/tmp/fine".into(),
+                group: None,
+            },
+        ];
+        app.home_rows.clear();
+        app.home_rows.insert(
+            0,
+            HomeRow {
+                fetched_at: 1,
+                error: Some("not a git repository: /tmp/gone (fatal: ...)".into()),
+                ..Default::default()
+            },
+        );
+        app.home_rows.insert(
+            1,
+            HomeRow {
+                fetched_at: 1,
+                upstream: UpstreamState::Tracking,
+                ..Default::default()
+            },
+        );
+        let counts = app.home_counts();
+        assert_eq!(counts.failed, 1);
+        assert_eq!(counts.attention, 1);
+        assert_eq!(counts.dirty, 0);
+        assert_eq!(counts.sync, 0);
+        // The healthy row is the only one that may be called "unverified".
+        assert_eq!(counts.unknown, 0);
+
+        app.attention_only = true;
+        assert_eq!(app.filtered_home(), vec![0]);
+
+        app.set_language_for_test(Language::English);
+        let text = app.home_context().join("\n");
+        assert!(text.contains("cannot read this repository"), "{text}");
+        assert!(text.contains("not a git repository"), "{text}");
+        assert!(text.contains("/tmp/gone"), "{text}");
+        app.set_language_for_test(Language::Japanese);
+        assert!(
+            app.home_context()
+                .join("\n")
+                .contains("このリポジトリを読み取れません")
+        );
+    }
+
+    /// The two freshness stamps in the panel must be distinguishable: one is
+    /// when the working tree was read, the other is how old the ahead/behind
+    /// numbers are.
+    #[test]
+    fn context_separates_local_read_from_remote_fetch_in_both_languages() {
+        let mut app = App::new();
+        app.repos = vec![Repository {
+            name: "test".into(),
+            path: "/tmp/repo".into(),
+            group: None,
+        }];
+        app.home_rows.clear();
+        app.home_rows.insert(
+            0,
+            HomeRow {
+                fetched_at: 1,
+                upstream: UpstreamState::NoUpstream,
+                last_fetch: LastFetch::Never,
+                ..Default::default()
+            },
+        );
+        app.set_language_for_test(Language::English);
+        let text = app.home_context().join("\n");
+        for word in [
+            "Local read",
+            "Remote fetched",
+            "never fetched",
+            "no upstream branch",
+            "/tmp/repo",
+        ] {
+            assert!(text.contains(word), "{text}");
+        }
+
+        app.set_language_for_test(Language::Japanese);
+        let text = app.home_context().join("\n");
+        for word in [
+            "ローカル読取",
+            "リモート取得",
+            "フェッチ履歴なし",
+            "上流ブランチなし",
+        ] {
+            assert!(text.contains(word), "{text}");
+        }
+
+        app.home_rows.get_mut(&0).unwrap().last_fetch = LastFetch::At(1_700_000_000);
+        app.set_language_for_test(Language::English);
+        let text = app.home_context().join("\n");
+        assert!(!text.contains("never fetched"), "{text}");
+        assert!(
+            text.contains(&git::format_timestamp(1_700_000_000)),
+            "{text}"
+        );
+
+        // An `ssh://` repository has no local FETCH_HEAD to stat: say so
+        // rather than claiming it was never fetched.
+        app.home_rows.get_mut(&0).unwrap().last_fetch = LastFetch::Unavailable;
+        assert!(app.home_context().join("\n").contains("unavailable"));
     }
 
     #[test]
@@ -412,7 +604,11 @@ mod tests {
         assert!(needs_attention(app.home_rows.get(&0).unwrap()));
         app.set_language_for_test(Language::English);
         let lines = app.home_context();
-        assert!(lines.len() <= 5, "the panel only has five rows: {lines:#?}");
+        // The selected-repository panel is Constraint::Length(8) in
+        // draw_home, i.e. six rows inside its border. A line past that is
+        // silently clipped, so the panel's content is capped here rather
+        // than discovered by a user losing the last reason.
+        assert!(lines.len() <= 6, "the panel only has six rows: {lines:#?}");
         let text = lines.join("\n");
         for word in [
             "changes requested on this branch's PR",

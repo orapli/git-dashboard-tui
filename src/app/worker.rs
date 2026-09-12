@@ -429,14 +429,19 @@ pub fn load_home_row(path: &std::path::Path) -> Result<HomeRow, String> {
         fetched_at: chrono::Utc::now().timestamp(),
         github: summary.remote_ci_pr.clone(),
         branch: summary.current_branch,
+        upstream: summary.upstream,
         ahead: summary.ahead,
         behind: summary.behind,
         dirty: summary.uncommitted_changes,
+        tracked_changes: summary.tracked_changes,
+        untracked: summary.untracked,
+        last_fetch: summary.last_fetch,
         last_commit,
         open_prs,
         ci_status,
         op_state: summary.op_state,
         conflicts: summary.conflicts,
+        error: None,
     })
 }
 

@@ -1285,3 +1285,164 @@ fn test_get_home_summary_missing_path_errors_like_get_summary() {
     assert!(get_home_summary(&missing).is_err());
     assert!(get_summary(&missing, &[]).is_err());
 }
+
+/// Set up a repository with one commit, used by the Home-row tests below.
+fn init_repo_with_commit(dir: &Path) {
+    fs::create_dir_all(dir).unwrap();
+    git_in(dir, &["init"]);
+    git_in(dir, &["config", "user.name", "Home Tester"]);
+    git_in(dir, &["config", "user.email", "home@example.com"]);
+    git_in(dir, &["config", "commit.gpgsign", "false"]);
+    fs::write(dir.join("a.txt"), "base\n").unwrap();
+    git_in(dir, &["add", "."]);
+    git_in(dir, &["commit", "-m", "base"]);
+}
+
+/// `↑0 ↓0` must not be the answer for a branch that tracks nothing, and the
+/// two reasons it can track nothing have to be told apart.
+#[test]
+fn test_get_home_summary_reports_upstream_state() {
+    let root = std::env::temp_dir().join("git_test_home_upstream_state");
+    let _ = fs::remove_dir_all(&root);
+    let origin = root.join("origin");
+    init_repo_with_commit(&origin);
+
+    // 1. No remote configured at all.
+    let home = get_home_summary(&origin).unwrap();
+    let full = get_summary(&origin, &[]).unwrap();
+    assert_eq!(home.upstream, UpstreamState::NoRemote);
+    assert_eq!((home.ahead, home.behind), (0, 0));
+    assert!(!full.has_upstream);
+    assert!(!full.has_remote);
+
+    // 2. A remote exists, but this branch was never pushed. Same zeros,
+    //    different meaning.
+    git_in(
+        &origin,
+        &["remote", "add", "origin", origin.to_str().unwrap()],
+    );
+    let home = get_home_summary(&origin).unwrap();
+    let full = get_summary(&origin, &[]).unwrap();
+    assert_eq!(home.upstream, UpstreamState::NoUpstream);
+    assert!(!full.has_upstream);
+    assert!(full.has_remote);
+
+    // 3. A clone tracks its upstream, so the zeros are a real comparison.
+    let clone = root.join("clone");
+    git_in(
+        &root,
+        &["clone", origin.to_str().unwrap(), clone.to_str().unwrap()],
+    );
+    let home = get_home_summary(&clone).unwrap();
+    assert_eq!(home.upstream, UpstreamState::Tracking);
+    assert_eq!((home.ahead, home.behind), (0, 0));
+    assert!(get_summary(&clone, &[]).unwrap().has_upstream);
+
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// A registered directory that is not a repository used to render as a
+/// pristine one: every git command failed into "" and nothing said so.
+#[test]
+fn test_get_home_summary_non_repository_directory_fails() {
+    let dir = std::env::temp_dir().join("git_test_home_not_a_repository");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("notes.txt"), "just a directory\n").unwrap();
+
+    let err = get_home_summary(&dir).unwrap_err();
+    assert!(err.contains(NOT_A_REPOSITORY), "{err}");
+    assert!(err.contains("git_test_home_not_a_repository"), "{err}");
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// Two edited source files and five stray build artefacts are not "7".
+#[test]
+fn test_get_home_summary_splits_tracked_and_untracked() {
+    let dir = std::env::temp_dir().join("git_test_home_dirty_split");
+    let _ = fs::remove_dir_all(&dir);
+    init_repo_with_commit(&dir);
+
+    // One unstaged edit, one staged addition — both are tracked changes.
+    fs::write(dir.join("a.txt"), "edited\n").unwrap();
+    fs::write(dir.join("b.txt"), "new\n").unwrap();
+    git_in(&dir, &["add", "b.txt"]);
+    // One loose untracked file and an untracked directory holding two more:
+    // `--untracked-files=all` counts the files, not the directory.
+    fs::write(dir.join("loose.log"), "x\n").unwrap();
+    fs::create_dir_all(dir.join("build")).unwrap();
+    fs::write(dir.join("build/one.o"), "x\n").unwrap();
+    fs::write(dir.join("build/two.o"), "x\n").unwrap();
+
+    let home = get_home_summary(&dir).unwrap();
+    assert_eq!(home.tracked_changes, 2, "one edited, one staged");
+    assert_eq!(home.untracked, 3, "two inside the untracked directory");
+    assert_eq!(home.uncommitted_changes, 5);
+    assert_eq!(
+        home.uncommitted_changes,
+        get_summary(&dir, &[]).unwrap().uncommitted_changes,
+        "the split must not change the total the detail screen shows"
+    );
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn test_parse_status_counts() {
+    let porcelain =
+        " M src/lib.rs\nA  src/new.rs\nD  gone.txt\n?? build/a.o\n?? build/b.o\nUU merged.txt\n";
+    assert_eq!(parse_status_counts(porcelain), (4, 2));
+    assert_eq!(parse_status_counts(""), (0, 0));
+    // A path that merely starts with "?" is not untracked; the code is the
+    // first two columns.
+    assert_eq!(parse_status_counts(" M ?weird.txt\n"), (1, 0));
+}
+
+/// Ahead/behind are only as fresh as the last fetch, so the row has to say
+/// when that was — including "never", which is not the same as "just now".
+#[test]
+fn test_get_home_summary_last_fetch_from_fetch_head() {
+    let root = std::env::temp_dir().join("git_test_home_last_fetch");
+    let _ = fs::remove_dir_all(&root);
+    let origin = root.join("origin");
+    init_repo_with_commit(&origin);
+
+    // A repository that has never fetched has no FETCH_HEAD at all.
+    assert_eq!(
+        get_home_summary(&origin).unwrap().last_fetch,
+        LastFetch::Never
+    );
+
+    let clone = root.join("clone");
+    git_in(
+        &root,
+        &["clone", origin.to_str().unwrap(), clone.to_str().unwrap()],
+    );
+    git_in(&clone, &["fetch"]);
+    let before = chrono::Utc::now().timestamp();
+    let fetched = match get_home_summary(&clone).unwrap().last_fetch {
+        LastFetch::At(ts) => ts,
+        other => panic!("expected a fetch timestamp, got {other:?}"),
+    };
+    // Written by the fetch that just ran, so it is "now", not the epoch.
+    assert!(
+        (fetched - before).abs() < 600,
+        "FETCH_HEAD mtime {fetched} is not close to {before}"
+    );
+
+    // A linked worktree has its own git dir but shares FETCH_HEAD with the
+    // main one — which is why the path comes from `rev-parse --git-path`
+    // rather than being assembled as `<repo>/.git/FETCH_HEAD`.
+    let worktree = root.join("wt");
+    git_in(
+        &clone,
+        &["worktree", "add", worktree.to_str().unwrap(), "-b", "wt"],
+    );
+    assert_eq!(
+        get_home_summary(&worktree).unwrap().last_fetch,
+        LastFetch::At(fetched)
+    );
+
+    let _ = fs::remove_dir_all(&root);
+}

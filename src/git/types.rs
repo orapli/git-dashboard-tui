@@ -54,6 +54,47 @@ impl GitOpState {
     }
 }
 
+/// What the checked-out branch tracks.
+///
+/// A bare `has_upstream: bool` cannot express the difference that matters to
+/// a reader of the Home list: `↑0 ↓0` on a branch with no upstream is not
+/// "in sync", it is "nothing was ever compared". The `Unknown` variant exists
+/// for rows restored from a cache written before this was recorded — guessing
+/// `NoRemote` there would turn every cached row into a false "local only".
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum UpstreamState {
+    /// Not recorded (a Home row cached by an older build).
+    #[default]
+    Unknown,
+    /// No remote is configured at all — nothing to be ahead of or behind.
+    NoRemote,
+    /// A remote exists, but the current branch has no upstream set
+    /// (typically a branch that was never pushed).
+    NoUpstream,
+    /// Tracking an upstream: the ahead/behind counts are meaningful.
+    Tracking,
+}
+
+/// When the repository last talked to its remote, taken from the mtime of
+/// `FETCH_HEAD`.
+///
+/// Ahead/behind counts are only as fresh as the last fetch, so this is the
+/// age of the *remote* half of the Home row — quite different from when the
+/// dashboard last read the working tree.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum LastFetch {
+    /// Not recorded (a Home row cached by an older build).
+    #[default]
+    Unknown,
+    /// No local `FETCH_HEAD` can be stat-ed — an `ssh://` repository lives on
+    /// another machine, so the age is unavailable rather than "never".
+    Unavailable,
+    /// The repository has never fetched: no `FETCH_HEAD` exists.
+    Never,
+    /// Unix timestamp of the last fetch.
+    At(i64),
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Contributor {
     pub name: String,

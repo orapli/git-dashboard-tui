@@ -1,9 +1,10 @@
 use crate::app::{
-    App, CiOutcome, FocusPane, ListViewport, RepoTab, Screen, classify_ci_status,
-    column_for_sort_mode, short_hash, sort_is_ascending,
+    App, CiOutcome, FocusPane, HomeFailure, ListViewport, RepoTab, Screen, classify_ci_status,
+    classify_home_error, column_for_sort_mode, dirty_split, short_hash, shorten_path,
+    sort_is_ascending,
 };
 use crate::colors::Palette;
-use crate::git::{CommitRef, DiffRowKind, GitOpState};
+use crate::git::{CommitRef, DiffRowKind, GitOpState, UpstreamState};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Modifier, Style};
@@ -560,25 +561,37 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         let parts = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(5),
-            Constraint::Length(7),
+            // Six lines inside the border: the attention reason, the full
+            // path, the two freshness stamps, the key hints, CI and PR.
+            Constraint::Length(8),
         ])
         .split(area);
         let counts = app.home_counts();
-        frame.render_widget(
-            Paragraph::new(format!(
-                "{} {}  {} {}  {} {}  {} {}",
+        // `Dirty` counts only tracked changes now that the rows separate the
+        // two, so the header and the column mean the same thing by the word.
+        let mut summary = vec![Span::styled(
+            format!(
+                "{} {}  {} {}  {} {}  {} {}  {} {}",
                 app.tt("Attention", "要対応"),
                 counts.attention,
                 app.tt("Dirty", "未コミット"),
                 counts.dirty,
+                app.tt("Untracked", "未追跡"),
+                counts.untracked,
                 app.tt("Sync delta", "同期差分"),
                 counts.sync,
                 app.tt("Unverified", "未確認"),
                 counts.unknown
-            ))
-            .style(Style::default().fg(pal.accent)),
-            parts[0],
-        );
+            ),
+            Style::default().fg(pal.accent),
+        )];
+        if counts.failed > 0 {
+            summary.push(Span::styled(
+                format!("  {} {}", app.tt("Unreadable", "読取不可"), counts.failed),
+                Style::default().fg(pal.red).add_modifier(Modifier::BOLD),
+            ));
+        }
+        frame.render_widget(Paragraph::new(Line::from(summary)), parts[0]);
         frame.render_widget(
             Paragraph::new(
                 app.home_context()
@@ -635,30 +648,81 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             .add_modifier(Modifier::BOLD),
     );
 
+    // Fixed widths were picked for the English headers, so `未コミット` (10
+    // columns) was silently cut to `未コミッ` in an 8-column cell. Take the
+    // wider of the two, plus a column for the sort marker, so a header can
+    // never be truncated by its own column — in any language, including one
+    // added later.
+    let min_w = |i: usize, fixed: u16| {
+        use unicode_width::UnicodeWidthStr;
+        Constraint::Length(fixed.max(labels[i].width() as u16 + 1))
+    };
+    let widths = [
+        min_w(0, 26),
+        min_w(1, 30),
+        min_w(2, 10),
+        min_w(3, 8),
+        min_w(4, 18),
+        Constraint::Min(10),
+    ];
+    // Record where each column actually landed so click-to-sort hit-tests
+    // against the real layout instead of a second copy of this arithmetic.
+    // `Table` lays its columns out inside the block, after the highlight
+    // symbol, with `column_spacing` between them. The path column's real
+    // width also decides how much of each path survives shortening, so this
+    // has to be known before the rows are built.
+    let path_width = {
+        let inner = area.inner(Margin::new(1, 1));
+        let sym_w = HIGHLIGHT_SYMBOL.chars().count() as u16;
+        let cols_area = Rect {
+            x: inner.x.saturating_add(sym_w),
+            width: inner.width.saturating_sub(sym_w),
+            ..inner
+        };
+        let cols = Layout::horizontal(widths).spacing(1).split(cols_area);
+        let path_width = cols.get(5).map_or(10, |r| r.width as usize);
+        *app.home_col_bounds.borrow_mut() = cols.iter().map(|r| (r.x, r.x + r.width)).collect();
+        path_width
+    };
+
     let rows: Vec<Row> = indices
         .iter()
         .map(|&i| {
             let repo = &app.repos[i];
-            let (branch, sync, dirty, updated, dirty_n, ahead, behind) = match app.home_rows.get(&i)
-            {
-                Some(r) => (
-                    r.branch.clone(),
-                    format!("↑{} ↓{}", r.ahead, r.behind),
-                    r.dirty.to_string(),
-                    r.last_commit.clone(),
-                    r.dirty,
-                    r.ahead,
-                    r.behind,
-                ),
-                None => (
-                    "…".to_string(),
-                    "…".to_string(),
-                    "…".to_string(),
-                    "…".to_string(),
-                    0,
-                    0,
-                    0,
-                ),
+            let row_data = app.home_rows.get(&i);
+            // A registration that could not be read is its own state: not
+            // "still loading" (which is what an absent row used to look like,
+            // forever) and not a healthy repository whose every git command
+            // happened to return nothing.
+            let failure = row_data.and_then(|r| r.error.as_deref());
+            let healthy = row_data.filter(|r| r.error.is_none());
+            let updated = match (healthy, failure) {
+                (_, Some(_)) => "—".to_string(),
+                (Some(r), None) => r.last_commit.clone(),
+                (None, None) => "…".to_string(),
+            };
+            // `↑0 ↓0` on a branch with no upstream is not "in sync", it is
+            // "nothing was ever compared to anything" — `?` says so without
+            // posing as a count. Which kind of missing upstream it is (no
+            // remote at all, or a branch that was never pushed) is spelled
+            // out in the selected-repository panel, where there is room for
+            // words in both languages.
+            let (sync, sync_style) = match (healthy, failure) {
+                (_, Some(_)) => ("—".to_string(), Style::default().fg(pal.red)),
+                (None, None) => ("…".to_string(), Style::default().fg(pal.muted)),
+                (Some(r), None) => match r.upstream {
+                    UpstreamState::NoRemote | UpstreamState::NoUpstream => {
+                        ("↑? ↓?".to_string(), Style::default().fg(pal.subtext))
+                    }
+                    UpstreamState::Tracking | UpstreamState::Unknown => (
+                        format!("↑{} ↓{}", r.ahead, r.behind),
+                        if r.ahead + r.behind > 0 {
+                            Style::default().fg(pal.yellow)
+                        } else {
+                            Style::default().fg(pal.muted)
+                        },
+                    ),
+                },
             };
             // A running pull/fetch/refresh takes over the Sync cell: that is
             // the value the operation is about to change, so replacing it with
@@ -669,13 +733,42 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     format!("{} {}", app.spinner(), act.label()),
                     Style::default().fg(pal.accent),
                 ),
-                None if ahead + behind > 0 => (sync, Style::default().fg(pal.yellow)),
-                None => (sync, Style::default().fg(pal.muted)),
+                None => (sync, sync_style),
             };
-            let dirty_style = if dirty_n > 0 {
-                Style::default().fg(pal.red)
-            } else {
-                Style::default().fg(pal.green)
+            // Tracked edits and untracked files answer different questions,
+            // so the cell keeps them apart with the same letters the Status
+            // tab uses: `2M 5?` rather than a single `7`. A row restored from
+            // an older cache knows only the total and shows it unsuffixed
+            // instead of inventing an attribution.
+            let dirty_spans = match (healthy, failure) {
+                (_, Some(_)) => vec![Span::styled("—", Style::default().fg(pal.red))],
+                (None, None) => vec![Span::styled("…", Style::default().fg(pal.muted))],
+                (Some(r), None) => match dirty_split(r) {
+                    None => vec![Span::styled(
+                        r.dirty.to_string(),
+                        Style::default().fg(pal.red),
+                    )],
+                    Some((0, 0)) => vec![Span::styled("0", Style::default().fg(pal.green))],
+                    Some((tracked, untracked)) => {
+                        let mut spans = Vec::new();
+                        if tracked > 0 {
+                            spans.push(Span::styled(
+                                format!("{tracked}M"),
+                                Style::default().fg(pal.red),
+                            ));
+                        }
+                        if untracked > 0 {
+                            if !spans.is_empty() {
+                                spans.push(Span::raw(" "));
+                            }
+                            spans.push(Span::styled(
+                                format!("{untracked}?"),
+                                Style::default().fg(pal.yellow),
+                            ));
+                        }
+                        spans
+                    }
+                },
             };
             let name_spans = if let Some(g) = &repo.group {
                 let trimmed = g.trim();
@@ -690,8 +783,20 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             } else {
                 vec![Span::from(repo.name.clone())]
             };
-            let mut branch_spans = vec![Span::styled(branch, Style::default().fg(pal.accent))];
-            if let Some(row_data) = app.home_rows.get(&i) {
+            let mut branch_spans = match failure {
+                Some(err) => vec![Span::styled(
+                    format!("⚠ {}", home_failure_reason(app, err)),
+                    Style::default().fg(pal.red).add_modifier(Modifier::BOLD),
+                )],
+                None => vec![Span::styled(
+                    match healthy {
+                        Some(r) => r.branch.clone(),
+                        None => "…".to_string(),
+                    },
+                    Style::default().fg(pal.accent),
+                )],
+            };
+            if let Some(row_data) = healthy {
                 // Attention badges go first: a fixed-width cell truncates
                 // from the right, and a merge/rebase/etc. left mid-operation
                 // by work done outside the dashboard — the one state this
@@ -733,10 +838,10 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 Cell::from(Line::from(name_spans)),
                 Cell::from(Line::from(branch_spans)),
                 Cell::from(Span::styled(sync, sync_style)),
-                Cell::from(Span::styled(dirty, dirty_style)),
+                Cell::from(Line::from(dirty_spans)),
                 Cell::from(Span::styled(updated, Style::default().fg(pal.subtext))),
                 Cell::from(Span::styled(
-                    repo.path.display().to_string(),
+                    shorten_path(&repo.path, path_width),
                     Style::default().fg(pal.muted),
                 )),
             ])
@@ -771,39 +876,6 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         )
     };
 
-    // Fixed widths were picked for the English headers, so `未コミット` (10
-    // columns) was silently cut to `未コミッ` in an 8-column cell. Take the
-    // wider of the two, plus a column for the sort marker, so a header can
-    // never be truncated by its own column — in any language, including one
-    // added later.
-    let min_w = |i: usize, fixed: u16| {
-        use unicode_width::UnicodeWidthStr;
-        Constraint::Length(fixed.max(labels[i].width() as u16 + 1))
-    };
-    let widths = [
-        min_w(0, 26),
-        min_w(1, 30),
-        min_w(2, 10),
-        min_w(3, 8),
-        min_w(4, 18),
-        Constraint::Min(10),
-    ];
-    // Record where each column actually landed so click-to-sort hit-tests
-    // against the real layout instead of a second copy of this arithmetic.
-    // `Table` lays its columns out inside the block, after the highlight
-    // symbol, with `column_spacing` between them.
-    {
-        let inner = area.inner(Margin::new(1, 1));
-        let sym_w = HIGHLIGHT_SYMBOL.chars().count() as u16;
-        let cols_area = Rect {
-            x: inner.x.saturating_add(sym_w),
-            width: inner.width.saturating_sub(sym_w),
-            ..inner
-        };
-        let cols = Layout::horizontal(widths).spacing(1).split(cols_area);
-        *app.home_col_bounds.borrow_mut() = cols.iter().map(|r| (r.x, r.x + r.width)).collect();
-    }
-
     let table = Table::new(rows, widths)
         .header(header)
         .block(
@@ -834,6 +906,17 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
 
 /// Width `Tabs` needs for these labels: each is padded by a space on both
 /// sides and separated by a divider.
+/// Short, localized reason for a Home row that could not be read. The cell
+/// it lands in is one table column wide, so the full message stays in the
+/// selected-repository panel and this only has to say which kind of broken.
+fn home_failure_reason(app: &App, err: &str) -> String {
+    match classify_home_error(err) {
+        HomeFailure::MissingPath => app.tt("path missing", "パスなし"),
+        HomeFailure::NotARepository => app.tt("not a git repo", "Git管理外"),
+        HomeFailure::Unreadable => app.tt("unreadable", "読取不可"),
+    }
+}
+
 fn tab_bar_width(labels: &[String]) -> usize {
     use unicode_width::UnicodeWidthStr;
     labels.iter().map(|l| l.width() + 2).sum::<usize>() + labels.len().saturating_sub(1)
@@ -998,10 +1081,28 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 format!("  {:<14}", app.tt("Sync (↑/↓):", "同期 (↑/↓):")),
                 Style::default().fg(pal.muted),
             ),
-            Span::styled(
-                format!("{:<20}", format!("↑{} ↓{}", s.ahead, s.behind)),
-                Style::default().fg(pal.yellow),
-            ),
+            // Same distinction the Home table's Sync cell makes, with room
+            // here to say which case it is: zero/zero without an upstream is
+            // not agreement with a remote, it is the absence of a comparison.
+            {
+                let (text, style) = if s.has_upstream {
+                    (
+                        format!("↑{} ↓{}", s.ahead, s.behind),
+                        Style::default().fg(pal.yellow),
+                    )
+                } else if s.has_remote {
+                    (
+                        app.tt("↑? ↓? no upstream", "↑? ↓? 上流なし"),
+                        Style::default().fg(pal.subtext),
+                    )
+                } else {
+                    (
+                        app.tt("↑? ↓? no remote", "↑? ↓? リモートなし"),
+                        Style::default().fg(pal.subtext),
+                    )
+                };
+                Span::styled(truncate(&text, 20), style)
+            },
             Span::styled(
                 format!("  {:<14}", app.tt("Branches:", "ブランチ数:")),
                 Style::default().fg(pal.muted),
@@ -3651,6 +3752,142 @@ pub(crate) mod tests {
         let area = Rect::new(0, 0, 15, 4);
         let rect = centered_rect(area, 20, 80, 5);
         assert!(rect.right() <= area.right() && rect.bottom() <= area.bottom());
+    }
+
+    /// The repository-detail overview had the same `↑0 ↓0` ambiguity as the
+    /// Home row and has to answer it the same way.
+    #[test]
+    fn repo_overview_says_when_there_is_nothing_to_be_in_sync_with() {
+        let mut app = App::new();
+        app.set_language_for_test(crate::config::Language::English);
+        app.repos = vec![crate::config::Repository {
+            name: "r".to_string(),
+            path: std::path::PathBuf::from("/tmp/repo"),
+            group: None,
+        }];
+        app.repo_index = Some(0);
+        app.screen = Screen::Repo;
+        app.repo_tab = RepoTab::Status;
+        app.repo_data = Some(RepoSnapshot {
+            summary: Summary {
+                current_branch: "main".to_string(),
+                ..Summary::default()
+            },
+            commits: vec![],
+            commits_err: None,
+            branches: vec![],
+            branches_err: None,
+            tags: vec![],
+            tags_err: None,
+            stashes: vec![],
+            stashes_err: None,
+            working_files: vec![],
+            working_err: None,
+            contributors: vec![],
+            contributors_err: None,
+            worktrees: vec![],
+            worktrees_err: None,
+        });
+
+        // No remote configured at all.
+        let text = render_to_text(&app, 120, 30);
+        assert!(text.contains("no remote"), "{text}");
+        assert!(!text.contains("↑0 ↓0"), "{text}");
+
+        // A remote exists, but this branch never was pushed.
+        let summary = &mut app.repo_data.as_mut().unwrap().summary;
+        summary.has_remote = true;
+        let text = render_to_text(&app, 120, 30);
+        assert!(text.contains("no upstream"), "{text}");
+
+        // Tracking: the real counts, as before.
+        let summary = &mut app.repo_data.as_mut().unwrap().summary;
+        summary.has_upstream = true;
+        summary.ahead = 2;
+        let text = render_to_text(&app, 120, 30);
+        assert!(text.contains("↑2 ↓0"), "{text}");
+        assert!(!text.contains("no upstream"), "{text}");
+    }
+
+    /// The three states a Home row used to render identically: in sync, no
+    /// upstream at all, and a registration that cannot be read.
+    #[test]
+    fn home_rows_tell_synced_unpushed_and_broken_repositories_apart() {
+        use crate::app::HomeRow;
+        use crate::git::UpstreamState;
+
+        let mut app = App::new();
+        app.set_language_for_test(crate::config::Language::English);
+        app.repos = ["synced", "unpushed", "broken"]
+            .iter()
+            .map(|name| crate::config::Repository {
+                name: (*name).to_string(),
+                path: std::path::PathBuf::from(format!("/tmp/{name}")),
+                group: None,
+            })
+            .collect();
+        app.home_rows.clear();
+        // `App::new` queues a refresh for the repositories it loaded, and a
+        // busy row's Sync cell is a spinner instead of the counts under test.
+        app.busy.clear();
+        app.home_rows.insert(
+            0,
+            HomeRow {
+                branch: "main".into(),
+                upstream: UpstreamState::Tracking,
+                // Two edited source files and five stray build artefacts.
+                dirty: 7,
+                tracked_changes: 2,
+                untracked: 5,
+                ..Default::default()
+            },
+        );
+        app.home_rows.insert(
+            1,
+            HomeRow {
+                branch: "wip".into(),
+                upstream: UpstreamState::NoUpstream,
+                ..Default::default()
+            },
+        );
+        app.home_rows.insert(
+            2,
+            HomeRow {
+                error: Some("not a git repository: /tmp/broken (fatal: ...)".into()),
+                ..Default::default()
+            },
+        );
+
+        // The panel describes the selected row, and the sort order comes
+        // from the user's saved preference, so point the cursor at the
+        // tracked repository explicitly rather than assuming it lands first.
+        app.home_selected = app
+            .filtered_home()
+            .iter()
+            .position(|&i| i == 0)
+            .expect("the tracked repository is in the list");
+
+        let text = render_to_text(&app, 140, 24);
+        // ④ a tracked branch shows its counts; an unpushed one says it has
+        // nothing to compare against instead of claiming agreement.
+        assert!(text.contains("↑0 ↓0"), "{text}");
+        assert!(text.contains("↑? ↓?"), "{text}");
+        // ⑤ the broken registration is neither a spinner nor a clean row.
+        assert!(text.contains("not a git repo"), "{text}");
+        // ⑧ the dirty count is split, not merged into a single 7.
+        assert!(text.contains("2M"), "{text}");
+        assert!(text.contains("5?"), "{text}");
+        assert!(
+            !text.contains("Dirty 3"),
+            "every row counted as dirty: {text}"
+        );
+        assert!(text.contains("Untracked 1"), "{text}");
+        assert!(text.contains("Unreadable 1"), "{text}");
+
+        // The panel explains the marker and carries the full path and the
+        // remote's age, which the columns have no room for.
+        assert!(text.contains("Remote fetched"), "{text}");
+        assert!(text.contains("/tmp/synced"), "{text}");
     }
 
     #[test]

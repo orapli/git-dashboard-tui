@@ -2,8 +2,8 @@ use super::contributors::process_contributor_log;
 use super::diff::unquote_path;
 use super::exec::{check_safe_ref, parse_ssh_repo, run_git_batch, run_git_cmd};
 use super::types::{
-    BranchInfo, FileExtInfo, FileInfo, FilesReport, GitOpState, RemoteCiPrInfo, Summary,
-    SyncStatus, TagInfo, TechInfo, TechRule, VersionFileRule, WorktreeInfo,
+    BranchInfo, FileExtInfo, FileInfo, FilesReport, GitOpState, LastFetch, RemoteCiPrInfo, Summary,
+    SyncStatus, TagInfo, TechInfo, TechRule, UpstreamState, VersionFileRule, WorktreeInfo,
 };
 use crate::config::Member;
 use chrono::{Local, TimeZone, Utc};
@@ -349,11 +349,21 @@ pub fn get_summary(repo_path: &Path, members: &[Member]) -> Result<Summary, Stri
 #[derive(Debug, Clone, Default)]
 pub struct HomeSummary {
     pub current_branch: String,
+    /// What the current branch tracks. Without it `ahead`/`behind` being zero
+    /// is ambiguous between "in sync" and "never compared to anything".
+    pub upstream: UpstreamState,
     pub ahead: usize,
     pub behind: usize,
     pub uncommitted_changes: usize,
+    /// `uncommitted_changes` split into the two halves a reader acts on
+    /// differently: edits to tracked files versus untracked files (which are
+    /// often build output). Their sum is `uncommitted_changes`.
+    pub tracked_changes: usize,
+    pub untracked: usize,
     pub conflicts: usize,
     pub op_state: GitOpState,
+    /// Age of the *remote* half of this row — see [`LastFetch`].
+    pub last_fetch: LastFetch,
     pub remote_ci_pr: Option<RemoteCiPrInfo>,
 }
 
@@ -373,10 +383,21 @@ pub fn get_home_summary(repo_path: &Path) -> Result<HomeSummary, String> {
         repo_path.canonicalize().map_err(|e| e.to_string())?;
     }
 
-    // The last four are existence checks for the pseudo-refs git creates for
+    // Commands 4-7 are existence checks for the pseudo-refs git creates for
     // an in-progress merge/rebase/cherry-pick/revert; a non-zero exit just
     // means "not in that state", not a failure.
-    let cmds: [&[&str]; 8] = [
+    //
+    // The last four are appended to this batch rather than run separately so
+    // an `ssh://` repository still costs exactly one connection:
+    //   `--git-dir`        — the honest "is this a git repository at all"
+    //                        check. Without it a registered directory that is
+    //                        not a repository renders as a pristine one,
+    //                        because every other command fails into "".
+    //   `--git-path FETCH_HEAD` and `--git-common-dir` — the two places a
+    //                        FETCH_HEAD can live; see [`last_fetch_time`].
+    //   `remote`           — tells "no remote at all" apart from "remote, but
+    //                        this branch was never pushed".
+    let cmds: [&[&str]; 12] = [
         &["branch", "--show-current"],
         &["status", "--porcelain=v1", "--untracked-files=all"],
         &["rev-parse", "--abbrev-ref", "@{u}"],
@@ -385,6 +406,10 @@ pub fn get_home_summary(repo_path: &Path) -> Result<HomeSummary, String> {
         &["rev-parse", "-q", "--verify", "REBASE_HEAD"],
         &["rev-parse", "-q", "--verify", "CHERRY_PICK_HEAD"],
         &["rev-parse", "-q", "--verify", "REVERT_HEAD"],
+        &["rev-parse", "--git-dir"],
+        &["rev-parse", "--git-path", "FETCH_HEAD"],
+        &["remote"],
+        &["rev-parse", "--git-common-dir"],
     ];
     let r = run_git_batch(repo_path, &cmds);
     // "" on a failed command, mirroring `get_summary`
@@ -395,8 +420,19 @@ pub fn get_home_summary(repo_path: &Path) -> Result<HomeSummary, String> {
             .unwrap_or("")
     };
 
+    // `rev-parse --git-dir` is the one command here that cannot legitimately
+    // fail for a real repository, so its failure is the failure of the row.
+    if let Some(Err(e)) = r.get(8) {
+        return Err(format!(
+            "{NOT_A_REPOSITORY}: {} ({})",
+            repo_path.display(),
+            e.trim()
+        ));
+    }
+
     let status_porcelain = out(1);
-    let sync_status = parse_sync_status(!out(2).trim().is_empty(), out(3));
+    let has_upstream = !out(2).trim().is_empty();
+    let sync_status = parse_sync_status(has_upstream, out(3));
     let op_state = if r.get(4).is_some_and(|x| x.is_ok()) {
         GitOpState::Merge
     } else if rebase_in_progress(repo_path, r.get(5).is_some_and(|x| x.is_ok())) {
@@ -409,18 +445,120 @@ pub fn get_home_summary(repo_path: &Path) -> Result<HomeSummary, String> {
         GitOpState::None
     };
 
+    let (tracked_changes, untracked) = parse_status_counts(status_porcelain);
+    let upstream = if has_upstream {
+        UpstreamState::Tracking
+    } else if out(10).trim().is_empty() {
+        UpstreamState::NoRemote
+    } else {
+        UpstreamState::NoUpstream
+    };
+
     Ok(HomeSummary {
         current_branch: out(0).trim().to_string(),
+        upstream,
         ahead: sync_status.ahead,
         behind: sync_status.behind,
-        uncommitted_changes: status_porcelain
-            .lines()
-            .filter(|l| !l.trim().is_empty())
-            .count(),
+        uncommitted_changes: tracked_changes + untracked,
+        tracked_changes,
+        untracked,
         conflicts: count_conflicts(status_porcelain),
         op_state,
+        last_fetch: last_fetch_time(
+            repo_path,
+            r.get(9).and_then(|x| x.as_ref().ok()),
+            r.get(11).and_then(|x| x.as_ref().ok()),
+        ),
         remote_ci_pr: get_github_status(repo_path),
     })
+}
+
+/// Marker opening the error a Home row carries when its registered path is a
+/// directory but not a git repository. Matched (not parsed) by the UI to pick
+/// a short localized reason, so it must stay stable.
+pub const NOT_A_REPOSITORY: &str = "not a git repository";
+
+/// Split `git status --porcelain=v1` into (tracked changes, untracked files).
+///
+/// `??` is the porcelain code for an untracked path; with
+/// `--untracked-files=all` each file inside an untracked directory gets its
+/// own line, which is the count we want — "5 untracked files", not
+/// "1 untracked directory". Anything else non-empty is a change to a tracked
+/// file. (Over SSH a stderr line can end up in this stream — see
+/// [`count_conflicts`] — and counts as a tracked change, exactly as it did
+/// when this was one undifferentiated total.)
+pub fn parse_status_counts(status_porcelain: &str) -> (usize, usize) {
+    let mut tracked = 0usize;
+    let mut untracked = 0usize;
+    for line in status_porcelain.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        if line.starts_with("??") {
+            untracked += 1;
+        } else {
+            tracked += 1;
+        }
+    }
+    (tracked, untracked)
+}
+
+/// Last fetch time from the mtime of `FETCH_HEAD`. git rewrites that file on
+/// every fetch and pull and nothing else touches it, so its mtime is the age
+/// of the ahead/behind counts.
+///
+/// Two candidates, both resolved by git in the Home batch rather than
+/// assembled here as `<repo>/.git/FETCH_HEAD` (which is wrong for linked
+/// worktrees, submodules and separate git dirs alike):
+/// * `git_path` — `rev-parse --git-path FETCH_HEAD`, the *per-worktree* file,
+///   written when the fetch was run from this worktree;
+/// * `common_dir` — `rev-parse --git-common-dir`, whose `FETCH_HEAD` is the
+///   one a fetch from the main worktree wrote.
+///
+/// The remote-tracking refs those counts compare against are shared by every
+/// worktree, so the newer of the two files is the honest answer: reporting
+/// "never fetched" in a linked worktree whose numbers were refreshed from
+/// next door is exactly the kind of stale-looking lie this reports against.
+fn last_fetch_time(
+    repo_path: &Path,
+    git_path: Option<&String>,
+    common_dir: Option<&String>,
+) -> LastFetch {
+    // An `ssh://` repository has no local file to stat; reporting "never
+    // fetched" there would be a guess, and the wrong one.
+    if parse_ssh_repo(repo_path).is_some() {
+        return LastFetch::Unavailable;
+    }
+    let absolute = |resolved: &str| -> PathBuf {
+        if Path::new(resolved).is_absolute() {
+            PathBuf::from(resolved)
+        } else {
+            repo_path.join(resolved)
+        }
+    };
+    // An empty output would resolve to the repository directory itself,
+    // whose mtime has nothing to do with fetching.
+    let non_empty = |s: &&String| !s.trim().is_empty();
+    let candidates: Vec<PathBuf> = [
+        git_path.filter(non_empty).map(|s| absolute(s.trim())),
+        common_dir
+            .filter(non_empty)
+            .map(|s| absolute(s.trim()).join("FETCH_HEAD")),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    if candidates.is_empty() {
+        return LastFetch::Unknown;
+    }
+    candidates
+        .iter()
+        .filter_map(|p| std::fs::metadata(p).ok())
+        .filter_map(|m| m.modified().ok())
+        .filter_map(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .max()
+        .map_or(LastFetch::Never, LastFetch::At)
 }
 
 /// Whether a rebase is genuinely in progress.

@@ -2240,3 +2240,130 @@ fn navigation_popup_keyboard_selects_a_destination_and_wheel_does_not_reach_scre
     assert_eq!(app.screen, Screen::Workspace);
     assert!(!app.nav_popup);
 }
+
+/// `HomeRow` is cached to disk, so a cache file written before the truth
+/// fields existed must still load — and must not be rendered as if it knew
+/// things it does not.
+#[test]
+fn old_home_cache_json_deserializes_without_inventing_state() {
+    let json = r#"{
+        "fetched_at": 1700000000,
+        "github": null,
+        "branch": "main",
+        "ahead": 3,
+        "behind": 1,
+        "dirty": 7,
+        "last_commit": "2026-01-02 03:04:05",
+        "open_prs": null,
+        "ci_status": null,
+        "op_state": "None",
+        "conflicts": 0
+    }"#;
+    let row: HomeRow = serde_json::from_str(json).unwrap();
+    assert_eq!(row.branch, "main");
+    assert_eq!((row.ahead, row.behind), (3, 1));
+    assert_eq!(row.dirty, 7);
+    // Nothing was recorded about these, and nothing is guessed.
+    assert_eq!(row.upstream, crate::git::UpstreamState::Unknown);
+    assert_eq!(row.last_fetch, crate::git::LastFetch::Unknown);
+    assert!(row.error.is_none());
+    // An unknown split renders as the bare total rather than claiming all
+    // seven changes are to tracked files.
+    assert_eq!(dirty_split(&row), None);
+    // ...and `Unknown` keeps showing the counts it does have, instead of the
+    // "no upstream" marker.
+    assert!(!needs_attention(&row));
+
+    let fresh = HomeRow {
+        dirty: 7,
+        tracked_changes: 2,
+        untracked: 5,
+        ..Default::default()
+    };
+    assert_eq!(dirty_split(&fresh), Some((2, 5)));
+    assert_eq!(dirty_split(&HomeRow::default()), Some((0, 0)));
+}
+
+#[test]
+fn home_errors_classify_into_a_short_reason() {
+    assert_eq!(
+        classify_home_error("not a git repository: /tmp/x (fatal: ...)"),
+        HomeFailure::NotARepository
+    );
+    assert_eq!(
+        classify_home_error("No such file or directory (os error 2)"),
+        HomeFailure::MissingPath
+    );
+    assert_eq!(
+        classify_home_error("Permission denied (os error 13)"),
+        HomeFailure::Unreadable
+    );
+}
+
+/// A failed row must reach the UI as a failure, not as a missing row (which
+/// renders as "loading" forever) and not as a default row (which renders as
+/// a clean, in-sync repository).
+#[test]
+fn home_loaded_error_becomes_a_failed_row_with_an_attributed_message() {
+    let mut app = App::new();
+    app.repos = vec![repo("broken", "/tmp/broken")];
+    app.home_rows.clear();
+    app.apply_msg_for_test(Msg::HomeLoaded {
+        generation: app.home_generation(),
+        index: 0,
+        row: Err("No such file or directory (os error 2)".into()),
+    });
+    let row = app.home_rows.get(&0).expect("a failed row is still a row");
+    assert_eq!(
+        row.error.as_deref(),
+        Some("No such file or directory (os error 2)")
+    );
+    // The footer message now says which repository it is about.
+    assert_eq!(
+        app.error.as_deref(),
+        Some("broken: No such file or directory (os error 2)")
+    );
+    assert!(needs_attention(row));
+
+    // A later success replaces the failure rather than sitting next to it.
+    app.apply_msg_for_test(Msg::HomeLoaded {
+        generation: app.home_generation(),
+        index: 0,
+        row: Ok(HomeRow {
+            branch: "main".into(),
+            ..Default::default()
+        }),
+    });
+    assert!(app.home_rows[&0].error.is_none());
+}
+
+#[test]
+fn shortened_paths_keep_the_leaf_and_drop_the_shared_middle() {
+    let home = PathBuf::from("/Users/dev");
+    let path = PathBuf::from("/Users/dev/work/clients/acme/git-dashboard-tui");
+
+    // Wide enough: just the home-relative form.
+    assert_eq!(
+        shorten_path_with_home(&path, Some(&home), 60),
+        "~/work/clients/acme/git-dashboard-tui"
+    );
+    // Too narrow: the middle goes, the distinguishing leaf stays.
+    let narrow = shorten_path_with_home(&path, Some(&home), 26);
+    assert!(narrow.ends_with("git-dashboard-tui"), "{narrow}");
+    assert!(narrow.starts_with("~/…/"), "{narrow}");
+    assert!(narrow.chars().count() <= 26, "{narrow}");
+    // Narrower than the leaf itself: keep its end, where names differ.
+    let tiny = shorten_path_with_home(&path, Some(&home), 8);
+    assert_eq!(tiny, "…ard-tui");
+    // Outside $HOME, and with no home at all, the absolute form is kept.
+    assert_eq!(
+        shorten_path_with_home(&PathBuf::from("/srv/repo"), Some(&home), 40),
+        "/srv/repo"
+    );
+    assert_eq!(
+        shorten_path_with_home(&PathBuf::from("/srv/a/b/c/repo"), None, 12),
+        "/…/b/c/repo"
+    );
+    // The home directory itself.
+    assert_eq!(shorten_path_with_home(&home, Some(&home), 10), "~");
+}
