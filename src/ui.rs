@@ -1,7 +1,7 @@
 use crate::app::{
     App, CiOutcome, FocusPane, HomeFailure, ListViewport, RepoTab, Screen, classify_ci_status,
-    classify_home_error, column_for_sort_mode, dirty_split, short_hash, shorten_path,
-    sort_is_ascending,
+    classify_home_error, column_for_sort_mode, dirty_split, short_hash, shorten_path_with_home,
+    sort_is_ascending, user_home_dir,
 };
 use crate::colors::Palette;
 use crate::git::{CommitRef, DiffRowKind, GitOpState, GithubState, UpstreamState};
@@ -670,7 +670,16 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         min_w(0, 26),
         min_w(1, 30),
         min_w(2, 10),
-        min_w(3, 8),
+        // 8 was right for a bare total; the cell now reads `{tracked}M
+        // {untracked}?`, which spends three of its columns on the two
+        // markers and the space. At 8, `100M 100?` was clipped to
+        // `100M 100` — with no ellipsis — so the `?` that is the only thing
+        // telling untracked from tracked silently disappeared, and a wider
+        // count lost a digit and read as a smaller, entirely plausible
+        // number. 11 fits four digits on each side, and is what the Japanese
+        // header (`未コミット`, 10 columns plus the sort marker) already
+        // forced the column to be — so the two languages now agree as well.
+        min_w(3, 11),
         min_w(4, 18),
         Constraint::Min(10),
     ];
@@ -680,7 +689,7 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     // symbol, with `column_spacing` between them. The path column's real
     // width also decides how much of each path survives shortening, so this
     // has to be known before the rows are built.
-    let path_width = {
+    let (path_width, branch_width) = {
         let inner = area.inner(Margin::new(1, 1));
         let sym_w = HIGHLIGHT_SYMBOL.chars().count() as u16;
         let cols_area = Rect {
@@ -690,9 +699,16 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         };
         let cols = Layout::horizontal(widths).spacing(1).split(cols_area);
         let path_width = cols.get(5).map_or(10, |r| r.width as usize);
+        let branch_width = cols.get(1).map_or(30, |r| r.width as usize);
         *app.home_col_bounds.borrow_mut() = cols.iter().map(|r| (r.x, r.x + r.width)).collect();
-        path_width
+        (path_width, branch_width)
     };
+    // Resolved once per frame. `shorten_path` asks the OS for it on every
+    // call, and the row closure below runs for every filtered repository on
+    // a draw that fires at least every 100 ms — with a couple of hundred
+    // repositories that was a file read (Linux) or a getpwuid (macOS)
+    // thousands of times a second, on the render thread.
+    let home = user_home_dir();
 
     let rows: Vec<Row> = indices
         .iter()
@@ -720,10 +736,22 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 (_, Some(_)) => ("—".to_string(), Style::default().fg(pal.red)),
                 (None, None) => ("…".to_string(), Style::default().fg(pal.muted)),
                 (Some(r), None) => match r.upstream {
-                    UpstreamState::NoRemote | UpstreamState::NoUpstream => {
+                    // `Unknown` is the serde default, which is exactly what a
+                    // row deserialised from a v0.4.1 cache carries: the
+                    // counts in it were saved by a build that did not record
+                    // what they were measured against. Grouped with
+                    // `Tracking` it rendered a confident `↑0 ↓0`, so on the
+                    // first launch after upgrading every cached unpushed
+                    // branch looked as synced as a genuinely synced one — the
+                    // ambiguity this column exists to remove. `dirty_split`
+                    // already answers the same stale-cache question by
+                    // declining to attribute; this declines to compare.
+                    UpstreamState::NoRemote
+                    | UpstreamState::NoUpstream
+                    | UpstreamState::Unknown => {
                         ("↑? ↓?".to_string(), Style::default().fg(pal.subtext))
                     }
-                    UpstreamState::Tracking | UpstreamState::Unknown => (
+                    UpstreamState::Tracking => (
                         format!("↑{} ↓{}", r.ahead, r.behind),
                         if r.ahead + r.behind > 0 {
                             Style::default().fg(pal.yellow)
@@ -792,6 +820,9 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             } else {
                 vec![Span::from(repo.name.clone())]
             };
+            // Index of the first droppable chip; everything before it (the
+            // branch name and the ⚠ badges) is never shed.
+            let mut chip_start = usize::MAX;
             let mut branch_spans = match failure {
                 Some(err) => vec![Span::styled(
                     format!("⚠ {}", home_failure_reason(app, err)),
@@ -833,6 +864,7 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 // waiting on this user, then the repository-wide open-PR
                 // count (a number, not a task), and last the CI glyph.
                 let github = row_data.github.as_ref();
+                chip_start = branch_spans.len();
                 if let Some(pr) = github.and_then(|g| g.branch_pr.as_deref()) {
                     branch_spans.push(Span::raw(" "));
                     branch_spans.push(Span::styled(
@@ -903,6 +935,13 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                     branch_spans.push(Span::styled(unknown, Style::default().fg(pal.muted)));
                 }
             }
+            // The cell is laid out wider than it is drawn on a narrow
+            // terminal, and plain truncation cuts mid-chip: `[PR:50]` became
+            // `[PR:5`, which is not a clipped number but a different and
+            // entirely plausible one. Chips are appended least-actionable
+            // last, so dropping whole ones from the end sheds the least
+            // useful information first and never leaves half a value.
+            let branch_spans = fit_branch_chips(branch_spans, chip_start, branch_width);
             Row::new(vec![
                 Cell::from(Line::from(name_spans)),
                 Cell::from(Line::from(branch_spans)),
@@ -910,7 +949,7 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 Cell::from(Line::from(dirty_spans)),
                 Cell::from(Span::styled(updated, Style::default().fg(pal.subtext))),
                 Cell::from(Span::styled(
-                    shorten_path(&repo.path, path_width),
+                    shorten_path_with_home(&repo.path, home.as_deref(), path_width),
                     Style::default().fg(pal.muted),
                 )),
             ])
@@ -971,6 +1010,32 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     // Remember where the viewport ended up so handle_mouse_click can turn a
     // screen row back into a repository index.
     app.home_offset.set(state.offset());
+}
+
+/// Drop whole trailing chips from a Home branch cell until it fits `width`.
+///
+/// Returns the spans unchanged when they already fit, or when nothing is
+/// droppable — the branch name and the in-progress/conflict badges are never
+/// shed, and letting those truncate normally is better than hiding them.
+fn fit_branch_chips(
+    mut spans: Vec<Span<'static>>,
+    chip_start: usize,
+    width: usize,
+) -> Vec<Span<'static>> {
+    use unicode_width::UnicodeWidthStr;
+    let total = |spans: &[Span<'static>]| spans.iter().map(|s| s.content.width()).sum::<usize>();
+    if chip_start == usize::MAX || chip_start > spans.len() {
+        return spans;
+    }
+    while total(&spans) > width && spans.len() > chip_start {
+        spans.pop();
+        // Chips are pushed as a separator span followed by the chip itself,
+        // so the separator has to go with it or the cell ends in a space.
+        if spans.len() > chip_start && spans.last().is_some_and(|s| s.content.trim().is_empty()) {
+            spans.pop();
+        }
+    }
+    spans
 }
 
 /// The mark for a CI answer the row does not have, or `None` when the state
@@ -4174,7 +4239,11 @@ pub(crate) mod tests {
             },
         );
 
-        let width = 110usize;
+        // Wide enough that every chip fits: this test is about what the
+        // cell contains and in what order. Which chips survive a cell too
+        // narrow for all of them is a separate question, pinned below by
+        // `a_tight_branch_cell_drops_whole_chips_rather_than_half_a_value`.
+        let width = 130usize;
         let text = render_to_text(&app, width as u16, 20);
         let lines: Vec<String> = text
             .chars()
@@ -4221,6 +4290,55 @@ pub(crate) mod tests {
                 "{absent:?} should not appear on a row with no GitHub data: {quiet:?}"
             );
         }
+    }
+
+    /// A cell too narrow for every chip used to be truncated by ratatui at a
+    /// character boundary, so `[PR:50]` rendered as `[PR:5` — not a visibly
+    /// clipped number but a different and entirely plausible one. Whole
+    /// chips are dropped instead, from the least actionable end.
+    #[test]
+    fn a_tight_branch_cell_drops_whole_chips_rather_than_half_a_value() {
+        use crate::app::HomeRow;
+        use crate::git::{BranchPr, RemoteCiPrInfo};
+
+        let pr = |number: usize, decision: &str| {
+            Some(Box::new(BranchPr {
+                number,
+                title: "t".to_string(),
+                url: String::new(),
+                is_draft: false,
+                review_decision: Some(decision.to_string()),
+            }))
+        };
+        let mut app = App::new();
+        app.repos = vec![crate::config::Repository {
+            name: "chips".into(),
+            path: "/tmp/chips".into(),
+            group: None,
+        }];
+        app.home_rows.clear();
+        app.home_rows.insert(
+            0,
+            HomeRow {
+                branch: "fix".to_string(),
+                open_prs: Some(50),
+                github: Some(RemoteCiPrInfo {
+                    pr_state: GithubState::Ready,
+                    branch_pr: pr(42, "CHANGES_REQUESTED"),
+                    review_requests: Some(3),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        );
+        let text = render_to_text(&app, 100, 12);
+        assert!(
+            !text.contains("[PR:5]") && !text.contains("[PR:5 "),
+            "a dropped chip must not leave a plausible wrong number: {text}"
+        );
+        // What survives is the left-hand, more actionable end.
+        assert!(text.contains("#42"), "{text}");
+        assert!(text.contains("✗rev"), "{text}");
     }
 
     #[test]

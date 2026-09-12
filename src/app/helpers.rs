@@ -177,10 +177,10 @@ pub fn dirty_split(row: &HomeRow) -> Option<(usize, usize)> {
 /// a table cell does on its own) drops the only part that identifies the row
 /// and leaves a column of identical prefixes.
 pub fn shorten_path(path: &Path, max_width: usize) -> String {
-    shorten_path_with_home(path, home_dir().as_deref(), max_width)
+    shorten_path_with_home(path, user_home_dir().as_deref(), max_width)
 }
 
-fn home_dir() -> Option<std::path::PathBuf> {
+pub fn user_home_dir() -> Option<std::path::PathBuf> {
     directories::UserDirs::new().map(|d| d.home_dir().to_path_buf())
 }
 

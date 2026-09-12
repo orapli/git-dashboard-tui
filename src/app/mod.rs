@@ -49,6 +49,24 @@ fn unwrap_config<T: Default>(
 
 pub struct App {
     pub repos: Vec<Repository>,
+    /// Index in `repos` of the row added by `git-dashboard-tui PATH`, if the
+    /// path was not already registered.
+    ///
+    /// The row is a *view*, not a registration: it has to be in `repos` so
+    /// that every index-keyed structure (`home_rows`, `busy`, `home_seq`, the
+    /// `LoadHome` jobs) can address it like any other row, but it must never
+    /// reach config.json. Recorded here so [`App::persistable_repos`] — which
+    /// every write goes through — can drop it again; without it, any later
+    /// registration change (add, rename, group, delete) serialised the whole
+    /// of `repos` and made the scratch path a permanent entry the user then
+    /// had to hunt down.
+    ///
+    /// An index rather than the path: `delete_repo` is the only thing that
+    /// removes a row, and it already shifts every other index-keyed map, so
+    /// this is maintained in exactly one more place. Keying by path would
+    /// instead filter out a row the user later registered *deliberately* at
+    /// the same path, which is a silent failure to save.
+    ephemeral_repo: Option<usize>,
     members: Vec<Member>,
     prefs: config::Preferences,
     config_state: ConfigLoadState,
@@ -227,6 +245,7 @@ impl App {
         );
         let mut app = Self {
             repos,
+            ephemeral_repo: None,
             members,
             prefs,
             config_state,
@@ -370,6 +389,14 @@ impl App {
 
     /// How many background operations are in flight, counting the per-repo
     /// ones and the screens that track their own load state.
+    /// Pretend the auto-refresh interval has elapsed. Test-only: the real
+    /// clock would make the guard below untestable without sleeping.
+    #[cfg(test)]
+    pub fn expire_auto_refresh_for_test(&mut self) {
+        self.last_auto_refresh = std::time::Instant::now()
+            - std::time::Duration::from_secs(self.prefs.auto_refresh_secs + 1);
+    }
+
     pub fn busy_count(&self) -> usize {
         let flags = [
             self.repo_loading,
@@ -2020,7 +2047,14 @@ impl App {
     fn send_job(&mut self, job: Job) {
         match &job {
             Job::LoadHome { index, .. } => {
-                self.busy.insert(*index, Activity::Refresh);
+                // A refresh must not overwrite a pull or fetch that is still
+                // running against the same row. `busy` holds one activity per
+                // index, and the refresh is the shorter, less interesting of
+                // the two: pressing `p` and then `r` (or simply letting
+                // auto-refresh fire) replaced the pull's spinner with a
+                // refresh one, and `busy_count()` then under-reported the
+                // work in flight while `git pull` was still going.
+                self.busy.entry(*index).or_insert(Activity::Refresh);
             }
             Job::Pull { index, .. } => {
                 self.busy.insert(*index, Activity::Pull);
@@ -2057,15 +2091,46 @@ impl App {
         }
     }
 
+    /// Record the row at `index` as the ephemeral `git-dashboard-tui PATH`
+    /// view, so it is shown and refreshed like any other row but never
+    /// written to config.json. See [`App::ephemeral_repo`].
+    pub fn mark_ephemeral_repo(&mut self, index: usize) {
+        self.ephemeral_repo = Some(index);
+    }
+
+    /// Index of the ephemeral row, if this session was started with a path.
+    pub fn ephemeral_repo(&self) -> Option<usize> {
+        self.ephemeral_repo
+    }
+
+    /// Exactly what config.json would receive: every registered repository,
+    /// and not the ephemeral command-line one.
+    ///
+    /// Public so a test can assert on the persisted list without writing the
+    /// developer's real config, and because "what would be saved" is the only
+    /// honest way to check that the scratch row never leaks into it.
+    pub fn persistable_repos(&self) -> Vec<Repository> {
+        self.repos
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| Some(*index) != self.ephemeral_repo)
+            .map(|(_, repo)| repo.clone())
+            .collect()
+    }
+
     /// Persist repositories, refusing to write when config.json failed to load
     /// — saving then would replace the user's list with the empty default we
     /// fell back to. Callers that must roll back their in-memory change on
     /// failure use the `try_` form; the rest report through `self.error`.
+    ///
+    /// This is the only path from `self.repos` to disk (`save_repositories`
+    /// has exactly one caller), which is why filtering the ephemeral row here
+    /// is enough to keep it out of the user's configuration for good.
     fn try_persist_repos(&self) -> Result<(), String> {
         if self.config_state.repos_failed {
             return Err(self.config_readonly_message("config.json"));
         }
-        config::save_repositories(&self.repos)
+        config::save_repositories(&self.persistable_repos())
     }
 
     fn try_persist_members(&self) -> Result<(), String> {
@@ -2794,6 +2859,13 @@ impl App {
     /// call here cannot pile up work behind a slow repository.
     pub fn maybe_auto_refresh(&mut self) {
         if self.prefs.auto_refresh_secs == 0 || self.screen != Screen::Home {
+            return;
+        }
+        // A refresh still in flight must finish first. Each new generation
+        // voids the previous one's results, so an interval shorter than a
+        // refresh takes — easy with many repositories on a slow link — meant
+        // every cycle discarded its own work and no row ever updated.
+        if self.busy.values().any(|a| *a == Activity::Refresh) {
             return;
         }
         if self.last_auto_refresh.elapsed()
@@ -3606,8 +3678,18 @@ impl App {
             return;
         }
         let removed = self.repos.remove(i);
+        // The ephemeral row shifts with everything after the deleted one, and
+        // ceases to exist if it *was* the deleted one. Updated before the
+        // write below, because that write is what filters on this index.
+        let previous_ephemeral = self.ephemeral_repo;
+        self.ephemeral_repo = match self.ephemeral_repo {
+            Some(e) if e == i => None,
+            Some(e) if e > i => Some(e - 1),
+            other => other,
+        };
         if let Err(e) = self.try_persist_repos() {
             self.repos.insert(i, removed);
+            self.ephemeral_repo = previous_ephemeral;
             self.error = Some(e);
             return;
         }
@@ -3767,7 +3849,15 @@ impl App {
         // otherwise leave the row spinning forever.
         match &msg {
             Msg::HomeLoaded { index, .. } => {
-                self.busy.remove(index);
+                // Only the refresh's own marker: the other half of the rule
+                // in `send_job`. A refresh queued while a pull was running
+                // left the `Pull` marker in place, so removing it here on the
+                // refresh's result would have cleared the spinner for an
+                // operation still in flight — `Msg::OpDone` is what ends that
+                // one.
+                if self.busy.get(index) == Some(&Activity::Refresh) {
+                    self.busy.remove(index);
+                }
             }
             Msg::OpDone {
                 repo_index: Some(index),

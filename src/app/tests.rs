@@ -1038,7 +1038,7 @@ fn expand_tilde_and_strip_ansi() {
     // Resolve the expected home the same way the code under test does:
     // reading $HOME directly fails on Windows, where home_dir() falls back to
     // %USERPROFILE% and the assertion would compare against a bogus literal.
-    let home = home_dir().expect("a home directory is set in the test environment");
+    let home = user_home_dir().expect("a home directory is set in the test environment");
     assert_eq!(expand_user_path("~/work/repo"), home.join("work/repo"));
     assert_eq!(strip_ansi("\u{1b}[32mgreen\u{1b}[0m"), "green");
 }
@@ -2163,7 +2163,7 @@ fn sanitize_path_input_undoes_shell_and_drag_and_drop_quoting() {
 
 #[test]
 fn expand_user_path_resolves_tilde_against_home() {
-    let home = home_dir().expect("HOME is set in the test environment");
+    let home = user_home_dir().expect("HOME is set in the test environment");
     assert_eq!(expand_user_path("~"), home);
     assert_eq!(expand_user_path("~/work/repo"), home.join("work/repo"));
     // Only a leading `~/` (or a bare `~`) is special — `~foo` is a literal
@@ -2714,4 +2714,32 @@ fn shortened_paths_keep_the_leaf_and_drop_the_shared_middle() {
     );
     // The home directory itself.
     assert_eq!(shorten_path_with_home(&home, Some(&home), 10), "~");
+}
+
+/// Each refresh generation voids the previous one's results, so firing a new
+/// one while the last is still running means every cycle discards its own
+/// work and no row ever updates. Easy to reach with many repositories on a
+/// slow link; masked today only by auto-refresh defaulting to off.
+#[test]
+fn auto_refresh_waits_for_the_refresh_already_running() {
+    let mut app = App::new();
+    app.repos = vec![repo("a", "/tmp/a"), repo("b", "/tmp/b")];
+    app.prefs.auto_refresh_secs = 30;
+    app.screen = Screen::Home;
+
+    app.expire_auto_refresh_for_test();
+    let before = app.home_generation();
+    app.busy.insert(0, Activity::Refresh);
+    app.maybe_auto_refresh();
+    assert_eq!(
+        app.home_generation(),
+        before,
+        "a refresh was started while one was still in flight"
+    );
+
+    // Once it finishes, the next tick goes through.
+    app.busy.remove(&0);
+    app.expire_auto_refresh_for_test();
+    app.maybe_auto_refresh();
+    assert!(app.home_generation() > before);
 }

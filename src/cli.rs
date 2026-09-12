@@ -181,6 +181,13 @@ pub fn resolve_repository_path(path: &Path) -> Result<PathBuf, String> {
 /// a duplicate row being added — that is the common case (`cd` into a project
 /// you already track) and the one where a second row would look like a bug.
 pub fn focus_repository(app: &mut App, path: PathBuf) {
+    /// `git::get_repo_name`'s last-resort name for a path it cannot read.
+    /// Duplicated rather than imported because it is a private fallback of
+    /// another module; the test that guards this asserts the *property* (an
+    /// English session gets an English name) rather than the literal, so it
+    /// keeps failing here no matter which way the two drift apart.
+    const GIT_UNNAMED_REPO: &str = "不明なリポジトリ";
+
     let existing = app
         .repos
         .iter()
@@ -189,19 +196,33 @@ pub fn focus_repository(app: &mut App, path: PathBuf) {
     let index = match existing {
         Some(index) => index,
         None => {
+            // `git::get_repo_name` has a hard-coded Japanese last resort for
+            // a path it cannot name at all, which the English suffix below
+            // turned into "不明なリポジトリ (not registered)" — half of each
+            // language. Re-make that fallback here, where the language the
+            // user is reading is known.
+            let name = git::get_repo_name(&path);
+            let name = if name == GIT_UNNAMED_REPO {
+                app.tt("unknown repository", "不明なリポジトリ")
+            } else {
+                name
+            };
             // Appended rather than inserted, so the indices `App::new`'s
             // in-flight refresh jobs were built with still point at the same
             // repositories.
             app.repos.push(Repository {
-                name: format!(
-                    "{} ({})",
-                    git::get_repo_name(&path),
-                    app.tt("not registered", "未登録")
-                ),
+                name: format!("{} ({})", name, app.tt("not registered", "未登録")),
                 path,
                 group: None,
             });
-            app.repos.len() - 1
+            let index = app.repos.len() - 1;
+            // The row has to live in `app.repos` for every index-keyed
+            // structure to address it, so "never saved" cannot be a property
+            // of where it is stored — it has to be recorded. Without this the
+            // next registration change serialised the whole list and made the
+            // scratch path a permanent entry in the user's config.json.
+            app.mark_ephemeral_repo(index);
+            index
         }
     };
 

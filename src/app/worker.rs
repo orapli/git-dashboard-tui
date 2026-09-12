@@ -129,35 +129,57 @@ where
 /// inconsistent by a half-finished job — every job builds a fresh value and
 /// mutates nothing that the next job reads.
 fn run_one(job: Job, msg_tx: &Sender<Msg>, home_gen: &AtomicU64) -> ControlFlow<()> {
-    let Some(msg) = guard_panics(job, |job| run_job(job, msg_tx, home_gen)) else {
-        return ControlFlow::Continue(());
-    };
-    if msg_tx.send(msg).is_err() {
-        ControlFlow::Break(())
-    } else {
-        ControlFlow::Continue(())
+    for msg in guard_panics(job, |job| run_job(job, msg_tx, home_gen)) {
+        if msg_tx.send(msg).is_err() {
+            return ControlFlow::Break(());
+        }
     }
+    ControlFlow::Continue(())
 }
 
-/// Run `job` through `work`, turning a panic into that job's failure message
-/// instead of letting it unwind out of the worker thread. See [`run_one`] for
-/// why the panic is caught rather than the thread replaced.
-fn guard_panics(job: Job, work: impl FnOnce(Job) -> Option<Msg>) -> Option<Msg> {
+/// Run `job` through `work`, turning a panic into that job's failure
+/// message(s) instead of letting it unwind out of the worker thread. See
+/// [`run_one`] for why the panic is caught rather than the thread replaced.
+///
+/// A list rather than a single message because one job kind needs two — see
+/// [`panic_report`] on `LoadGlobalMembers`. The happy path still produces at
+/// most one.
+fn guard_panics(job: Job, work: impl FnOnce(Job) -> Option<Msg>) -> Vec<Msg> {
     // Taken before the job is moved into the closure: after the unwind the
     // job is gone, and the failure message needs its index and generation.
     let on_panic = panic_report(&job);
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(job))).unwrap_or(on_panic)
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(job))) {
+        Ok(msg) => msg.into_iter().collect(),
+        Err(_) => on_panic,
+    }
 }
 
-/// The message to post on behalf of a job that panicked partway through.
+/// The messages to post on behalf of a job that panicked partway through.
 ///
-/// Only the job kinds the app tracks in its `busy` map need one: those are
-/// marked running at queue time and unmarked when a message carrying their
-/// index arrives, so with nothing sent the repository would spin forever.
-/// The rest are tracked by per-screen loading flags that the screen's own
-/// interactions re-request, and giving each of them a synthetic result would
-/// mean a second, drifting definition of every job's result shape.
-fn panic_report(job: &Job) -> Option<Msg> {
+/// Every job whose result a screen is waiting on needs one. A job is marked
+/// running when it is queued — in the `busy` map for a Home row, in a
+/// per-screen flag (`repo_loading`, `diff.loading`, `diff.blame_loading`,
+/// `search.loading`, `global_members_loading`) for everything else — and each
+/// of those is cleared *only* by that job's own result message. A panic that
+/// posted nothing therefore left "Loading…" on screen for the rest of the
+/// session with no error, which is worse than the pre-pool behaviour: the
+/// panic used to kill the worker thread, and the next `send` failing at least
+/// told the user the worker had stopped.
+///
+/// So the rule is that a report has to both *clear* the marker and *say why*.
+/// Nearly every result message carries a `Result`, so one message does both.
+/// `Msg::GlobalMembersLoaded` is the exception — its payload is a plain list,
+/// and an empty one reads as a real "nobody contributed anywhere" — so that
+/// job reports twice: the empty list to stop the spinner, and an `OpDone`
+/// failure to say the aggregation did not actually happen.
+///
+/// No kind reports nothing any more: every result message either carries a
+/// `Result` or has an errors list, so there was nowhere a failure genuinely
+/// could not be expressed.
+///
+/// `lang` is only carried by the jobs that already had a reason to; the rest
+/// are worded by [`panic_text_default`].
+fn panic_report(job: &Job) -> Vec<Msg> {
     match job {
         Job::LoadHome {
             generation,
@@ -165,18 +187,97 @@ fn panic_report(job: &Job) -> Option<Msg> {
             index,
             lang,
             ..
-        } => Some(Msg::HomeLoaded {
+        } => vec![Msg::HomeLoaded {
             generation: *generation,
             seq: *seq,
             index: *index,
             row: Err(panic_text(*lang)),
-        }),
-        Job::Pull { index, lang, .. } | Job::Fetch { index, lang, .. } => Some(Msg::OpDone {
+        }],
+        Job::Pull { index, lang, .. } | Job::Fetch { index, lang, .. } => vec![Msg::OpDone {
             ok: false,
             text: panic_text(*lang),
             repo_index: Some(*index),
-        }),
-        _ => None,
+        }],
+        // `repo_loading`, cleared by `Msg::RepoLoaded` and nothing else.
+        Job::LoadRepo { index, .. } => vec![Msg::RepoLoaded {
+            index: *index,
+            data: Box::new(Err(panic_text_default())),
+        }],
+        // The diff screen. Diff parsing and syntax tokenisation are the most
+        // slicing-heavy code in the app, which makes this the job most likely
+        // to panic and the "Loading…" most likely to be stared at.
+        Job::LoadDiff { seq, .. } => vec![Msg::DiffLoaded {
+            seq: *seq,
+            result: Err(panic_text_default()),
+        }],
+        Job::LoadBlame { seq, .. } => vec![Msg::BlameLoaded {
+            seq: *seq,
+            result: Err(panic_text_default()),
+        }],
+        Job::LoadCommitMeta { seq, .. } => vec![Msg::CommitMeta {
+            seq: *seq,
+            header: Err(panic_text_default()),
+            files: Err(panic_text_default()),
+        }],
+        Job::LoadFiles { seq, .. } => vec![Msg::FilesLoaded {
+            seq: *seq,
+            files: Err(panic_text_default()),
+            // Nothing to re-select when no list was produced, which is
+            // exactly what `None` already means here.
+            preselect: None,
+        }],
+        Job::LoadCommitPreview { seq, hash, .. } => vec![Msg::CommitPreviewLoaded {
+            seq: *seq,
+            hash: hash.clone(),
+            header: Err(panic_text_default()),
+            files: Err(panic_text_default()),
+        }],
+        Job::LoadBranchLog { branch, .. } => vec![Msg::LogLoaded {
+            title: branch.clone(),
+            body: Err(panic_text_default()),
+        }],
+        // Not attributed to a Home row, but still an operation the user is
+        // waiting on an answer for: silence reads as "the stash was applied".
+        Job::StashApply { .. } | Job::StashDrop { .. } => vec![Msg::OpDone {
+            ok: false,
+            text: panic_text_default(),
+            repo_index: None,
+        }],
+        // `search.loading`. Every repository is named as failed because the
+        // panic took the whole cross-repository walk with it, and the screen
+        // already knows how to report repositories it could not search —
+        // reporting no hits and no failures would claim the search ran.
+        Job::SearchCommits { seq, repos, .. } => vec![Msg::CommitSearchLoaded {
+            seq: *seq,
+            hits: Vec::new(),
+            failed_repos: repos.iter().map(|(_, name, _)| name.clone()).collect(),
+            truncated_repos: Vec::new(),
+            total_truncated: false,
+        }],
+        // `global_members_loading`. Two messages; see the note above.
+        Job::LoadGlobalMembers { generation, .. } => vec![
+            Msg::GlobalMembersLoaded {
+                generation: *generation,
+                list: Vec::new(),
+            },
+            Msg::OpDone {
+                ok: false,
+                text: panic_text_default(),
+                repo_index: None,
+            },
+        ],
+        // The two streaming jobs. Neither invents a result: the rows they
+        // already sent stand, and the `*Done` they always finish with is
+        // exactly where a scan reports what went wrong. Both are dropped by
+        // the screen if its generation has moved on, same as a real one.
+        Job::ScanRepos { seq, .. } => vec![Msg::FinderDone {
+            seq: *seq,
+            errors: vec![panic_text_default()],
+        }],
+        Job::LoadWorkspace { seq, .. } => vec![Msg::WorkspaceDone {
+            seq: *seq,
+            errors: vec![panic_text_default()],
+        }],
     }
 }
 
@@ -190,6 +291,16 @@ fn panic_text(lang: Language) -> String {
         }
         Language::Japanese => "このリポジトリの解析が予期せず失敗しました（内部エラー）。".into(),
     }
+}
+
+/// As [`panic_text`], for the jobs that do not carry the user's language.
+///
+/// English rather than bilingual-by-guess: the alternative is threading
+/// `Language` through ten more job kinds for a sentence only an internal
+/// error can produce, and the screens that show it (diff, blame, file list,
+/// finder, workspace, stash) render whatever string they are handed.
+fn panic_text_default() -> String {
+    panic_text(Language::English)
 }
 
 /// Execute one job, returning the message to hand back to the UI thread, or
@@ -862,15 +973,18 @@ mod pool_tests {
     #[test]
     fn a_panicking_job_reports_a_failure_for_the_row_it_was_analysing() {
         let report = guard_panics(dummy_job(7), |_| panic!("unusual git output"));
-        let Some(Msg::HomeLoaded {
-            generation,
-            seq,
-            index,
-            row,
-        }) = report
+        let [
+            Msg::HomeLoaded {
+                generation,
+                seq,
+                index,
+                row,
+            },
+        ] = report.as_slice()
         else {
             panic!("a panicked LoadHome must come back as a failed HomeLoaded");
         };
+        let (generation, seq, index) = (*generation, *seq, *index);
         // The order number has to survive too: the UI drops a HomeLoaded
         // older than the newest it has applied for that row, so a failure
         // reported with the wrong seq would either be discarded or discard a
@@ -878,7 +992,7 @@ mod pool_tests {
         assert_eq!((generation, seq, index), (0, 1, 7));
         assert!(row.is_err(), "a panicked analysis is not a loaded row");
         // And the caller is still standing — that is the other half of it.
-        assert!(guard_panics(dummy_job(8), |_| None).is_none());
+        assert!(guard_panics(dummy_job(8), |_| None).is_empty());
     }
 
     /// The pool has no join handles and nothing watching it, so a thread lost
@@ -895,7 +1009,7 @@ mod pool_tests {
     fn a_panicking_job_does_not_shrink_the_pool() {
         const THREADS: usize = 3;
         let (job_tx, job_rx) = mpsc::channel::<Job>();
-        let (done_tx, done_rx) = mpsc::channel::<Option<Msg>>();
+        let (done_tx, done_rx) = mpsc::channel::<Vec<Msg>>();
         let panicking = Arc::new(Barrier::new(THREADS));
         let surviving = Arc::new(Barrier::new(THREADS));
         spawn_pool(job_rx, THREADS, move |job| {
@@ -922,7 +1036,10 @@ mod pool_tests {
             let report = done_rx
                 .recv_timeout(Duration::from_secs(10))
                 .expect("a panicking job must still report, not silently vanish");
-            assert!(matches!(report, Some(Msg::HomeLoaded { row: Err(_), .. })));
+            assert!(matches!(
+                report.as_slice(),
+                [Msg::HomeLoaded { row: Err(_), .. }]
+            ));
         }
 
         for index in THREADS..THREADS * 2 {
