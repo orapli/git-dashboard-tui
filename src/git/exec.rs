@@ -227,7 +227,19 @@ pub fn run_with_timeout(
         let _ = err_tx.send(buf);
     });
 
+    // The first `try_wait` after spawn practically always finds the child still
+    // running, so whatever the nap is, it becomes a *floor* under every single
+    // git invocation. A flat 25 ms one therefore cost ~25 ms per call against
+    // ~0.5 ms of real git work, and at ~17 invocations per repository per
+    // refresh that sleeping dominated the dashboard's refresh time. Starting
+    // short collects the fast commands — the overwhelming majority — almost
+    // immediately, and doubling up to a small cap keeps a genuinely
+    // long-running command from spinning the poll loop.
+    const POLL_MIN: std::time::Duration = std::time::Duration::from_micros(200);
+    const POLL_MAX: std::time::Duration = std::time::Duration::from_millis(2);
+
     let start = std::time::Instant::now();
+    let mut poll = POLL_MIN;
     let status = loop {
         match child.try_wait() {
             Ok(Some(status)) => break status,
@@ -240,7 +252,8 @@ pub fn run_with_timeout(
                         timeout.as_secs()
                     ));
                 }
-                std::thread::sleep(std::time::Duration::from_millis(25));
+                std::thread::sleep(poll);
+                poll = (poll * 2).min(POLL_MAX);
             }
             Err(e) => {
                 let _ = child.kill();
@@ -518,6 +531,35 @@ pub fn split_batch_output(
         }));
     }
     results
+}
+
+#[cfg(test)]
+mod wait_tests {
+    use super::*;
+
+    /// Waiting for the child used to be a flat 25 ms sleep between `try_wait`
+    /// polls, which put a ~25 ms floor under every git invocation — 10 calls
+    /// could not finish in under 250 ms no matter how trivial the commands.
+    /// The bound here is 100 ms: 10 ms per invocation is over an order of
+    /// magnitude more than a `true` costs in practice (~1 ms, spawn included),
+    /// so a loaded CI machine has ample slack, while still being 2.5× below
+    /// the old floor — the flat-sleep version cannot pass this.
+    #[test]
+    #[cfg(unix)]
+    fn short_commands_are_not_charged_a_fixed_poll_interval() {
+        const RUNS: u32 = 10;
+        let start = std::time::Instant::now();
+        for _ in 0..RUNS {
+            let out = run_with_timeout(Command::new("true"), std::time::Duration::from_secs(10))
+                .expect("`true` should run");
+            assert!(out.status.success());
+        }
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed < std::time::Duration::from_millis(100),
+            "{RUNS} trivial commands took {elapsed:?}; the wait loop is charging a fixed interval again"
+        );
+    }
 }
 
 #[cfg(test)]
