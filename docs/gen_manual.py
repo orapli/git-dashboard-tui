@@ -155,32 +155,62 @@ SECTIONS = [
                     "コンフリクト件数が出ます。列幅が足りない場合でも残るよう、バッジを先に描画しています。")),
                 (t("Sync", "同期"), t(
                     "Commits ahead of and behind the upstream, <b class='yellow'>yellow</b> when "
-                    "either is non-zero. Replaced by a spinner while a pull or fetch runs.",
+                    "either is non-zero. A branch with nothing to compare against — no remote, or "
+                    "one that was never pushed — reads <code>↑? ↓?</code> rather than posing as "
+                    "<code>↑0 ↓0</code>; which of the two is spelled out in the panel below. "
+                    "Replaced by a spinner while a pull or fetch runs.",
                     "upstream に対する先行・遅れのコミット数。どちらかが 0 でなければ"
-                    "<b class='yellow'>黄色</b>になります。pull / fetch 実行中はスピナーに変わります。")),
+                    "<b class='yellow'>黄色</b>になります。比較対象がない場合 — リモートがない、"
+                    "あるいは一度も push していないブランチ — は <code>↑0 ↓0</code> を装わず "
+                    "<code>↑? ↓?</code> と表示し、どちらであるかは下のパネルに出ます。"
+                    "pull / fetch 実行中はスピナーに変わります。")),
                 (t("Dirty", "未コミット"), t(
-                    "Uncommitted changes — <b class='green'>green</b> at zero, "
-                    "<b class='red'>red</b> otherwise.",
-                    "未コミットの変更数。0 なら<b class='green'>緑</b>、それ以外は<b class='red'>赤</b>。")),
+                    "Uncommitted changes — <b class='green'>green</b> at zero. Tracked edits and "
+                    "untracked files are kept apart with the letters the Status tab uses, so "
+                    "<code>2M 5?</code> is two edited files beside five stray build artefacts, "
+                    "not <code>7</code>.",
+                    "未コミットの変更数。0 なら<b class='green'>緑</b>。追跡対象の変更と未追跡は "
+                    "Status タブと同じ記号で分けて示すため、編集2件とビルド生成物5件は "
+                    "<code>7</code> ではなく <code>2M 5?</code> と表示します。")),
                 (t("Last commit", "最終コミット"), t(
                     "Date of the most recent commit across all refs.",
                     "全 ref のうち最新コミットの日時。")),
                 (t("PR / CI", "PR / CI"), t(
-                    "Open pull requests and the latest CI conclusion, for repositories with a "
-                    "GitHub remote and an authenticated <code>gh</code>. A failing, cancelled, "
-                    "timed-out or action-required run counts as needing attention.",
+                    "Open pull requests and the latest CI conclusion <em>on the branch this "
+                    "repository is on</em>, for repositories with a GitHub remote and an "
+                    "authenticated <code>gh</code>. A failing, cancelled, timed-out or "
+                    "action-required run counts as needing attention.",
                     "GitHub リモートがあり <code>gh</code> が認証済みの場合の、"
-                    "オープン中の PR 数と最新の CI 結果。failure / cancelled / timed_out / "
-                    "action_required は「要対応」として扱われます。")),
+                    "オープン中の PR 数と<em>そのリポジトリが今いるブランチ</em>の最新 CI 結果。"
+                    "failure / cancelled / timed_out / action_required は「要対応」として扱われます。")),
             ]),
+            ("p", t(
+                "A registration that could not be read is its own state, not a clean repository "
+                "and not a row still loading: the cells say <b class='red'>⚠ path missing</b>, "
+                "<b class='red'>⚠ not a git repo</b> or <b class='red'>⚠ unreadable</b>, the "
+                "panel prints the full reason and how to fix it, and <kbd>n</kbd> surfaces the "
+                "row. The panel also separates two ages that are easy to confuse: when the "
+                "dashboard last read the working tree, and when git last talked to the remote "
+                "(the <code>FETCH_HEAD</code> time), which is the age of the ahead/behind counts "
+                "and which only a fetch can refresh.",
+                "読み取れなかった登録は、正常なリポジトリでも読み込み中でもない独立した状態です。"
+                "セルには <b class='red'>⚠ パスなし</b> / <b class='red'>⚠ Git管理外</b> / "
+                "<b class='red'>⚠ 読取不可</b> と表示し、パネルに理由と対処を全文表示し、"
+                "<kbd>n</kbd> でも抽出します。パネルは混同しやすい2つの時刻も分けて表示します。"
+                "作業ツリーを最後に読んだ時刻と、git が最後にリモートと通信した時刻"
+                "（<code>FETCH_HEAD</code> の時刻）です。後者が ahead/behind の鮮度であり、"
+                "fetch でしか新しくなりません。")),
             ("shot", "home-attention", t(
                 "<kbd>n</kbd> narrows the list to what actually needs a response: a failing CI "
-                "run, an unresolved conflict, or an interrupted operation. Uncommitted changes "
-                "and being behind are normal working state, so they are deliberately not "
-                "included.",
-                "<kbd>n</kbd> で「本当に対応が要るもの」だけに絞り込みます — CI 失敗、未解決の"
-                "コンフリクト、中断された操作。未コミットや遅れは通常の作業状態なので、"
-                "意図的に含めていません。")),
+                "run on this branch, an unresolved conflict, an interrupted operation, a "
+                "registration that could not be read, a pull request waiting on your review, or "
+                "changes requested on this branch's own pull request. Uncommitted changes and "
+                "being behind are normal working state, so they are deliberately not "
+                "included — behind alone would select nearly everything.",
+                "<kbd>n</kbd> で「本当に対応が要るもの」だけに絞り込みます — このブランチの CI 失敗、"
+                "未解決のコンフリクト、中断された操作、読み取れない登録、自分へのレビュー依頼、"
+                "このブランチの PR への変更要求。未コミットや遅れは通常の作業状態なので、"
+                "意図的に含めていません。遅れだけで絞るとほぼ全件が該当してしまいます。")),
             ("shot", "home-sorted", t(
                 "Click a column header to sort by it; click the same one again to reverse. The "
                 "sorted column carries a ▲ or ▼. <kbd>o</kbd> cycles the same orders from the "
@@ -197,7 +227,8 @@ SECTIONS = [
                 (t("[ / ]", "[ / ]"), t("Cycle the group filter", "グループフィルタを切り替え")),
                 (t("/", "/"), t("Filter by name, path or group", "名前・パス・グループで絞り込み")),
                 (t("n", "n"), t("Toggle the needs-attention filter", "要対応フィルタの切り替え")),
-                (t("C", "C"), t("Open repository-wide latest CI run", "リポジトリ全体の最新CI実行を開く")),
+                (t("C", "C"), t("Open the latest CI run for the current branch", "現在のブランチの最新CI実行を開く")),
+                (t("y", "y"), t("Copy the identifier for the current selection", "選択中の項目の識別子をコピー")),
                 (t("O", "O"), t("Open work tools", "作業ツールの起動メニュー")),
                 (t("W", "W"), t("Browse local worktrees across repositories", "ローカルWorktreeを横断表示")),
                 (t("o", "o"), t("Cycle the sort order", "並び順を切り替え")),
@@ -219,6 +250,18 @@ SECTIONS = [
                 "tabs disappearing.",
                 "7つのタブがあり、<kbd>1</kbd>〜<kbd>7</kbd>・<kbd>Tab</kbd>・クリックで移動できます。"
                 "端末幅が狭い場合は、末尾のタブが消えるのではなくラベルが短縮されます。")),
+            ("p", t(
+                "Opening a repository lands on Status when its working tree has something to look "
+                "at — uncommitted changes, an unresolved conflict, or a merge or rebase left "
+                "mid-flight — and on Commits otherwise. You usually opened it <em>because</em> of "
+                "what the Home row showed, and none of that is visible on Commits. The choice is "
+                "made once, when the repository opens, so a load finishing later never moves the "
+                "tab under you.",
+                "リポジトリを開くと、作業ツリーに見るべきものがある場合 — 未コミットの変更、"
+                "未解決のコンフリクト、中断された merge / rebase — は Status に、"
+                "それ以外は Commits に着地します。Home 行に出ていた内容<em>が理由で</em>開くことが"
+                "多く、その内容は Commits では見えないためです。判定は開いた時点の1回だけで、"
+                "あとから読み込みが終わってもタブが勝手に動くことはありません。")),
             ("shot", "repo-status", t(
                 "Status — the summary, the technology detected from manifest files, and the "
                 "working-tree changes. <kbd>Enter</kbd> on a file opens its diff.",
@@ -317,6 +360,27 @@ SECTIONS = [
                 "（正規表現ではなく大文字小文字を無視した部分一致）。<kbd>Enter</kbd> でそのコミットの"
                 "差分に直接移動します。検索できなかったリポジトリは、"
                 "「一致なし」と混同されないよう失敗として報告されます。")),
+            ("p", t(
+                "The same one-line prompt takes filters: <code>author:</code>, <code>path:</code>, "
+                "<code>since:</code> and <code>until:</code>. Every other word is still message "
+                "text, so <code>fix: auth</code> and <code>fix(auth):</code> keep working; quote a "
+                "value that contains spaces, as in <code>author:&quot;Jane Doe&quot;</code>, and quote "
+                "the whole token to search for <code>&quot;path:&quot;</code> literally. "
+                "<code>author:</code> is "
+                "widened through <code>members.json</code>, so a canonical name also finds that "
+                "person's aliases. Results are capped at 50 commits per repository and 300 "
+                "overall; when a cap is reached the heading names it and how many repositories "
+                "hit it, so a trimmed result cannot pass for a complete one.",
+                "同じ1行のプロンプトでフィルタを指定できます — <code>author:</code>・"
+                "<code>path:</code>・<code>since:</code>・<code>until:</code>。それ以外の語は"
+                "これまでどおりメッセージ本文なので、<code>fix: auth</code> や "
+                "<code>fix(auth):</code> もそのまま検索できます。空白を含む値は "
+                "<code>author:&quot;Jane Doe&quot;</code> のように引用符で囲み、トークン全体を囲めば "
+                "<code>&quot;path:&quot;</code> という文字列自体を検索します。<code>author:</code> は "
+                "<code>members.json</code> で統合した別名にも広がるため、正式名でその人の別名の"
+                "コミットも見つかります。件数は1リポジトリ50件・全体300件が上限で、"
+                "達した場合はどちらの上限か、何リポジトリが該当したかを見出しに表示します。"
+                "打ち切られた結果が完全な結果に見えることはありません。")),
             ("shot", "global-members", t(
                 "<kbd>M</kbd> aggregates contributors across all repositories, merging aliases "
                 "into one person. <kbd>Enter</kbd> jumps into the repository under the cursor.",
@@ -340,13 +404,13 @@ SECTIONS = [
             "<kbd>*</kbd> toggles a favorite and <kbd>f</kbd> filters favorites. Notes and favorites are "
             "stored in preferences by canonical local path. <kbd>Enter</kbd> or <kbd>O</kbd> opens the tool menu; "
             "<kbd>t</kbd> starts a shell in that worktree. <kbd>r</kbd> refreshes in the background while "
-            "navigation remains available. Rows may show previous values until refreshed; use <kbd>[</kbd>/<kbd>]</kbd> to inspect repository collection errors even when healthy rows are selected. Errors stay distinct "
+            "navigation remains available. Rows may show previous values until refreshed. A row whose own directory could not be inspected reads <code>unknown</code> and is counted in the header's <code>unknown</code> total rather than absorbed into a healthy count; <kbd>[</kbd>/<kbd>]</kbd> steps through the repositories whose worktree list could not be read and then those individual rows, each with its reason, even when a healthy row is selected. Errors stay distinct "
             "from a clean worktree. These are Git states and personal notes, not AI agent activity.",
             "<kbd>/</kbd> でパス・ブランチ・用途メモを検索し、<kbd>m</kbd> でメモを編集します。"
             "<kbd>*</kbd> でお気に入りを切り替え、<kbd>f</kbd> で絞り込みます。メモとお気に入りは正規化した"
             "ローカルパスをキーに設定へ保存します。<kbd>Enter</kbd> または <kbd>O</kbd> でツールメニュー、"
             "<kbd>t</kbd> でそのWorktreeのシェルを開けます。<kbd>r</kbd> のバックグラウンド再取得中も操作できます。"
-            "取得中は前回値が残る場合があります。正常な行を選択中も <kbd>[</kbd>/<kbd>]</kbd> で各リポジトリの取得失敗を確認でき、クリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、"
+            "取得中は前回値が残る場合があります。ディレクトリを参照できなかった行は <code>unknown</code> と表示し、正常な件数に混ぜずヘッダーの <code>unknown</code> に数えます。正常な行を選択中も <kbd>[</kbd>/<kbd>]</kbd> で、一覧を取得できなかったリポジトリと、それらの行の理由を順に確認でき、クリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、"
             "AIエージェントの活動状況ではありません。"))],
     ),
     (
@@ -369,7 +433,107 @@ SECTIONS = [
             "メニューの <kbd>c</kbd> でエディタを設定できます。引数の引用符と <code>{path}</code> に対応し、"
             "プレースホルダがなければリポジトリパスを1引数として追加します。端末内エディタは <kbd>w</kbd> で終了待機をオンにします。"
             "GUIは既定で待機しません。端末内ツール終了後は表示・入力を復帰し、選択リポジトリを再取得します。"
-            "GUIで後から編集した内容は <kbd>r</kbd> で再取得してください。コマンドは絶対パスかPATH上の名前を指定します。"))],
+            "GUIで後から編集した内容は <kbd>r</kbd> で再取得してください。コマンドは絶対パスかPATH上の名前を指定します。")),
+         ("p", t(
+            "A command may refer to more than the repository root. <code>{path}</code> is the "
+            "repository or worktree, <code>{file}</code> the absolute path of the file on screen, "
+            "<code>{line}</code> the line the diff is showing, and <code>{branch}</code> and "
+            "<code>{hash}</code> what you are looking at — so <code>code --goto "
+            "&quot;{file}:{line}&quot;</code> reopens the line you were reading. A placeholder "
+            "with no value in the current view cancels the launch and names the missing one "
+            "rather than substituting an empty string: a dropped argument shifts the next one "
+            "into its place, and an empty one makes the tool open the wrong thing quietly. "
+            "Substituted values come from a repository you merely registered, so a control "
+            "character or a value that would start an argument with <code>-</code> is refused, "
+            "and a placeholder can never become the program name.",
+            "コマンドはリポジトリルート以外も参照できます。<code>{path}</code> はリポジトリまたは "
+            "Worktree、<code>{file}</code> は表示中ファイルの絶対パス、<code>{line}</code> は"
+            "差分が表示している行、<code>{branch}</code> と <code>{hash}</code> は今見ている"
+            "対象です。<code>code --goto &quot;{file}:{line}&quot;</code> と書けば読んでいた行が"
+            "そのまま開きます。その画面で値のないプレースホルダがある場合は、空文字に置換せず、"
+            "どれが欠けているかを示して起動を中止します。引数が1つ消えると後ろの引数がその位置に"
+            "ずれ込み、空文字ではツールが黙って別のものを開いてしまうためです。置換する値は"
+            "登録しただけのリポジトリ由来のテキストなので、制御文字を含む値や引数を "
+            "<code>-</code> で始めてしまう値は拒否し、プレースホルダが実行ファイル名になることも"
+            "ありません。")),
+         ("p", t(
+            "<kbd>x</kbd> — in this menu or in Settings — keeps up to six commands of your own "
+            "beside the built-in four, each with a label, a command line and its own wait flag; "
+            "they appear as <kbd>1</kbd> – <kbd>6</kbd>. <kbd>y</kbd> copies the identifier for "
+            "whatever is selected — a commit hash, a branch, a tag, a stash ref, a contributor's "
+            "email, a file path — so it does not have to be retyped into the shell you just "
+            "jumped to. It is sent as an OSC 52 sequence, which many terminals ignore by default "
+            "(tmux needs <code>set-clipboard on</code>), so the confirmation says the sequence "
+            "was emitted rather than claiming the clipboard was written.",
+            "<kbd>x</kbd>（このメニューまたは設定画面）で、既定の4つに加えて独自コマンドを6件まで"
+            "登録できます。それぞれ名前・コマンド行・終了待機の設定を持ち、<kbd>1</kbd> – "
+            "<kbd>6</kbd> として並びます。<kbd>y</kbd> は選択中の対象の識別子 — コミットハッシュ、"
+            "ブランチ名、タグ名、stash の参照名、作者のメールアドレス、ファイルパス — を"
+            "コピーするので、移動先のシェルで打ち直す必要がありません。端末へは OSC 52 "
+            "シーケンスとして送るため既定で無視する端末も多く（tmux では "
+            "<code>set-clipboard on</code> が必要）、確認メッセージは書き込み成功ではなく"
+            "「送信した」ことのみを伝えます。"))],
+    ),
+    (
+        "command-line",
+        t("From a script or a prompt", "スクリプト・プロンプトから使う"),
+        [
+            ("p", t(
+                "<code>git-dashboard-tui PATH</code> starts focused on that repository. It is "
+                "shown next to your registered ones, selected, and labelled "
+                "<code>(not registered)</code> — nothing is written to <code>config.json</code>, "
+                "so running it in a scratch clone does not quietly grow your configuration, and "
+                "the cross-repository views still see everything you track. A path that is "
+                "already registered selects the existing row instead of adding a second one, and "
+                "a path that is not a repository fails before the terminal is touched.",
+                "<code>git-dashboard-tui PATH</code> は、そのリポジトリを選択した状態で起動します。"
+                "登録済みリポジトリの隣に <code>(未登録)</code> として表示・選択し、"
+                "<code>config.json</code> には書き込みません。使い捨てのクローンで実行しても設定が"
+                "勝手に増えず、横断機能は従来どおり登録済みの全リポジトリを対象にします。"
+                "すでに登録済みのパスは行を重複させず既存の行を選択し、リポジトリでないパスは"
+                "端末を初期化する前にエラーになります。")),
+            ("code", t(
+                "git-dashboard-tui .                    # open the dashboard on this repository\n"
+                "git-dashboard-tui --json | jq .        # every registered repository\n"
+                "git-dashboard-tui . --json | jq .repositories[0].conflicts",
+                "git-dashboard-tui .                    # このリポジトリでダッシュボードを開く\n"
+                "git-dashboard-tui --json | jq .        # 登録済みの全リポジトリ\n"
+                "git-dashboard-tui . --json | jq .repositories[0].conflicts")),
+            ("p", t(
+                "<code>--json</code> prints a status snapshot and exits. It initialises no "
+                "terminal, so it can be piped, and it makes <b>no network calls</b>: a status "
+                "line shelling out every few seconds must not hammer the GitHub API. CI and "
+                "pull-request fields therefore come from the cache the dashboard already wrote, "
+                "and say when they are absent or stale instead of emitting a plausible zero. "
+                "Local git state is read fresh, with the same commands the dashboard uses.",
+                "<code>--json</code> は状態のスナップショットを出力して終了します。端末を"
+                "初期化しないためパイプに流せ、<b>ネットワークアクセスを一切行いません</b>。"
+                "数秒ごとにステータスラインから呼ばれる用途で GitHub API を叩き続けるわけには"
+                "いかないためです。そのため CI と PR の項目はダッシュボードが書き込んだ"
+                "キャッシュから読み、値がない場合や古い場合はそれらしいゼロを返さずその旨を"
+                "示します。ローカルのGit状態はダッシュボードと同じコマンドでその場で取得します。")),
+            ("note", t(
+                "The document is an object carrying <code>schema</code> "
+                "(<code>git-dashboard-tui.status-snapshot</code>) and "
+                "<code>schema_version</code>, so it can gain fields without breaking a consumer; "
+                "the version is bumped only for a breaking change. A repository that could not "
+                "be read is reported with <code>ok: false</code> and a reason, not as zeros, and "
+                "<code>ahead</code>/<code>behind</code> are <code>null</code> rather than "
+                "<code>0</code> when there is no upstream. Exit status is <code>2</code> for a "
+                "command line that could not be parsed and <code>1</code> when the configuration "
+                "or the requested path could not be read. Every field is listed in the "
+                "<a href=\"https://github.com/orapli/git-dashboard-tui/blob/main/docs/reference.md\">reference</a>.",
+                "出力は <code>schema</code>（<code>git-dashboard-tui.status-snapshot</code>）と "
+                "<code>schema_version</code> を持つオブジェクトで、利用側を壊さずに項目を追加"
+                "できます。バージョンを上げるのは互換性を壊す変更のときだけです。読み取れなかった"
+                "リポジトリはゼロではなく <code>ok: false</code> と理由で報告し、upstream が"
+                "ない場合の <code>ahead</code>/<code>behind</code> は <code>0</code> ではなく "
+                "<code>null</code> です。終了コードは、解釈できないコマンドラインが "
+                "<code>2</code>、設定または指定パスを読めなかった場合が <code>1</code> です。"
+                "項目の一覧は"
+                "<a href=\"https://github.com/orapli/git-dashboard-tui/blob/main/docs/reference.ja.md\">リファレンス</a>"
+                "にあります。")),
+        ],
     ),
     (
         "settings",
@@ -394,8 +558,8 @@ SECTIONS = [
                                   "登録済みリポジトリ（名前・パス・グループ）。")),
                 ("members.json", t("Team members and the commit-author aliases merged into them.",
                                    "チームメンバーと、そこへ統合するコミット作者の別名。")),
-                ("prefs.json", t("Language, theme, sidebar, diff toggles, recent comparisons, sort order, refresh interval, external diff command, editor command/wait, onboarding dismissal, and worktree notes/favorites.",
-                                 "表示言語・テーマ・サイドバー・差分トグル・最近の比較・並び順・更新間隔・外部diffコマンド・エディタと終了待機・初回案内の表示済み状態・Worktreeメモとお気に入り。")),
+                ("prefs.json", t("Language, theme, sidebar, diff toggles, recent comparisons, sort order, refresh interval, external diff command, editor command/wait, user-defined work-tool commands, onboarding dismissal, and worktree notes/favorites.",
+                                 "表示言語・テーマ・サイドバー・差分トグル・最近の比較・並び順・更新間隔・外部diffコマンド・エディタと終了待機・独自の作業ツールコマンド・初回案内の表示済み状態・Worktreeメモとお気に入り。")),
                 ("tech_rules.json", t("Rules for detecting language and framework versions.",
                                       "言語・フレームワークのバージョン検出ルール。")),
                 ("cache/", t("Cached dashboard rows and repository snapshots. Safe to delete; "
@@ -405,13 +569,15 @@ SECTIONS = [
             ]),
             ("note", t(
                 "Auto-refresh is off by default. Local reload does not fetch remote Git refs. "
-                "GitHub information is cached for five minutes, with a one-minute retry delay after failure; the next reload after expiry triggers the request. "
-                "Home shows the selected repository's local check time, latest repository-wide CI branch, "
+                "GitHub information is cached for five minutes; the next reload after expiry triggers the request. "
+                "Retries are tiered by cause — one minute after a plain failure, three after a timeout, and the full five when <code>gh</code> is missing or unauthenticated, since a minute cannot fix either. A single <code>gh</code> call is given ten seconds. "
+                "Home shows the selected repository's local read time, the age of the remote data, the branch its CI answer is about, "
                 "authentication/fetch state and stale cache. Press <kbd>C</kbd> to open its CI run. "
                 "PR counts of 100 or more are shown as <code>100+</code>.",
                 "自動更新は既定でオフです。ローカルの再読み込みではリモートのGit参照をfetchしません。"
-                "GitHub情報は5分間キャッシュし、取得失敗後は1分経過後の再読込で再試行します。"
-                "Homeにはローカル取得時刻、リポジトリ全体の最新CI実行のブランチ、未認証・取得失敗・"
+                "GitHub情報は5分間キャッシュし、経過後の再読込で再取得します。"
+                "再試行の間隔は原因によって変わります — 通常の失敗は1分、タイムアウトは3分、<code>gh</code> の未導入・未認証は5分です（1分では解消しないため）。<code>gh</code> 1回あたりの上限は10秒です。"
+                "Homeにはローカル読取時刻、リモート情報の古さ、CI結果が対象とするブランチ、未認証・取得失敗・"
                 "古いキャッシュを表示します。<kbd>C</kbd> でCI実行ページを開けます。"
                 "PRを100件取得した場合は <code>100+</code> と表示します。")),
         ],
@@ -474,6 +640,16 @@ SECTIONS = [
                 "どの画面でも <kbd>?</kbd> で全キー操作の一覧が出ます。"
                 "<kbd>j</kbd>/<kbd>k</kbd> やホイールでスクロールできます。"
                 "フッターには現在の画面のキー操作が表示され、1行に収まらない場合は2行に折り返します。")),
+            ("p", t(
+                "The list is not flat: it leads with the keys for the screen you pressed "
+                "<kbd>?</kbd> on, then the keys that work everywhere, then the remaining screens "
+                "under a divider — including the worktree view, commit search, the repository "
+                "finder, the branch log and the tools menu. The title names the screen the help "
+                "is about, and everything is still reachable by scrolling.",
+                "一覧はフラットではありません。<kbd>?</kbd> を押した画面のキーを先頭に置き、"
+                "続いて全画面共通のキー、その下に区切りを挟んでほかの画面 — Worktree一覧、"
+                "コミット検索、リポジトリ検出、ブランチログ、ツールメニューを含みます — が並びます。"
+                "タイトルにはどの画面のヘルプかを表示し、すべてスクロールで到達できます。")),
             ("keys", [
                 (t("q / Ctrl+C", "q / Ctrl+C"), t("Quit", "終了")),
                 (t("Esc / h", "Esc / h"), t("Back one screen", "1つ前の画面に戻る")),

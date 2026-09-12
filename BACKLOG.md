@@ -42,8 +42,9 @@ Implemented: `O` opens the shell/editor/lazygit/GitUI menu, with editor configur
   - See [the jj support plan](docs/jj-support-plan.ja.md) for the verified evidence, phased scope and open decisions.
 
 ### Category D: Reporting & Export
-- **D-1: Markdown Report Generation for Daily/Weekly Standups (`y`)**
+- **D-1: Markdown Report Generation for Daily/Weekly Standups**
   - Copy formatted Markdown summary of commits, contributors, or repository statuses for weekly reports, 1-on-1s, or sprint retrospectives.
+  - `y` is no longer available for this: it now copies the identifier for the current selection (a hash, branch, tag, path) over OSC 52. A report generator needs a different binding.
 
 ## Product improvement sequence
 

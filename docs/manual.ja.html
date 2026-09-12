@@ -119,6 +119,7 @@ footer a{color:var(--muted)}
 <li><a href="#cross-repo">リポジトリ横断</a></li>
 <li><a href="#worktree-workspace">リポジトリを横断するWorktree</a></li>
 <li><a href="#work-tools">普段の作業ツールで開く</a></li>
+<li><a href="#command-line">スクリプト・プロンプトから使う</a></li>
 <li><a href="#settings">設定とファイル</a></li>
 <li><a href="#trust">信頼できないリポジトリの扱い</a></li>
 <li><a href="#help">その他</a></li>
@@ -145,7 +146,7 @@ footer a{color:var(--muted)}
 </section>
 <section id="versions">
 <h2>リリース版と開発版<a href="#versions" aria-label="link">#</a></h2>
-<p>このマニュアルはv0.4.1を説明します。インストーラは最新の公開リリースを取得します。初回ガイド、Homeの取得状態、Oメニュー、W一覧、未追跡ファイルの差分、中止できる走査はv0.4.0に含まれます。v0.4.1ではタイトルバーのマウス移動と、設定・検出・横断メンバー・コミット検索のクリック操作を追加しています。<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴</a>を参照してください。過去版は対応タグのREADMEで確認できます。開発用mainにはその後の未リリース変更が含まれる場合があります。</p>
+<p>このマニュアルはv0.4.1を説明します。インストーラは最新の公開リリースを取得します。初回ガイド、Homeの取得状態、Oメニュー、W一覧、未追跡ファイルの差分、中止できる走査はv0.4.0に含まれます。v0.4.1ではタイトルバーのマウス移動と、設定・検出・横断メンバー・コミット検索のクリック操作を追加しています。<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴</a>を参照してください。過去版は対応タグのREADMEで確認できます。開発用mainにはその後の未リリース変更が含まれる場合があります。コマンドライン（<code>PATH</code> と <code>--json</code>）、コミット検索のフィルタ、ブランチ単位のCIとPR情報の拡充、状態不明と正常を区別するHome行、画面別ヘルプ、<kbd>y</kbd> でのコピー、独自の作業ツールコマンド、そして更新処理の大幅な高速化が該当します。</p>
 <pre><code>cargo install --git https://github.com/orapli/git-dashboard-tui --branch main --locked</code></pre>
 <p>mainのビルドにはRust 1.88以上とネイティブのリンカ・ビルド環境が必要です。配布バイナリにはRustは不要です。インストーラでバージョンを固定する場合は <code>sh</code> を <code>VERSION=v0.4.1 sh</code> に置き換えます。</p>
 </section>
@@ -155,24 +156,25 @@ footer a{color:var(--muted)}
 <tr><td class="term"><span>作業を始める</span></td><td>Homeで <kbd>r</kbd> を押してローカル情報を再読込します。リモート参照の更新が必要なら、1件は <kbd>f</kbd>、絞り込み中の一覧は <kbd>F</kbd>。<kbd>n</kbd> で要対応に絞り、理由を読んで <kbd>Enter</kbd> で詳細を開きます。</td></tr>
 <tr><td class="term"><span>差分を確認して編集する</span></td><td>Status（<kbd>1</kbd>）でファイルを選び <kbd>Enter</kbd>。Diffでは <kbd>n</kbd>/<kbd>p</kbd> でhunk移動、<kbd>b</kbd> でblameを表示します。<kbd>O</kbd> のツールメニュー内で <kbd>c</kbd> を押してエディタを設定します。GUIでの編集後はHomeまたは詳細で <kbd>r</kbd>。端末内ツールから戻ると差分ファイル一覧も更新し、対象が残っていれば選択ファイルとスクロール位置を保ちます。</td></tr>
 <tr><td class="term"><span>Worktreeの作業を再開する</span></td><td>Homeの <kbd>W</kbd> でローカルWorktreeを一覧します。<kbd>/</kbd> で検索、<kbd>m</kbd> で用途メモ、<kbd>*</kbd> でお気に入り、<kbd>f</kbd> で絞り込み。<kbd>Enter</kbd> は選択Worktreeのツールメニューです。詳細のWorktreesタブ（<kbd>7</kbd>）では <kbd>Enter</kbd> で直接シェルを開きます。</td></tr>
-<tr><td class="term"><span>変更をリポジトリ横断で探す</span></td><td>Homeの <kbd>S</kbd> でコミットメッセージを検索し、結果を選んで <kbd>Enter</kbd> で差分を開きます。ファイル内容の検索ではありません。貢献者の横断集計はHomeの <kbd>M</kbd> です。</td></tr>
+<tr><td class="term"><span>変更をリポジトリ横断で探す</span></td><td>Homeの <kbd>S</kbd> でコミットメッセージを検索します。同じプロンプトに <code>author:</code>・<code>path:</code>・<code>since:</code>・<code>until:</code> を書いて絞り込めます。それ以外の語はメッセージ本文として扱い、空白を含む値は引用符で囲みます。<code>author:</code> は <code>members.json</code> で統合した別名にも一致します。結果を選んで <kbd>Enter</kbd> で差分を開きます。検索対象はメッセージとコミット情報で、ファイル内容ではありません。貢献者の横断集計はHomeの <kbd>M</kbd> です。</td></tr>
 </tbody></table>
 <p>キーの意味は画面で異なります。<kbd>f</kbd> はHomeでfetch、Diffで全文表示、Workspaceでお気に入り絞り込みです。<kbd>?</kbd> の画面別ヘルプ、または<a href="https://github.com/orapli/git-dashboard-tui/blob/main/docs/reference.ja.md">操作・設定リファレンス</a>を参照してください。</p>
 </section>
 <section id="freshness">
 <h2>状態表示と更新の使い分け<a href="#freshness" aria-label="link">#</a></h2>
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
-<tr><td class="term"><span>要対応</span></td><td>未解決コンフリクト、進行中のGit操作、失敗扱いのCI結果（failure、cancelled、timed_out、action_required）が対象です。<kbd>n</kbd> で絞れます。未コミットやahead/behindだけでは要対応に含めません。</td></tr>
+<tr><td class="term"><span>要対応</span></td><td>未解決コンフリクト、進行中のGit操作、<em>作業中のブランチ</em>で失敗扱いのCI結果（failure、cancelled、timed_out、action_required）、そもそも読み取れない登録、自分へのレビュー依頼、このブランチのPRへの変更要求が対象です。<kbd>n</kbd> で絞れ、各理由はパネルに文章で表示します。未コミット、ahead/behind、下書きPR、承認済みPRは意図的に含めません。behindだけでほぼ全リポジトリが該当してしまうためです。</td></tr>
 <tr><td class="term"><span>未確認</span></td><td>ローカル情報の未取得、GitHubの未導入・未認証・取得失敗・非対応・取得から5分以上の経過等を示します。クリーンやCI成功という意味ではありません。古いCI失敗は要対応と未確認の両方に含まれる場合があります。</td></tr>
 <tr><td class="term"><span>集計範囲と時刻</span></td><td>集計は現在のグループ・文字検索の範囲で、要対応フィルタ適用前の値です。区分は重複します。ローカル取得時刻は解析時刻で、ネットワークfetch時刻ではありません。CI取得時刻も実行終了時刻とは異なります。狭い端末では詳細が隠れるため、必要なら広げてください。</td></tr>
-<tr><td class="term"><span>CIの対象とPR件数</span></td><td>CIはghが返すリポジトリ全体の最新1実行で、ブランチ・ワークフローを限定しません。作業中ブランチの成功を保証しないため、表示ブランチを確認し <kbd>C</kbd> で実行ページを開いてください。実行なし・取得失敗・成功は別の状態です。PRは最大100件を取得し、ちょうど100件の場合も <code>100+</code> と表示します。</td></tr>
+<tr><td class="term"><span>CIの対象とPR情報</span></td><td>CIはghが返す<em>そのリポジトリの現在のブランチ</em>の最新1実行です（ワークフローは限定しません）。対象ブランチは状態の隣に表示します。detached HEADは「問い合わせるブランチがない」独立した状態として扱い、リポジトリ全体の実行で代用しません。実行なし・取得失敗・タイムアウト・未認証・gh未導入・成功はいずれも別の状態です。<kbd>C</kbd> で実行ページを開けます。オープンPR件数に加えて、このブランチ自身のPRとその下書き状態・レビュー判定、自分のレビュー待ちPR件数もパネルに表示します。PRは最大100件を取得し、ちょうど100件の場合も <code>100+</code> と表示します。</td></tr>
 <tr><td class="term"><span>再読込・fetch・pull</span></td><td><kbd>r</kbd> はgit fetchせずローカル情報を読み直します。Homeの <kbd>f</kbd>/<kbd>F</kbd> は1件／絞り込み中のリポジトリのリモート参照をfetchします。<kbd>p</kbd>/<kbd>P</kbd> はpullし、merge/rebaseする場合があります。ahead/behindは手元のupstream参照との比較なので、再読込だけでは新しいリモートコミットを検出できません。</td></tr>
 </tbody></table>
-<p>GitHubはプロセス内で成功後5分キャッシュし、失敗後は1分再試行を抑制します。時間経過だけでは取得せず、その後の再読込で再試行します。Homeの自動更新は既定でオフで、設定の <kbd>i</kbd> でオフ／30秒／1分／5分を切り替えます。GitHubだけを強制更新するキーはありません。取得失敗時は前回成功値と古い取得時刻を保持します。再起動でGitHubのメモリ内キャッシュは消えますが、更新まではディスク上のスナップショットが表示される場合があります。</p>
+<p>GitHubはプロセス内で成功後5分キャッシュします。再試行の間隔は原因によって変わります。通常の失敗は1分、タイムアウトは3分（10秒の上限を使い切った低速な回線であるため）、gh未導入・未認証は5分です（1分では解消しないため）。時間経過だけでは取得せず、その後の再読込で再試行します。Homeの自動更新は既定でオフで、設定の <kbd>i</kbd> でオフ／30秒／1分／5分を切り替えます。GitHubだけを強制更新するキーはありません。取得失敗時は前回成功値と古い取得時刻を保持します。再起動でGitHubのメモリ内キャッシュは消えますが、更新まではディスク上のスナップショットが表示される場合があります。</p>
 </section>
 <section id="editor-examples">
 <h2>エディタコマンドの設定例<a href="#editor-examples" aria-label="link">#</a></h2>
 <p> <kbd>O</kbd> → <kbd>c</kbd> でコマンドを入力し <kbd>Enter</kbd> で保存します。同じメニューの <kbd>w</kbd> で終了待機を設定します。以下は設定例で、すべてのエディタとの実機連携を検証したものではありません。</p>
+<p>コマンドには <code>{file}</code>・<code>{line}</code>・<code>{branch}</code>・<code>{hash}</code> も使えます。<code>code --goto "{file}:{line}"</code> のように書けば、リポジトリルートではなく読んでいた行が開きます。その画面で値のないプレースホルダがある場合は、空文字で置換せず、どれが欠けているかを示して起動を中止します。<kbd>x</kbd> では同じメニューに独自コマンドを6件まで登録でき、<kbd>1</kbd> – <kbd>6</kbd> として並びます。</p>
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
 <tr><td class="term"><span>VS Code</span></td><td><code>code "{path}"</code> — 待機オフ。対象を閉じてから復帰する場合は <code>code --wait "{path}"</code> と待機オンを組み合わせます。</td></tr>
 <tr><td class="term"><span>Neovim / Vim</span></td><td><code>nvim "{path}"</code> または <code>vim "{path}"</code> — 待機オン。エディタ終了まで端末を渡します。</td></tr>
@@ -192,13 +194,13 @@ footer a{color:var(--muted)}
 <section id="troubleshooting">
 <h2>トラブルシューティング：症状 → 確認 → 対処<a href="#troubleshooting" aria-label="link">#</a></h2>
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
-<tr><td class="term"><span>GitHub情報が出ない・未認証・取得失敗</span></td><td>TUIと同じ環境で <code>gh auth status</code> を実行します。リポジトリ内で <code>gh pr list --limit 1</code> と <code>gh run list --limit 1</code> を実行してアクセスを確認します。通常のローカル認証は <code>gh auth login --hostname github.com</code>。注入されたGH_TOKEN/GITHUB_TOKENは保存済み認証より優先するため、環境のシークレット管理で差し替えます。失敗後1分待ってHomeの <kbd>r</kbd> で再取得してください。</td></tr>
-<tr><td class="term"><span>CIブランチが違う・値が古い</span></td><td>表示ブランチ・取得時刻と <code>gh run list --limit 1</code> を比較します。CIはリポジトリ全体の最新です。成功キャッシュは5分なので経過後に再読込します。origin変更後はHomeの <kbd>r</kbd> で新しい接続先を確認します。キャッシュはローカルパスとリモート設定ごとに分離されます。</td></tr>
+<tr><td class="term"><span>GitHub情報が出ない・未認証・取得失敗</span></td><td>TUIと同じ環境で <code>gh auth status</code> を実行します。リポジトリ内で <code>gh pr list --limit 1</code> と <code>gh run list --limit 1</code> を実行してアクセスを確認します。通常のローカル認証は <code>gh auth login --hostname github.com</code>。注入されたGH_TOKEN/GITHUB_TOKENは保存済み認証より優先するため、環境のシークレット管理で差し替えます。失敗の種類に応じた再試行間隔を待ってからHomeの <kbd>r</kbd> で再取得してください。正常な環境で「取得失敗」が続くのは従来の2秒という上限が原因のことが多く、現在は10秒です。実際のタイムアウトは「取得失敗」ではなくタイムアウトとして表示します。</td></tr>
+<tr><td class="term"><span>CIブランチが違う・値が古い</span></td><td>表示ブランチ・取得時刻と <code>gh run list --branch "$(git branch --show-current)" --limit 1</code> を比較します。CIは現在のブランチが対象なので、他人の失敗ブランチで警告が出ることはありません。detached HEADと表示される場合はブランチをチェックアウトしてください。成功キャッシュは5分なので経過後に再読込します。origin変更後はHomeの <kbd>r</kbd> で新しい接続先を確認します。キャッシュはローカルパス・リモート設定・問い合わせたブランチごとに分離されます。</td></tr>
 <tr><td class="term"><span>再読込しても同期差分が変わらない</span></td><td>対象内で <code>git remote -v</code> と <code>git status -sb</code> を確認します。Homeの <kbd>f</kbd> でリモート参照を更新してから状態を確認してください。再読込はfetchではなく、upstream未設定のブランチにはその比較がありません。</td></tr>
 <tr><td class="term"><span>ツールから戻っても変更が見えない</span></td><td>ツールの作業ディレクトリで <code>git status --short</code> と比較します。端末内ツール終了後は、シンボリックリンク経由の登録でもHomeと差分ファイル一覧を更新します。GUIで後から編集した場合はHomeまたは詳細で <kbd>r</kbd> を押し、Diffを開き直してください。ツールが選択したリポジトリ・Worktree内で編集しているかも確認します。</td></tr>
 <tr><td class="term"><span>ツールが未導入扱い・端末入力が競合する</span></td><td>Unixでは <code>command -v nvim</code>、Windowsでは <code>where.exe nvim.exe</code> で確認し、その実行ファイルの絶対パスをメニューの <kbd>c</kbd> に設定します。端末内エディタは <kbd>w</kbd> で待機をオンにしてください。シェルaliasや相対PATH要素は使いません。Windowsの制限は上表を参照してください。</td></tr>
 <tr><td class="term"><span>登録や設定が保存されない</span></td><td>エラーと設定先ディレクトリの権限を確認します。GIT_DASHBOARD_CONFIG_DIRの指定先が存在しない場合、設定保存時に親ディレクトリも含めて作成します。最も近い既存の親ディレクトリに書込権限が必要です。リファレンスに設定分離コマンドがあります。調査時はconfig.json・members.json・prefs.jsonを保持してください。cacheの削除は設定リセットではありません。</td></tr>
-<tr><td class="term"><span>Worktreeがない・エラー件数が出る</span></td><td>登録したローカルリポジトリごとに <code>git -C /absolute/repository worktree list --porcelain</code> を実行し、パスの存在と権限を確認します。SSH登録は対象外です。正常な行がある場合もエラーパネルを表示します。<kbd>[</kbd>/<kbd>]</kbd> で失敗したリポジトリとエラーを順に確認してください。解決後はWorkspaceの <kbd>r</kbd> で再取得します。</td></tr>
+<tr><td class="term"><span>Worktreeがない・エラー件数が出る</span></td><td>登録したローカルリポジトリごとに <code>git -C /absolute/repository worktree list --porcelain</code> を実行し、パスの存在と権限を確認します。SSH登録は対象外です。正常な行がある場合もエラーパネルを表示します。ディレクトリを参照できなかった行は <code>unknown</code> と表示し、クリーンなWorktreeではなくヘッダーの <code>unknown</code> に数え、理由を保持します。<kbd>[</kbd>/<kbd>]</kbd> で一覧できなかったリポジトリと、それらの行を順に確認してください。解決後はWorkspaceの <kbd>r</kbd> で再取得します。</td></tr>
 <tr><td class="term"><span>SSH登録を読み込めない</span></td><td><code>ssh -o BatchMode=yes host git --version</code>、次に <code>ssh -o BatchMode=yes host "git -C /absolute/repository status --short"</code> を確認します。鍵・接続先の信頼設定・リモートパスはTUIの外で設定してください。TUIはSSHパスワードを要求しません。</td></tr>
 <tr><td class="term"><span>起動できない・新機能がない・macOSでブロックされる</span></td><td><code>command -v git-dashboard-tui</code>（Windows: <code>where.exe git-dashboard-tui</code>）でPATH上に古い実行ファイルがないか確認します。導入先をPATHに追加するか絶対パスで起動してください。上のバージョン説明と導入したリリースを照合します。macOSのGatekeeperにブロックされた場合はシステム設定 → プライバシーとセキュリティから許可してください。</td></tr>
 </tbody></table>
@@ -210,12 +212,13 @@ footer a{color:var(--muted)}
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
 <tr><td class="term"><span>名前</span></td><td>設定した表示名。前に黄色でグループ名が付きます。</td></tr>
 <tr><td class="term"><span>ブランチ</span></td><td>現在のブランチと、その後に付くバッジ。操作が中断されたままの場合に <b class='red'>⚠MERGE</b> / <b class='red'>⚠REBASE</b> / <b class='red'>⚠CHERRY-PICK</b> / <b class='red'>⚠REVERT</b> と、コンフリクト件数が出ます。列幅が足りない場合でも残るよう、バッジを先に描画しています。</td></tr>
-<tr><td class="term"><span>同期</span></td><td>upstream に対する先行・遅れのコミット数。どちらかが 0 でなければ<b class='yellow'>黄色</b>になります。pull / fetch 実行中はスピナーに変わります。</td></tr>
-<tr><td class="term"><span>未コミット</span></td><td>未コミットの変更数。0 なら<b class='green'>緑</b>、それ以外は<b class='red'>赤</b>。</td></tr>
+<tr><td class="term"><span>同期</span></td><td>upstream に対する先行・遅れのコミット数。どちらかが 0 でなければ<b class='yellow'>黄色</b>になります。比較対象がない場合 — リモートがない、あるいは一度も push していないブランチ — は <code>↑0 ↓0</code> を装わず <code>↑? ↓?</code> と表示し、どちらであるかは下のパネルに出ます。pull / fetch 実行中はスピナーに変わります。</td></tr>
+<tr><td class="term"><span>未コミット</span></td><td>未コミットの変更数。0 なら<b class='green'>緑</b>。追跡対象の変更と未追跡は Status タブと同じ記号で分けて示すため、編集2件とビルド生成物5件は <code>7</code> ではなく <code>2M 5?</code> と表示します。</td></tr>
 <tr><td class="term"><span>最終コミット</span></td><td>全 ref のうち最新コミットの日時。</td></tr>
-<tr><td class="term"><span>PR / CI</span></td><td>GitHub リモートがあり <code>gh</code> が認証済みの場合の、オープン中の PR 数と最新の CI 結果。failure / cancelled / timed_out / action_required は「要対応」として扱われます。</td></tr>
+<tr><td class="term"><span>PR / CI</span></td><td>GitHub リモートがあり <code>gh</code> が認証済みの場合の、オープン中の PR 数と<em>そのリポジトリが今いるブランチ</em>の最新 CI 結果。failure / cancelled / timed_out / action_required は「要対応」として扱われます。</td></tr>
 </tbody></table>
-<figure><img src="img/home-attention.ja.svg" loading="lazy" alt="&lt;kbd&gt;n&lt;/kbd&gt; で「本当に対応が要るもの」だけに絞り込みます — CI 失敗、未解決のコンフリクト、中断された操作。未コミットや遅れは通常の作業状態なので、意図的に含めていません。"><figcaption><kbd>n</kbd> で「本当に対応が要るもの」だけに絞り込みます — CI 失敗、未解決のコンフリクト、中断された操作。未コミットや遅れは通常の作業状態なので、意図的に含めていません。</figcaption></figure>
+<p>読み取れなかった登録は、正常なリポジトリでも読み込み中でもない独立した状態です。セルには <b class='red'>⚠ パスなし</b> / <b class='red'>⚠ Git管理外</b> / <b class='red'>⚠ 読取不可</b> と表示し、パネルに理由と対処を全文表示し、<kbd>n</kbd> でも抽出します。パネルは混同しやすい2つの時刻も分けて表示します。作業ツリーを最後に読んだ時刻と、git が最後にリモートと通信した時刻（<code>FETCH_HEAD</code> の時刻）です。後者が ahead/behind の鮮度であり、fetch でしか新しくなりません。</p>
+<figure><img src="img/home-attention.ja.svg" loading="lazy" alt="&lt;kbd&gt;n&lt;/kbd&gt; で「本当に対応が要るもの」だけに絞り込みます — このブランチの CI 失敗、未解決のコンフリクト、中断された操作、読み取れない登録、自分へのレビュー依頼、このブランチの PR への変更要求。未コミットや遅れは通常"><figcaption><kbd>n</kbd> で「本当に対応が要るもの」だけに絞り込みます — このブランチの CI 失敗、未解決のコンフリクト、中断された操作、読み取れない登録、自分へのレビュー依頼、このブランチの PR への変更要求。未コミットや遅れは通常の作業状態なので、意図的に含めていません。遅れだけで絞るとほぼ全件が該当してしまいます。</figcaption></figure>
 <figure><img src="img/home-sorted.ja.svg" loading="lazy" alt="列ヘッダをクリックするとその列で並び替え、同じ列を再クリックで昇降が反転します。並び替え中の列には ▲ / ▼ が付きます。&lt;kbd&gt;o&lt;/kbd&gt; でも同じ順序を切り替えられます。まだ読み込まれていない行は末尾に置かれるため、ダッシュボー"><figcaption>列ヘッダをクリックするとその列で並び替え、同じ列を再クリックで昇降が反転します。並び替え中の列には ▲ / ▼ が付きます。<kbd>o</kbd> でも同じ順序を切り替えられます。まだ読み込まれていない行は末尾に置かれるため、ダッシュボードが埋まっていく間に並びが乱れません。</figcaption></figure>
 <table><thead><tr><th>キー</th><th>動作</th></tr></thead><tbody>
 <tr><td class="k"><kbd>Enter</kbd></td><td>選択したリポジトリを開く</td></tr>
@@ -224,7 +227,8 @@ footer a{color:var(--muted)}
 <tr><td class="k"><kbd>[ / ]</kbd></td><td>グループフィルタを切り替え</td></tr>
 <tr><td class="k"><kbd>/</kbd></td><td>名前・パス・グループで絞り込み</td></tr>
 <tr><td class="k"><kbd>n</kbd></td><td>要対応フィルタの切り替え</td></tr>
-<tr><td class="k"><kbd>C</kbd></td><td>リポジトリ全体の最新CI実行を開く</td></tr>
+<tr><td class="k"><kbd>C</kbd></td><td>現在のブランチの最新CI実行を開く</td></tr>
+<tr><td class="k"><kbd>y</kbd></td><td>選択中の項目の識別子をコピー</td></tr>
 <tr><td class="k"><kbd>O</kbd></td><td>作業ツールの起動メニュー</td></tr>
 <tr><td class="k"><kbd>W</kbd></td><td>ローカルWorktreeを横断表示</td></tr>
 <tr><td class="k"><kbd>o</kbd></td><td>並び順を切り替え</td></tr>
@@ -238,6 +242,7 @@ footer a{color:var(--muted)}
 <section id="repository">
 <h2>リポジトリの中<a href="#repository" aria-label="link">#</a></h2>
 <p>7つのタブがあり、<kbd>1</kbd>〜<kbd>7</kbd>・<kbd>Tab</kbd>・クリックで移動できます。端末幅が狭い場合は、末尾のタブが消えるのではなくラベルが短縮されます。</p>
+<p>リポジトリを開くと、作業ツリーに見るべきものがある場合 — 未コミットの変更、未解決のコンフリクト、中断された merge / rebase — は Status に、それ以外は Commits に着地します。Home 行に出ていた内容<em>が理由で</em>開くことが多く、その内容は Commits では見えないためです。判定は開いた時点の1回だけで、あとから読み込みが終わってもタブが勝手に動くことはありません。</p>
 <figure><img src="img/repo-status.ja.svg" loading="lazy" alt="Status — 概要、マニフェストから検出した技術スタック、作業ツリーの変更。ファイル上で &lt;kbd&gt;Enter&lt;/kbd&gt; を押すと差分が開きます。"><figcaption>Status — 概要、マニフェストから検出した技術スタック、作業ツリーの変更。ファイル上で <kbd>Enter</kbd> を押すと差分が開きます。</figcaption></figure>
 <figure><img src="img/repo-commits.ja.svg" loading="lazy" alt="Commits — グラフは git 自身のレーン色をそのまま使うため、並行するブランチが視覚的に区別できます。ref はバッジ表示で、現在のブランチが &lt;b class=&#x27;green&#x27;&gt;(main)&lt;/b&gt;、それ以外が &lt;b class="><figcaption>Commits — グラフは git 自身のレーン色をそのまま使うため、並行するブランチが視覚的に区別できます。ref はバッジ表示で、現在のブランチが <b class='green'>(main)</b>、それ以外が <b class='blue'>[hotfix/timeout]</b> です。</figcaption></figure>
 <figure><img src="img/repo-compare.ja.svg" loading="lazy" alt="任意の2コミットを比較できます。行頭の &lt;code&gt;[ ]&lt;/code&gt; をクリックするか &lt;kbd&gt;space&lt;/kbd&gt; を押してください。1つ目が基準 &lt;b class=&#x27;green&#x27;&gt;[B]&lt;/b&gt;、2つ目が対象 &lt;b class="><figcaption>任意の2コミットを比較できます。行頭の <code>[ ]</code> をクリックするか <kbd>space</kbd> を押してください。1つ目が基準 <b class='green'>[B]</b>、2つ目が対象 <b class='yellow'>[T]</b> になり、<kbd>Enter</kbd> でその範囲の差分を開きます。選択済みの行を再クリックすると解除されます。</figcaption></figure>
@@ -264,19 +269,31 @@ footer a{color:var(--muted)}
 <section id="cross-repo">
 <h2>リポジトリ横断<a href="#cross-repo" aria-label="link">#</a></h2>
 <figure><img src="img/commit-search.ja.svg" loading="lazy" alt="&lt;kbd&gt;S&lt;/kbd&gt; で登録済み全リポジトリのコミットメッセージを一括検索します（正規表現ではなく大文字小文字を無視した部分一致）。&lt;kbd&gt;Enter&lt;/kbd&gt; でそのコミットの差分に直接移動します。検索できなかったリポジトリは、「"><figcaption><kbd>S</kbd> で登録済み全リポジトリのコミットメッセージを一括検索します（正規表現ではなく大文字小文字を無視した部分一致）。<kbd>Enter</kbd> でそのコミットの差分に直接移動します。検索できなかったリポジトリは、「一致なし」と混同されないよう失敗として報告されます。</figcaption></figure>
+<p>同じ1行のプロンプトでフィルタを指定できます — <code>author:</code>・<code>path:</code>・<code>since:</code>・<code>until:</code>。それ以外の語はこれまでどおりメッセージ本文なので、<code>fix: auth</code> や <code>fix(auth):</code> もそのまま検索できます。空白を含む値は <code>author:&quot;Jane Doe&quot;</code> のように引用符で囲み、トークン全体を囲めば <code>&quot;path:&quot;</code> という文字列自体を検索します。<code>author:</code> は <code>members.json</code> で統合した別名にも広がるため、正式名でその人の別名のコミットも見つかります。件数は1リポジトリ50件・全体300件が上限で、達した場合はどちらの上限か、何リポジトリが該当したかを見出しに表示します。打ち切られた結果が完全な結果に見えることはありません。</p>
 <figure><img src="img/global-members.ja.svg" loading="lazy" alt="&lt;kbd&gt;M&lt;/kbd&gt; で全リポジトリの貢献者を集計し、別名を1人に統合します。&lt;kbd&gt;Enter&lt;/kbd&gt; でカーソル位置のリポジトリに移動します。"><figcaption><kbd>M</kbd> で全リポジトリの貢献者を集計し、別名を1人に統合します。<kbd>Enter</kbd> でカーソル位置のリポジトリに移動します。</figcaption></figure>
 </section>
 <section id="worktree-workspace">
 <h2>リポジトリを横断するWorktree<a href="#worktree-workspace" aria-label="link">#</a></h2>
 <figure><img src="img/workspace.ja.svg" loading="lazy" alt="ローカルWorktreeと本人の用途メモ・お気に入り。"><figcaption>ローカルWorktreeと本人の用途メモ・お気に入り。</figcaption></figure>
 <p>Homeの <kbd>W</kbd> でローカルWorktreeを横断表示します。親リポジトリとそのWorktreeを両方登録しても同じパスは1行です。最初に登録された親、ブランチ、未コミット数、HEADのコミット日時、ディレクトリ名を表示し、選択行のフルパスは詳細欄で確認できます。SSHは対象外として件数を示します。</p>
-<p><kbd>/</kbd> でパス・ブランチ・用途メモを検索し、<kbd>m</kbd> でメモを編集します。<kbd>*</kbd> でお気に入りを切り替え、<kbd>f</kbd> で絞り込みます。メモとお気に入りは正規化したローカルパスをキーに設定へ保存します。<kbd>Enter</kbd> または <kbd>O</kbd> でツールメニュー、<kbd>t</kbd> でそのWorktreeのシェルを開けます。<kbd>r</kbd> のバックグラウンド再取得中も操作できます。取得中は前回値が残る場合があります。正常な行を選択中も <kbd>[</kbd>/<kbd>]</kbd> で各リポジトリの取得失敗を確認でき、クリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、AIエージェントの活動状況ではありません。</p>
+<p><kbd>/</kbd> でパス・ブランチ・用途メモを検索し、<kbd>m</kbd> でメモを編集します。<kbd>*</kbd> でお気に入りを切り替え、<kbd>f</kbd> で絞り込みます。メモとお気に入りは正規化したローカルパスをキーに設定へ保存します。<kbd>Enter</kbd> または <kbd>O</kbd> でツールメニュー、<kbd>t</kbd> でそのWorktreeのシェルを開けます。<kbd>r</kbd> のバックグラウンド再取得中も操作できます。取得中は前回値が残る場合があります。ディレクトリを参照できなかった行は <code>unknown</code> と表示し、正常な件数に混ぜずヘッダーの <code>unknown</code> に数えます。正常な行を選択中も <kbd>[</kbd>/<kbd>]</kbd> で、一覧を取得できなかったリポジトリと、それらの行の理由を順に確認でき、クリーンなWorktreeと区別します。表示するのはGit状態と本人のメモであり、AIエージェントの活動状況ではありません。</p>
 </section>
 <section id="work-tools">
 <h2>普段の作業ツールで開く<a href="#work-tools" aria-label="link">#</a></h2>
 <figure><img src="img/open-tools.ja.svg" loading="lazy" alt="ローカルの作業ツールを選択。未導入コマンドも明示します。"><figcaption>ローカルの作業ツールを選択。未導入コマンドも明示します。</figcaption></figure>
 <p>Home・詳細・diffで <kbd>O</kbd> を押し、<kbd>t</kbd>（シェル）、<kbd>e</kbd>（エディタ）、<kbd>l</kbd>（lazygit）、<kbd>g</kbd>（GitUI）を選びます。未導入ツールは明示されるのでPATH上に導入してください。SSHリポジトリのローカルツール起動は非対応です。</p>
 <p>メニューの <kbd>c</kbd> でエディタを設定できます。引数の引用符と <code>{path}</code> に対応し、プレースホルダがなければリポジトリパスを1引数として追加します。端末内エディタは <kbd>w</kbd> で終了待機をオンにします。GUIは既定で待機しません。端末内ツール終了後は表示・入力を復帰し、選択リポジトリを再取得します。GUIで後から編集した内容は <kbd>r</kbd> で再取得してください。コマンドは絶対パスかPATH上の名前を指定します。</p>
+<p>コマンドはリポジトリルート以外も参照できます。<code>{path}</code> はリポジトリまたは Worktree、<code>{file}</code> は表示中ファイルの絶対パス、<code>{line}</code> は差分が表示している行、<code>{branch}</code> と <code>{hash}</code> は今見ている対象です。<code>code --goto &quot;{file}:{line}&quot;</code> と書けば読んでいた行がそのまま開きます。その画面で値のないプレースホルダがある場合は、空文字に置換せず、どれが欠けているかを示して起動を中止します。引数が1つ消えると後ろの引数がその位置にずれ込み、空文字ではツールが黙って別のものを開いてしまうためです。置換する値は登録しただけのリポジトリ由来のテキストなので、制御文字を含む値や引数を <code>-</code> で始めてしまう値は拒否し、プレースホルダが実行ファイル名になることもありません。</p>
+<p><kbd>x</kbd>（このメニューまたは設定画面）で、既定の4つに加えて独自コマンドを6件まで登録できます。それぞれ名前・コマンド行・終了待機の設定を持ち、<kbd>1</kbd> – <kbd>6</kbd> として並びます。<kbd>y</kbd> は選択中の対象の識別子 — コミットハッシュ、ブランチ名、タグ名、stash の参照名、作者のメールアドレス、ファイルパス — をコピーするので、移動先のシェルで打ち直す必要がありません。端末へは OSC 52 シーケンスとして送るため既定で無視する端末も多く（tmux では <code>set-clipboard on</code> が必要）、確認メッセージは書き込み成功ではなく「送信した」ことのみを伝えます。</p>
+</section>
+<section id="command-line">
+<h2>スクリプト・プロンプトから使う<a href="#command-line" aria-label="link">#</a></h2>
+<p><code>git-dashboard-tui PATH</code> は、そのリポジトリを選択した状態で起動します。登録済みリポジトリの隣に <code>(未登録)</code> として表示・選択し、<code>config.json</code> には書き込みません。使い捨てのクローンで実行しても設定が勝手に増えず、横断機能は従来どおり登録済みの全リポジトリを対象にします。すでに登録済みのパスは行を重複させず既存の行を選択し、リポジトリでないパスは端末を初期化する前にエラーになります。</p>
+<pre><code>git-dashboard-tui .                    # このリポジトリでダッシュボードを開く
+git-dashboard-tui --json | jq .        # 登録済みの全リポジトリ
+git-dashboard-tui . --json | jq .repositories[0].conflicts</code></pre>
+<p><code>--json</code> は状態のスナップショットを出力して終了します。端末を初期化しないためパイプに流せ、<b>ネットワークアクセスを一切行いません</b>。数秒ごとにステータスラインから呼ばれる用途で GitHub API を叩き続けるわけにはいかないためです。そのため CI と PR の項目はダッシュボードが書き込んだキャッシュから読み、値がない場合や古い場合はそれらしいゼロを返さずその旨を示します。ローカルのGit状態はダッシュボードと同じコマンドでその場で取得します。</p>
+<div class="aside">出力は <code>schema</code>（<code>git-dashboard-tui.status-snapshot</code>）と <code>schema_version</code> を持つオブジェクトで、利用側を壊さずに項目を追加できます。バージョンを上げるのは互換性を壊す変更のときだけです。読み取れなかったリポジトリはゼロではなく <code>ok: false</code> と理由で報告し、upstream がない場合の <code>ahead</code>/<code>behind</code> は <code>0</code> ではなく <code>null</code> です。終了コードは、解釈できないコマンドラインが <code>2</code>、設定または指定パスを読めなかった場合が <code>1</code> です。項目の一覧は<a href="https://github.com/orapli/git-dashboard-tui/blob/main/docs/reference.ja.md">リファレンス</a>にあります。</div>
 </section>
 <section id="settings">
 <h2>設定とファイル<a href="#settings" aria-label="link">#</a></h2>
@@ -285,11 +302,11 @@ footer a{color:var(--muted)}
 <table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody>
 <tr><td class="term"><span>config.json</span></td><td>登録済みリポジトリ（名前・パス・グループ）。</td></tr>
 <tr><td class="term"><span>members.json</span></td><td>チームメンバーと、そこへ統合するコミット作者の別名。</td></tr>
-<tr><td class="term"><span>prefs.json</span></td><td>表示言語・テーマ・サイドバー・差分トグル・最近の比較・並び順・更新間隔・外部diffコマンド・エディタと終了待機・初回案内の表示済み状態・Worktreeメモとお気に入り。</td></tr>
+<tr><td class="term"><span>prefs.json</span></td><td>表示言語・テーマ・サイドバー・差分トグル・最近の比較・並び順・更新間隔・外部diffコマンド・エディタと終了待機・独自の作業ツールコマンド・初回案内の表示済み状態・Worktreeメモとお気に入り。</td></tr>
 <tr><td class="term"><span>tech_rules.json</span></td><td>言語・フレームワークのバージョン検出ルール。</td></tr>
 <tr><td class="term"><span>cache/</span></td><td>ダッシュボード行とリポジトリ解析結果のキャッシュ。削除しても次回更新時に再生成されます。</td></tr>
 </tbody></table>
-<div class="aside">自動更新は既定でオフです。ローカルの再読み込みではリモートのGit参照をfetchしません。GitHub情報は5分間キャッシュし、取得失敗後は1分経過後の再読込で再試行します。Homeにはローカル取得時刻、リポジトリ全体の最新CI実行のブランチ、未認証・取得失敗・古いキャッシュを表示します。<kbd>C</kbd> でCI実行ページを開けます。PRを100件取得した場合は <code>100+</code> と表示します。</div>
+<div class="aside">自動更新は既定でオフです。ローカルの再読み込みではリモートのGit参照をfetchしません。GitHub情報は5分間キャッシュし、経過後の再読込で再取得します。再試行の間隔は原因によって変わります — 通常の失敗は1分、タイムアウトは3分、<code>gh</code> の未導入・未認証は5分です（1分では解消しないため）。<code>gh</code> 1回あたりの上限は10秒です。Homeにはローカル読取時刻、リモート情報の古さ、CI結果が対象とするブランチ、未認証・取得失敗・古いキャッシュを表示します。<kbd>C</kbd> でCI実行ページを開けます。PRを100件取得した場合は <code>100+</code> と表示します。</div>
 </section>
 <section id="trust">
 <h2>信頼できないリポジトリの扱い<a href="#trust" aria-label="link">#</a></h2>
@@ -300,6 +317,7 @@ footer a{color:var(--muted)}
 <section id="help">
 <h2>その他<a href="#help" aria-label="link">#</a></h2>
 <figure><img src="img/help.ja.svg" loading="lazy" alt="どの画面でも &lt;kbd&gt;?&lt;/kbd&gt; で全キー操作の一覧が出ます。&lt;kbd&gt;j&lt;/kbd&gt;/&lt;kbd&gt;k&lt;/kbd&gt; やホイールでスクロールできます。フッターには現在の画面のキー操作が表示され、1行に収まらない場合は2行に折り返します。"><figcaption>どの画面でも <kbd>?</kbd> で全キー操作の一覧が出ます。<kbd>j</kbd>/<kbd>k</kbd> やホイールでスクロールできます。フッターには現在の画面のキー操作が表示され、1行に収まらない場合は2行に折り返します。</figcaption></figure>
+<p>一覧はフラットではありません。<kbd>?</kbd> を押した画面のキーを先頭に置き、続いて全画面共通のキー、その下に区切りを挟んでほかの画面 — Worktree一覧、コミット検索、リポジトリ検出、ブランチログ、ツールメニューを含みます — が並びます。タイトルにはどの画面のヘルプかを表示し、すべてスクロールで到達できます。</p>
 <table><thead><tr><th>キー</th><th>動作</th></tr></thead><tbody>
 <tr><td class="k"><kbd>q / Ctrl+C</kbd></td><td>終了</td></tr>
 <tr><td class="k"><kbd>Esc / h</kbd></td><td>1つ前の画面に戻る</td></tr>

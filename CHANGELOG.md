@@ -7,7 +7,164 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No changes yet.
+A responsiveness and trust release: refreshes stop blocking the interface, the Home
+table stops reporting confident answers it does not have, and the dashboard becomes
+readable from outside its own terminal.
+
+### Added
+
+- **A command line.** `git-dashboard-tui PATH` starts focused on that repository without
+  registering it: it appears beside your registered repositories, selected and marked
+  `(not registered)`, and nothing is written to `config.json` — running it in a scratch
+  clone no longer quietly grows your configuration, and the cross-repository views still
+  see everything you track. A path that is already registered selects the existing row
+  instead of adding a duplicate, and a path that is not a repository fails before the
+  terminal is touched.
+- **`--json` prints a status snapshot and exits**, so a script, a shell prompt, a status
+  line or an agent can read what the dashboard already knows. It initialises no terminal,
+  so it can be piped, and it makes no network calls — something shelling out every few
+  seconds must not hammer the GitHub API — so CI and pull-request fields come from the
+  cache the dashboard wrote and state when they are absent or stale rather than emitting
+  a plausible zero. A repository whose path has vanished is reported failed with its
+  error, not as a healthy one, and `ahead`/`behind` are `null` rather than `0` when there
+  is no upstream. The document is an object with a schema name
+  (`git-dashboard-tui.status-snapshot`) and version, so it can be extended without
+  breaking whoever is parsing it. Exit status is `2` for an unparseable command line and
+  `1` for a configuration or path that could not be read.
+- **Commit search understands `author:`, `path:`, `since:` and `until:`.** "What did this
+  person change last week" and "who touched this path" — most of what a cross-repository
+  search is for — were previously unanswerable, because the search matched commit
+  messages by substring and nothing else. The filters are tokens in the same one-line
+  prompt and every other word is still message text, so `fix: auth` and `fix(auth):` keep
+  working; values with spaces can be quoted, and quoting a whole token searches for it
+  literally. `author:` is widened through `members.json`, so a canonical name also finds
+  that person's aliases, matching what the Contributors and Global Members views already
+  do.
+- **`y` copies the identifier for whatever is selected** — a commit hash, a branch, a tag,
+  a stash ref, a contributor's email, a file or repository path — so it does not have to
+  be retyped into the shell you just jumped to. It is sent as an OSC 52 sequence, which
+  many terminals ignore by default, so the confirmation says the sequence was emitted
+  rather than claiming the clipboard was written.
+- **Up to six work-tool commands of your own**, added and edited with `x` from Settings or
+  from the `O` menu itself, listed there as `1`–`6` and sharing the built-in entries'
+  wait flag and not-on-PATH marker.
+- **Command templates carry where you were.** They took only `{path}`, the repository
+  root, so pressing `O` then `e` while reading line 120 of a file opened the repository
+  and left you to navigate again. `{file}`, `{line}`, `{branch}` and `{hash}` are now
+  substituted as well. A placeholder with no value in the current view refuses the launch
+  and says which one is missing, rather than substituting an empty string — dropping an
+  argument can shift the next one into its place, and `""` makes the tool open the wrong
+  thing quietly. Every substituted value is untrusted repository text, so control
+  characters and values that would supply an argument's leading dash are rejected, and a
+  placeholder can never become the program name.
+- **The help screen leads with the screen you pressed `?` on**, then the global keys, then
+  everything else under a divider. It was one flat 62-line list, so on a 44-row terminal
+  the keys for the screen you were actually on were usually below the fold, behind four
+  sections you had not asked about. Five screens the flat list never mentioned at all —
+  the worktree view, commit search, the repository finder, the branch log and the tools
+  menu — are now in it, along with a dozen bindings that were only in `docs/reference.md`.
+- **The pull-request data the dashboard was already fetching is now used**: the pull
+  request opened from the current branch, with its draft state and review decision, and
+  how many pull requests are waiting on your review. Both feed the `n` filter, and every
+  reason has a readable line in the selected-repository panel. Being behind upstream is
+  deliberately *not* an attention reason: nearly every repository is behind something, and
+  counting it would make the filter select almost everything.
+- **Planning documents**: an independent evaluation of v0.4.1 with its measured baseline
+  and post-fix numbers, and a phased plan for Jujutsu-backed repositories (unstarted),
+  both linked from `docs/README.md`.
+
+### Changed
+
+- **A refresh no longer blocks the interface, and is roughly sixty times faster.**
+  Three things were wrong at once. Every git invocation was charged a fixed 25 ms
+  `try_wait` poll — 25.8 ms per call against ~0.5 ms of real work, on ~17 calls per
+  repository per refresh — which is now an exponential backoff from 200 µs. Every Home
+  row ran the 13-command batch built for the *detail* screen, including
+  `rev-list --count HEAD`, `ls-tree -r --long HEAD` and a 50,000-commit contributor log,
+  none of whose results a row uses; rows now run a query that asks only for what they
+  show. And all of it shared one worker thread with every interactive job, so opening a
+  diff queued behind every repository still being analysed; Home refresh now has its own
+  small pool and the interactive lane is its own.
+  Measured by driving the real binary under a PTY, before and after, on the same
+  fixtures: 30 repositories, cold refresh **13.83 s → 0.23 s**; pressing `r` and
+  immediately opening a repository **14.49 s → 0.17 s**; 10 repositories including one
+  with 20,000 commits **4.96 s → 0.21 s**. Those fixtures have no GitHub remotes, so the
+  figures measure local git work only — a cold refresh of repositories with GitHub
+  remotes is still bounded by `gh` calls.
+- **CI is the current branch's, not the repository's.** The indicator asked for the newest
+  workflow run anywhere in the repository, so a colleague's failing branch raised the
+  warning on your row and your own failure was missed whenever someone else pushed more
+  recently — and because `needs_attention` was wired to it, the `n` filter manufactured
+  false "needs attention" rows. The query is now scoped to the current branch, and a
+  detached HEAD is its own state rather than a silent fall-back that pretends a
+  repository-wide run belongs to your branch. A new timed-out state is distinguished from
+  a plain failure.
+- **`gh` gets ten seconds instead of two, with tiered retries.** A 2 s budget for `gh`
+  startup plus a TLS handshake plus an API round trip turned healthy setups into
+  intermittent "fetch failed", retried every 60 s forever. Retries now depend on the
+  cause: one minute after a plain failure, three after a timeout (the request already
+  spent its whole budget on a link that has just proven slow), and the full refresh period
+  when `gh` is missing or unauthenticated, since a minute cannot fix either.
+- **Opening a repository lands on Status when the working tree is dirty, conflicted or
+  mid-operation**, and on Commits otherwise. You usually opened it *because* of the
+  conflict or the seven uncommitted files shown in its Home row, and neither is visible on
+  Commits. The choice is made once, at open, so a load finishing later cannot move the tab
+  under you.
+- **The Home `Path` column shows a home-relative, middle-elided path** instead of filling
+  with a long common prefix that carried no information at ordinary widths.
+
+### Fixed
+
+- **A branch with no upstream no longer reads as being in sync.** The cell always
+  formatted the two counters, so a branch that was never pushed showed the same `↑0 ↓0` as
+  a fully synced one. It now reads `↑? ↓?`, with the reason — no remote, or no upstream
+  branch — spelled out in the panel.
+- **A registration that cannot be read is reported as a failure.** A registered path that
+  no longer existed showed `…` in every cell forever, indistinguishable from still
+  loading, with an unattributed OS error in the footer; a registered directory that was
+  not a git repository rendered as a perfectly healthy repository, because every git
+  command failed into an empty string. The row now says which kind of broken, the footer
+  names the repository, the panel prints the full reason and how to fix it, and `n`
+  surfaces it.
+- **Dirty no longer merges staged, unstaged and untracked into one number.** Two real
+  changes next to five build artefacts read as `7`; they now read `2M 5?`, using the same
+  letters as the Status tab.
+- **The age of `ahead`/`behind` is now shown.** Those counts are only as fresh as the last
+  fetch and nothing said when that was. The panel reports the `FETCH_HEAD` time as the age
+  of the remote data, separately from the time the working tree was read — which is what
+  the existing line actually meant.
+- **Worktree rows whose directory could not be inspected are counted as unknown.** Such a
+  row showed `Dirty ?` while the header still read `errors: 0`, so it was
+  indistinguishable from a loading row, a broken one and an empty one. Row failures now
+  carry a reason, join the `[` / `]` issue inspector, and are counted as unknown rather
+  than absorbed into a healthy count.
+- **A truncated commit search no longer looks complete.** The per-repository cap of 50 and
+  the overall cap of 300 were silent — the heading showed a count, so a trimmed result was
+  indistinguishable from a full one. The heading now names the cap that was hit and how
+  many repositories hit it. A query that fails to parse leaves the previous result on
+  screen instead of blanking it.
+- **A panicking background job no longer takes a worker thread with it.** There was no
+  respawn, so an index panic in a parser reached by one repository's unusual git output
+  degraded the pool 8 → 7 → 1 across successive refreshes, invisibly, and the row being
+  analysed kept its spinner forever. Jobs now run inside `catch_unwind`, so the pool keeps
+  its width and the row reports a failure and stops spinning.
+- **A long-running command no longer wakes the process thousands of times.** The poll cap
+  chosen for the one-millisecond case also governed the two-minute case: a 60 s fetch over
+  a slow link woke up about 30,000 times across as many as ten polling threads. The cap is
+  now two-tier — tight for the first 100 ms, relaxed after — which keeps the latency win
+  for short commands and restores the old wakeup count for long ones.
+- **A stale Home row can no longer overwrite a fresher one.** Two loads for the same row
+  could be in flight at once — pull a repository while the periodic refresh is already
+  reloading that row — and on a thread pool they finish in arbitrary order, so a pre-pull
+  row could land on top of the post-pull one and sit there until the next full refresh.
+  Each load now carries an order number and an older result for that row is dropped.
+- **A refresh spinner could run for the rest of the session.** An activity marker
+  belonging to a superseded refresh was never removed, because those jobs are dropped
+  without producing a message: press `r` with three repositories and delete one before the
+  refresh lands, and the title bar claimed a job was still running. Refresh markers are now
+  retired with the refresh that owns them.
+- Strings taken from the GitHub API are stripped of control characters and length-capped
+  before they can reach the terminal, as git output already was.
 
 ## [0.4.1] - 2026-09-10
 
