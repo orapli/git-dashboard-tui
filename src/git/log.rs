@@ -107,35 +107,260 @@ pub fn parse_commit_log(log_output: &str) -> Vec<CommitSummary> {
     commits
 }
 
-/// Search commit messages (all refs, case-insensitive, literal substring —
-/// not a regex, so a query like "fix(auth)" doesn't need escaping) for the
-/// most recent `limit` matches. Used to search across many repositories at
-/// once from the Home screen.
+/// The filter prefixes understood inside the one-line commit-search query.
+/// Anything that is not one of these (`fix:` in a conventional-commit
+/// subject, say) stays part of the message text, so an ordinary query keeps
+/// behaving exactly as it did before filters existed.
+pub const SEARCH_PREFIXES: &[&str] = &["author:", "path:", "since:", "until:"];
+
+/// Why a typed query was refused. The variants carry the offending field
+/// rather than a rendered sentence: these reach the user, and the app layer
+/// owns the bilingual wording.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SearchQueryError {
+    /// `author:` (or another prefix) with nothing after the colon.
+    MissingValue(&'static str),
+    /// A value starting with `-`. Even where the value is embedded in a
+    /// single `--author=<v>` token and so could not be read as an option, it
+    /// is refused uniformly: a pathspec *is* a separate argv token, and one
+    /// rule is easier to keep right than four.
+    LeadingDash(&'static str),
+    /// A control character — never legitimate in an author, a path or a
+    /// date, and a newline would forge a line in the batched remote script
+    /// `exec.rs` builds for `ssh://` repositories.
+    ControlChar(&'static str),
+}
+
+impl SearchQueryError {
+    /// The query field the problem is in: one of [`SEARCH_PREFIXES`] without
+    /// its colon, or `"query"` for the free message text.
+    pub fn field(&self) -> &'static str {
+        match self {
+            SearchQueryError::MissingValue(f)
+            | SearchQueryError::LeadingDash(f)
+            | SearchQueryError::ControlChar(f) => f,
+        }
+    }
+}
+
+impl std::fmt::Display for SearchQueryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SearchQueryError::MissingValue(field) => write!(f, "{field}: needs a value"),
+            SearchQueryError::LeadingDash(field) => {
+                write!(f, "{field}: value cannot start with '-'")
+            }
+            SearchQueryError::ControlChar(field) => {
+                write!(f, "{field}: value contains a control character")
+            }
+        }
+    }
+}
+
+/// A parsed cross-repository commit search: free message text plus the
+/// filters that map onto `git log --author=` / `--since=` / `--until=` and
+/// `-- <pathspec>`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CommitSearchQuery {
+    /// Message substring (case-insensitive, literal). Empty means "any
+    /// message": the `--grep` is then left out rather than passed empty.
+    pub text: String,
+    /// Author patterns, OR'd by git when more than one is given. Filled from
+    /// `author:` and later widened with the member aliases.
+    pub authors: Vec<String>,
+    /// Pathspecs, OR'd by git, passed after `--`.
+    pub paths: Vec<String>,
+    pub since: Option<String>,
+    pub until: Option<String>,
+}
+
+/// One whitespace-separated piece of the query line. `quoted` records that
+/// the piece *started* with a double quote, which is the escape hatch for
+/// searching messages that literally contain a prefix: `"path:"` is message
+/// text, while `path:"a b"` is a filter whose value contains a space.
+struct Token {
+    text: String,
+    quoted: bool,
+}
+
+/// Split on whitespace, honouring double quotes. An unclosed quote runs to
+/// the end of the line instead of erroring: this is a live prompt, and a
+/// query the user is still typing should not be rejected mid-word.
+fn tokenize(raw: &str) -> Vec<Token> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut started = false;
+    let mut quoted = false;
+    let mut in_quote = false;
+    for ch in raw.chars() {
+        if ch == '"' {
+            if !started {
+                started = true;
+                quoted = true;
+            }
+            in_quote = !in_quote;
+            continue;
+        }
+        if ch.is_whitespace() && !in_quote {
+            if started {
+                tokens.push(Token {
+                    text: std::mem::take(&mut current),
+                    quoted,
+                });
+                started = false;
+                quoted = false;
+            }
+            continue;
+        }
+        started = true;
+        current.push(ch);
+    }
+    if started {
+        tokens.push(Token {
+            text: current,
+            quoted,
+        });
+    }
+    tokens
+}
+
+fn check_filter_value(field: &'static str, value: &str) -> Result<(), SearchQueryError> {
+    if value.is_empty() {
+        return Err(SearchQueryError::MissingValue(field));
+    }
+    if value.starts_with('-') {
+        return Err(SearchQueryError::LeadingDash(field));
+    }
+    if value.chars().any(char::is_control) {
+        return Err(SearchQueryError::ControlChar(field));
+    }
+    Ok(())
+}
+
+impl CommitSearchQuery {
+    /// Parse the query line. Grammar: whitespace-separated tokens where
+    /// `author:`, `path:`, `since:` and `until:` introduce a filter and
+    /// every other token joins the message text. `author:` and `path:` may
+    /// repeat (git ORs them); a repeated `since:`/`until:` keeps the last
+    /// one, since a commit cannot be after two different instants.
+    pub fn parse(raw: &str) -> Result<CommitSearchQuery, SearchQueryError> {
+        let mut q = CommitSearchQuery::default();
+        let mut words: Vec<String> = Vec::new();
+        for token in tokenize(raw) {
+            let prefix = if token.quoted {
+                None
+            } else {
+                SEARCH_PREFIXES.iter().find(|p| token.text.starts_with(**p))
+            };
+            let Some(prefix) = prefix else {
+                words.push(token.text);
+                continue;
+            };
+            let field = prefix.trim_end_matches(':');
+            let value = token.text[prefix.len()..].to_string();
+            check_filter_value(field, &value)?;
+            match field {
+                "author" => q.authors.push(value),
+                "path" => q.paths.push(value),
+                "since" => q.since = Some(value),
+                _ => q.until = Some(value),
+            }
+        }
+        q.text = words.join(" ");
+        // The message text rides in a single `--grep=<text>` token, so a
+        // leading `-` is harmless there and stays searchable; a control
+        // character is refused for the same reason it is in a filter.
+        if q.text.chars().any(char::is_control) {
+            return Err(SearchQueryError::ControlChar("query"));
+        }
+        Ok(q)
+    }
+
+    /// True when there is nothing to ask git for at all.
+    pub fn is_empty(&self) -> bool {
+        self.text.is_empty()
+            && self.authors.is_empty()
+            && self.paths.is_empty()
+            && self.since.is_none()
+            && self.until.is_none()
+    }
+
+    /// Re-check every value at the git boundary. The fields are public and
+    /// the worker rewrites `authors` when it expands member aliases, so
+    /// having gone through `parse` once is not a guarantee about what
+    /// finally reaches the argv.
+    pub fn check_safe(&self) -> Result<(), SearchQueryError> {
+        for a in &self.authors {
+            check_filter_value("author", a)?;
+        }
+        for p in &self.paths {
+            check_filter_value("path", p)?;
+        }
+        if let Some(s) = &self.since {
+            check_filter_value("since", s)?;
+        }
+        if let Some(u) = &self.until {
+            check_filter_value("until", u)?;
+        }
+        if self.text.chars().any(char::is_control) {
+            return Err(SearchQueryError::ControlChar("query"));
+        }
+        Ok(())
+    }
+}
+
+/// Search commits (all refs, case-insensitive, literal — not a regex, so a
+/// query like "fix(auth)" doesn't need escaping) for the most recent `limit`
+/// matches. Used to search across many repositories at once from the Home
+/// screen.
 ///
-/// `query` is embedded in a single `--grep=<query>` argv token rather than
-/// passed as a separate value, so even a query starting with `-` can never
-/// be read as its own flag.
+/// Every pattern is embedded in a single `--grep=`/`--author=`/`--since=`
+/// argv token rather than passed as a separate value, so even a value
+/// starting with `-` could never be read as its own flag; pathspecs, which
+/// *are* separate tokens, are additionally guarded by `--` and by
+/// [`CommitSearchQuery::check_safe`].
+///
+/// git's own semantics do the combining: several `--author` are OR'd with
+/// each other and AND'd with the message pattern, and several pathspecs are
+/// OR'd.
 pub fn search_commits(
     repo_path: &Path,
-    query: &str,
+    query: &CommitSearchQuery,
     limit: usize,
 ) -> Result<Vec<CommitHit>, String> {
+    query.check_safe().map_err(|e| e.to_string())?;
     let limit_s = limit.to_string();
-    let grep_arg = format!("--grep={query}");
-    let output = run_git_cmd(
-        repo_path,
-        &[
-            "log",
-            "--all",
-            "-i",
-            "-F",
-            &grep_arg,
-            "-n",
-            &limit_s,
-            "--format=%h|||%an|||%ad|||%s",
-            "--date=format:%Y-%m-%d",
-        ],
-    )?;
+    let grep_arg = (!query.text.is_empty()).then(|| format!("--grep={}", query.text));
+    let author_args: Vec<String> = query
+        .authors
+        .iter()
+        .map(|a| format!("--author={a}"))
+        .collect();
+    let since_arg = query.since.as_ref().map(|s| format!("--since={s}"));
+    let until_arg = query.until.as_ref().map(|u| format!("--until={u}"));
+
+    let mut args: Vec<&str> = vec!["log", "--all", "-i", "-F"];
+    if let Some(g) = &grep_arg {
+        args.push(g);
+    }
+    args.extend(author_args.iter().map(String::as_str));
+    if let Some(s) = &since_arg {
+        args.push(s);
+    }
+    if let Some(u) = &until_arg {
+        args.push(u);
+    }
+    args.extend([
+        "-n",
+        &limit_s,
+        "--format=%h|||%an|||%ad|||%s",
+        "--date=format:%Y-%m-%d",
+        // Always present, even with no pathspec: it terminates options, so a
+        // pathspec can never be read back as one.
+        "--",
+    ]);
+    args.extend(query.paths.iter().map(String::as_str));
+    let output = run_git_cmd(repo_path, &args)?;
     Ok(output.lines().filter_map(parse_commit_hit).collect())
 }
 

@@ -334,12 +334,19 @@ fn run_job(job: Job, msg_tx: &Sender<Msg>, home_gen: &AtomicU64) -> Option<Msg> 
             generation,
             list: compute_global_members(&repos, &members),
         },
-        Job::SearchCommits { seq, query, repos } => {
-            let result = search_commits_across(&query, &repos);
+        Job::SearchCommits {
+            seq,
+            query,
+            repos,
+            members,
+        } => {
+            let result = search_commits_across(&query, &repos, &members);
             Msg::CommitSearchLoaded {
                 seq,
                 hits: result.hits,
                 failed_repos: result.failed_repos,
+                truncated_repos: result.truncated_repos,
+                total_truncated: result.total_truncated,
             }
         }
         Job::LoadCommitPreview { seq, path, hash } => {
@@ -358,44 +365,107 @@ fn run_job(job: Job, msg_tx: &Sender<Msg>, home_gen: &AtomicU64) -> Option<Msg> 
 
 /// Per-repository cap on search hits, and overall cap after merging — a
 /// query that matches broadly across many repositories should not flood the
-/// results list past what's actually useful to scroll through.
-const SEARCH_HITS_PER_REPO: usize = 50;
-const SEARCH_HITS_TOTAL: usize = 300;
+/// results list past what's actually useful to scroll through. Both are
+/// public because the screen names the cap it hit: a silently trimmed result
+/// is indistinguishable from a complete one.
+pub const SEARCH_HITS_PER_REPO: usize = 50;
+pub const SEARCH_HITS_TOTAL: usize = 300;
 
 /// Cross-repo search result. A repo that errored (unreachable SSH host, `git`
 /// missing, timeout, ...) is tracked separately from one that simply had no
 /// matches — collapsing both into "no hits" (as a bare `unwrap_or_default()`
 /// would) makes a failed search indistinguishable from a real empty result.
+/// Repos whose hits were *cut* at the cap are a third case again: those
+/// results are real but incomplete.
+#[derive(Default)]
 pub struct CommitSearchResult {
     pub hits: Vec<CommitSearchHit>,
     pub failed_repos: Vec<String>,
+    /// Repos that had more than [`SEARCH_HITS_PER_REPO`] matches.
+    pub truncated_repos: Vec<String>,
+    /// The merged list was cut at [`SEARCH_HITS_TOTAL`].
+    pub total_truncated: bool,
 }
 
-/// Search commit messages across every repository. Runs on a worker thread
-/// for the same reason [`compute_global_members`] does: one `git log` per
-/// repository, which would freeze the UI thread if run inline.
+/// Widen each typed author into every name/email `members.json` maps onto the
+/// same person, so `author:Jane` finds the commits she authored as `jdoe`
+/// too — the Contributors and Global Members views already merge those
+/// aliases, and a search that ignored them would disagree with the rest of
+/// the app.
+///
+/// Matching a member is exact and case-insensitive (the same rule
+/// `git::process_contributor_log` uses to fold a raw author onto a canonical
+/// name); the *resulting* patterns are then matched by git as substrings of
+/// `Name <email>`. A value that names no member is used on its own, which is
+/// exactly the old behaviour for anyone not in members.json.
+pub fn expand_author_aliases(authors: &[String], members: &[Member]) -> Vec<String> {
+    fn push_unique(out: &mut Vec<String>, value: &str) {
+        if !value.is_empty() && !out.iter().any(|e| e.eq_ignore_ascii_case(value)) {
+            out.push(value.to_string());
+        }
+    }
+    let mut out: Vec<String> = Vec::new();
+    for author in authors {
+        push_unique(&mut out, author);
+        for m in members {
+            let matches = m.canonical_name.eq_ignore_ascii_case(author)
+                || m.aliases.iter().any(|a| a.eq_ignore_ascii_case(author));
+            if matches {
+                push_unique(&mut out, &m.canonical_name);
+                for alias in &m.aliases {
+                    push_unique(&mut out, alias);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Search commits across every repository. Runs on a worker thread for the
+/// same reason [`compute_global_members`] does: one `git log` per repository,
+/// which would freeze the UI thread if run inline.
 pub fn search_commits_across(
-    query: &str,
+    query: &git::CommitSearchQuery,
     repos: &[(usize, String, PathBuf)],
+    members: &[Member],
 ) -> CommitSearchResult {
+    let mut query = query.clone();
+    query.authors = expand_author_aliases(&query.authors, members);
+
     let mut hits = Vec::new();
     let mut failed_repos = Vec::new();
+    let mut truncated_repos = Vec::new();
     for (index, name, path) in repos {
-        match git::search_commits(path, query, SEARCH_HITS_PER_REPO) {
-            Ok(found) => hits.extend(found.into_iter().map(|h| CommitSearchHit {
-                repo_index: *index,
-                repo_name: name.clone(),
-                hash: h.hash,
-                author: h.author,
-                date: h.date,
-                message: h.message,
-            })),
+        // One over the cap: the extra hit is what proves the repo had more
+        // to give, which asking for exactly the cap could never tell us
+        // apart from a repo with exactly that many matches.
+        match git::search_commits(path, &query, SEARCH_HITS_PER_REPO + 1) {
+            Ok(mut found) => {
+                if found.len() > SEARCH_HITS_PER_REPO {
+                    truncated_repos.push(name.clone());
+                    found.truncate(SEARCH_HITS_PER_REPO);
+                }
+                hits.extend(found.into_iter().map(|h| CommitSearchHit {
+                    repo_index: *index,
+                    repo_name: name.clone(),
+                    hash: h.hash,
+                    author: h.author,
+                    date: h.date,
+                    message: h.message,
+                }));
+            }
             Err(_) => failed_repos.push(name.clone()),
         }
     }
     hits.sort_by(|a, b| b.date.cmp(&a.date));
+    let total_truncated = hits.len() > SEARCH_HITS_TOTAL;
     hits.truncate(SEARCH_HITS_TOTAL);
-    CommitSearchResult { hits, failed_repos }
+    CommitSearchResult {
+        hits,
+        failed_repos,
+        truncated_repos,
+        total_truncated,
+    }
 }
 
 /// Aggregate contributor statistics across every repository.

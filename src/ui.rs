@@ -2223,13 +2223,62 @@ fn draw_log(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     );
 }
 
+/// The query grammar, spelled out wherever the screen has room for it: the
+/// prefixes are invisible otherwise, and a search tool nobody knows how to
+/// filter with is the blunt one this replaced.
+fn commit_search_help(app: &App) -> String {
+    // Kept to short lines: the empty-state paragraph is drawn without
+    // wrapping, so anything past ~76 columns is simply lost on an 80-column
+    // terminal.
+    app.tt(
+        "Filters: author:name  path:src/file  since:2.weeks  until:2024-01-01\n\
+         Quote values with spaces: author:\"Jane Doe\"\n\
+         Any other word matches the commit message.",
+        "フィルタ: author:名前  path:src/file  since:2.weeks  until:2024-01-01\n\
+         空白を含む値は引用符で: author:\"Jane Doe\"\n\
+         それ以外の語はコミットメッセージに一致します。",
+    )
+}
+
+/// Heading suffix naming any cap that cut the result. Both the fact and the
+/// cap itself are shown: without the number, "truncated" gives the user no
+/// way to judge how much they are missing, and a heading that only shows a
+/// count makes a trimmed result look complete.
+fn commit_search_cap_note(app: &App, search: &crate::app::CommitSearchState) -> String {
+    let total = crate::app::SEARCH_HITS_TOTAL;
+    let per_repo = crate::app::SEARCH_HITS_PER_REPO;
+    let mut parts: Vec<String> = Vec::new();
+    if search.total_truncated {
+        parts.push(app.tt(&format!("total cap {total}"), &format!("全体上限 {total}")));
+    }
+    if !search.truncated_repos.is_empty() {
+        let n = search.truncated_repos.len();
+        parts.push(app.tt(
+            &format!("{n} repo(s) at cap {per_repo}"),
+            &format!("{n} リポジトリが上限 {per_repo}"),
+        ));
+    }
+    if parts.is_empty() {
+        return String::new();
+    }
+    format!(
+        " [{}: {}]",
+        app.tt("truncated", "打ち切り"),
+        parts.join(app.tt("; ", " / ").as_str())
+    )
+}
+
 fn draw_commit_search(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     app.commit_search_viewport.set(ListViewport::default());
     let Some(search) = app.commit_search.as_ref() else {
         frame.render_widget(
-            Paragraph::new(app.tt(
-                "Press / to search commit messages across all repositories.",
-                "/ で全リポジトリ横断のコミットメッセージ検索を開始します。",
+            Paragraph::new(format!(
+                "{}\n\n{}",
+                app.tt(
+                    "Press / to search commits across all repositories.",
+                    "/ で全リポジトリ横断のコミット検索を開始します。",
+                ),
+                commit_search_help(app)
             ))
             .style(Style::default().fg(pal.subtext))
             .block(
@@ -2280,10 +2329,19 @@ fn draw_commit_search(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         })
         .collect();
     let title = format!(
-        "{} \"{}\" ({})",
+        "{} \"{}\" ({}){}",
         app.tt("Commit Search", "コミット検索"),
         search.query,
-        search.hits.len()
+        search.hits.len(),
+        commit_search_cap_note(app, search)
+    );
+    let empty = format!(
+        "{}\n\n{}",
+        app.tt(
+            "No matching commits in any repository.",
+            "一致するコミットはどのリポジトリにもありません。",
+        ),
+        commit_search_help(app)
     );
     let viewport = render_items(
         frame,
@@ -2293,10 +2351,7 @@ fn draw_commit_search(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         search.selected,
         title,
         None,
-        &app.tt(
-            "No matching commits in any repository.",
-            "一致するコミットはどのリポジトリにもありません。",
-        ),
+        &empty,
     );
     app.commit_search_viewport.set(viewport);
 }
@@ -4177,6 +4232,7 @@ pub(crate) mod tests {
             hits: vec![],
             selected: 0,
             loading: true,
+            ..Default::default()
         });
         render(&app, 100, 30);
 
@@ -4192,9 +4248,88 @@ pub(crate) mod tests {
             }],
             selected: 0,
             loading: false,
+            ..Default::default()
         });
         render(&app, 100, 30);
         render(&app, 15, 4);
+    }
+
+    #[test]
+    fn commit_search_heading_admits_truncation_and_screen_lists_the_filters() {
+        use crate::app::{CommitSearchHit, CommitSearchState, SEARCH_HITS_PER_REPO};
+
+        let mut app = App::new();
+        app.screen = Screen::CommitSearch;
+
+        // Nothing searched yet: the prefixes have to be visible somewhere,
+        // or nobody discovers them.
+        let text = render_to_text(&app, 100, 30);
+        assert!(text.contains("author:name"), "{text}");
+        assert!(text.contains("path:src/file"), "{text}");
+        assert!(text.contains("since:2.weeks"), "{text}");
+        assert!(text.contains("until:2024-01-01"), "{text}");
+
+        let hit = CommitSearchHit {
+            repo_index: 0,
+            repo_name: "repo-a".into(),
+            hash: "abc1234".into(),
+            author: "Jane Doe".into(),
+            date: "2024-01-01".into(),
+            message: "fix login".into(),
+        };
+        app.commit_search = Some(CommitSearchState {
+            query: "login author:\"Jane Doe\" since:2.weeks".into(),
+            hits: vec![hit.clone()],
+            selected: 0,
+            loading: false,
+            truncated_repos: vec![],
+            total_truncated: false,
+        });
+        let text = render_to_text(&app, 120, 12);
+        // The heading repeats the query verbatim, filters included.
+        assert!(text.contains("author:"), "{text}");
+        // An untruncated result says nothing about caps.
+        assert!(!text.contains("truncated"), "{text}");
+
+        // Cut at both caps: the heading must say so, and name the cap — a
+        // bare count would look identical to a complete result.
+        app.commit_search = Some(CommitSearchState {
+            query: "login".into(),
+            hits: vec![hit],
+            selected: 0,
+            loading: false,
+            truncated_repos: vec!["repo-a".into(), "repo-b".into()],
+            total_truncated: true,
+        });
+        let text = render_to_text(&app, 120, 12);
+        assert!(text.contains("truncated"), "{text}");
+        assert!(text.contains("total cap 300"), "{text}");
+        assert!(
+            text.contains(&format!("2 repo(s) at cap {SEARCH_HITS_PER_REPO}")),
+            "{text}"
+        );
+
+        // Japanese carries the same two facts. Wide glyphs occupy two
+        // cells, the second of which flattens to a space, so the rendered
+        // text is compared with whitespace stripped.
+        app.set_language_for_test(crate::config::Language::Japanese);
+        let text = render_to_text(&app, 120, 12);
+        let dense: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+        assert!(dense.contains("打ち切り"), "{text}");
+        assert!(dense.contains("全体上限300"), "{text}");
+        assert!(dense.contains("2リポジトリが上限50"), "{text}");
+
+        // ...and so does the empty-result legend.
+        app.commit_search = Some(CommitSearchState {
+            query: "nothing".into(),
+            hits: vec![],
+            selected: 0,
+            loading: false,
+            ..Default::default()
+        });
+        let text = render_to_text(&app, 100, 30);
+        let dense: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+        assert!(dense.contains("フィルタ:author:名前"), "{text}");
     }
 
     #[test]
@@ -4699,8 +4834,8 @@ fn title_navigation_popup_mouse_routes_all_destinations_in_both_languages() {
         let text = tests::render_to_text(&app, 80, 24);
         let dense: String = text.chars().filter(|c| !c.is_whitespace()).collect();
         let prompt = match language {
-            crate::config::Language::English => "Searchcommit",
-            crate::config::Language::Japanese => "コミットメッセージを検索",
+            crate::config::Language::English => "Searchallrepos",
+            crate::config::Language::Japanese => "全リポジトリ検索",
         };
         assert!(dense.contains(prompt), "{text}");
     }
@@ -4759,6 +4894,7 @@ fn commit_search_loading_clears_previous_mouse_viewport() {
         hits: vec![],
         selected: 0,
         loading: true,
+        ..Default::default()
     });
     app.screen = Screen::CommitSearch;
     tests::render(&app, 80, 24);

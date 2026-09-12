@@ -455,9 +455,13 @@ impl App {
                 "Diff tool command (e.g. 'code --wait --diff', empty for builtin)",
                 "Diff ツールコマンド (例: 'code --wait --diff', 空で内蔵)",
             ),
+            // The prompt is a popup *title*, so it names the prefixes and
+            // leaves the worked examples to the legend on the screen behind
+            // it — a longer title is simply clipped on an 80-column
+            // terminal, taking the last prefix with it.
             Some(InputKind::CommitSearchQuery) => self.tt(
-                "Search commit messages across all repositories",
-                "全リポジトリ横断でコミットメッセージを検索",
+                "Search all repos: text, author:, path:, since:, until:",
+                "全リポジトリ検索: 本文, author:, path:, since:, until:",
             ),
             _ => String::new(),
         }
@@ -847,6 +851,14 @@ impl App {
             Screen::CommitSearch => vec![
                 pair("j/k", "move", "移動"),
                 pair("/", "new search", "再検索"),
+                // Named in the footer too: the filter legend only shows on
+                // an empty result, and the prefixes are undiscoverable
+                // otherwise.
+                pair(
+                    "filters",
+                    "author: path: since: until:",
+                    "author: path: since: until:",
+                ),
                 pair("enter", "open commit", "コミットを開く"),
                 pair("?", "help", "ヘルプ"),
                 pair("esc", "back", "戻る"),
@@ -3374,22 +3386,66 @@ impl App {
         }
     }
 
-    /// Search commit messages across every repository (`S` on Home). Runs on
-    /// the worker like the cross-repo member aggregation, since it is one
+    /// Bilingual wording for a rejected query. The git layer reports *which*
+    /// field is wrong and why; the sentence is built here, where the user's
+    /// language is known.
+    pub fn commit_search_error_text(&self, err: &crate::git::SearchQueryError) -> String {
+        let field = err.field();
+        match err {
+            crate::git::SearchQueryError::MissingValue(_) => self.tt(
+                &format!("Search: '{field}:' needs a value"),
+                &format!("検索: '{field}:' には値が必要です"),
+            ),
+            crate::git::SearchQueryError::LeadingDash(_) => self.tt(
+                &format!("Search: '{field}:' value cannot start with '-'"),
+                &format!("検索: '{field}:' の値は '-' で始められません"),
+            ),
+            crate::git::SearchQueryError::ControlChar(_) => self.tt(
+                &format!("Search: '{field}' contains a control character"),
+                &format!("検索: '{field}' に制御文字が含まれています"),
+            ),
+        }
+    }
+
+    /// Search commits across every repository (`S` on Home). Runs on the
+    /// worker like the cross-repo member aggregation, since it is one
     /// `git log` per repository.
-    fn run_commit_search(&mut self, query: String) {
-        let query = query.trim().to_string();
-        if query.is_empty() {
+    ///
+    /// `raw` is the whole query line: `author:` / `path:` / `since:` /
+    /// `until:` tokens become git filters and everything else is the message
+    /// substring, so a query with no prefix at all behaves exactly as it did
+    /// before filters existed.
+    fn run_commit_search(&mut self, raw: String) {
+        let raw = raw.trim().to_string();
+        if raw.is_empty() {
+            self.commit_search = None;
+            return;
+        }
+        let parsed = match crate::git::CommitSearchQuery::parse(&raw) {
+            Ok(q) => q,
+            Err(err) => {
+                // Stay on whichever screen asked, with the old results
+                // intact: a rejected query has searched nothing, so
+                // replacing the previous result with an empty one would
+                // claim otherwise.
+                self.error = Some(self.commit_search_error_text(&err));
+                return;
+            }
+        };
+        // A line of nothing but quotes parses cleanly yet asks for nothing.
+        if parsed.is_empty() {
             self.commit_search = None;
             return;
         }
         self.search_seq += 1;
         let seq = self.search_seq;
         self.commit_search = Some(CommitSearchState {
-            query: query.clone(),
+            query: raw,
             hits: Vec::new(),
             selected: 0,
             loading: true,
+            truncated_repos: Vec::new(),
+            total_truncated: false,
         });
         self.screen = Screen::CommitSearch;
         let repos = self
@@ -3398,7 +3454,12 @@ impl App {
             .enumerate()
             .map(|(i, r)| (i, r.name.clone(), r.path.clone()))
             .collect();
-        let job = Job::SearchCommits { seq, query, repos };
+        let job = Job::SearchCommits {
+            seq,
+            query: parsed,
+            repos,
+            members: self.members.clone(),
+        };
         self.send_job(job);
     }
 
@@ -3861,6 +3922,8 @@ impl App {
                 seq,
                 hits,
                 failed_repos,
+                truncated_repos,
+                total_truncated,
             } => {
                 if seq != self.search_seq {
                     return;
@@ -3871,6 +3934,8 @@ impl App {
                 search.loading = false;
                 search.hits = hits;
                 search.selected = 0;
+                search.truncated_repos = truncated_repos;
+                search.total_truncated = total_truncated;
                 // Surfaced without discarding hits from repos that *did*
                 // search successfully — a failure and "no matches" must not
                 // look identical to the user.

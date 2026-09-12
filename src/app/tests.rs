@@ -454,8 +454,9 @@ fn jobs_route_to_the_worker_lane_that_owns_them() {
     assert!(
         Job::SearchCommits {
             seq: 0,
-            query: "x".into(),
+            query: crate::git::CommitSearchQuery::parse("x").unwrap(),
             repos: vec![],
+            members: vec![],
         }
         .is_secondary_worker()
     );
@@ -632,11 +633,12 @@ fn search_commits_across_reports_failed_repos_without_losing_other_hits() {
     let _ = std::fs::remove_dir_all(&missing);
 
     let result = search_commits_across(
-        "unique-partial-failure-marker",
+        &crate::git::CommitSearchQuery::parse("unique-partial-failure-marker").unwrap(),
         &[
             (0, "good-repo".to_string(), temp_dir.clone()),
             (1, "bad-repo".to_string(), missing),
         ],
+        &[],
     );
     // The failing repo must not silently collapse into "no matches" —
     // unwrap_or_default() previously made this indistinguishable from a
@@ -647,6 +649,233 @@ fn search_commits_across_reports_failed_repos_without_losing_other_hits() {
     assert_eq!(result.hits[0].repo_name, "good-repo");
 
     let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+/// Build a throwaway repo with `n` commits whose subjects all contain
+/// `marker`, for the truncation tests.
+fn repo_with_marker_commits(dir: &std::path::Path, marker: &str, n: usize) {
+    use std::process::Command;
+    let _ = std::fs::remove_dir_all(dir);
+    std::fs::create_dir_all(dir).unwrap();
+    for args in [
+        vec!["init"],
+        vec!["config", "user.name", "T"],
+        vec!["config", "user.email", "t@e.com"],
+    ] {
+        Command::new("git")
+            .args(&args)
+            .current_dir(dir)
+            .output()
+            .unwrap();
+    }
+    for i in 0..n {
+        std::fs::write(dir.join("f.txt"), i.to_string()).unwrap();
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(dir)
+            .output()
+            .unwrap();
+        Command::new("git")
+            .args(["commit", "-m", &format!("{marker} {i}")])
+            .current_dir(dir)
+            .output()
+            .unwrap();
+    }
+}
+
+#[test]
+fn search_commits_across_reports_per_repo_and_total_truncation() {
+    // A capped result that only shows a count is indistinguishable from a
+    // complete one — the caps have to be reported, not just applied.
+    let temp_dir = std::env::temp_dir().join("gdt_search_across_truncation");
+    // One more than the per-repo cap, so the cap is *exceeded*, not merely
+    // reached.
+    repo_with_marker_commits(&temp_dir, "gdt-truncation-marker", SEARCH_HITS_PER_REPO + 1);
+
+    let query = crate::git::CommitSearchQuery::parse("gdt-truncation-marker").unwrap();
+    let result = search_commits_across(
+        &query,
+        &[(0, "big-repo".to_string(), temp_dir.clone())],
+        &[],
+    );
+    assert_eq!(result.truncated_repos, vec!["big-repo".to_string()]);
+    assert_eq!(result.hits.len(), SEARCH_HITS_PER_REPO);
+    assert!(result.failed_repos.is_empty());
+    // One repo cannot reach the total cap on its own here.
+    assert!(!result.total_truncated);
+
+    // Exactly at the cap is *not* truncation: the one extra hit that
+    // search_commits_across asks for is what tells the two cases apart.
+    let exact_dir = std::env::temp_dir().join("gdt_search_across_exact_cap");
+    repo_with_marker_commits(&exact_dir, "gdt-exact-marker", SEARCH_HITS_PER_REPO);
+    let query = crate::git::CommitSearchQuery::parse("gdt-exact-marker").unwrap();
+    let result = search_commits_across(
+        &query,
+        &[(0, "exact-repo".to_string(), exact_dir.clone())],
+        &[],
+    );
+    assert!(result.truncated_repos.is_empty());
+    assert_eq!(result.hits.len(), SEARCH_HITS_PER_REPO);
+
+    // The merged list has its own cap: enough repos at the per-repo cap and
+    // the total one bites too.
+    let repos: Vec<(usize, String, PathBuf)> = (0..(SEARCH_HITS_TOTAL / SEARCH_HITS_PER_REPO) + 1)
+        .map(|i| (i, format!("copy-{i}"), temp_dir.clone()))
+        .collect();
+    let query = crate::git::CommitSearchQuery::parse("gdt-truncation-marker").unwrap();
+    let result = search_commits_across(&query, &repos, &[]);
+    assert!(result.total_truncated);
+    assert_eq!(result.hits.len(), SEARCH_HITS_TOTAL);
+    assert_eq!(result.truncated_repos.len(), repos.len());
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    let _ = std::fs::remove_dir_all(&exact_dir);
+}
+
+#[test]
+fn author_filter_expands_member_aliases() {
+    // members.json already folds a person's commit aliases onto one
+    // canonical name for the Contributors and Global Members views; an
+    // author: filter that ignored it would disagree with them.
+    let members = vec![
+        Member {
+            canonical_name: "田中".to_string(),
+            aliases: vec!["Tanaka".to_string(), "tanaka@example.com".to_string()],
+            is_active: true,
+        },
+        Member {
+            canonical_name: "Alice".to_string(),
+            aliases: vec!["alice@example.com".to_string()],
+            is_active: true,
+        },
+    ];
+
+    // The canonical name pulls in every alias, and only that member's.
+    let expanded = expand_author_aliases(&["田中".to_string()], &members);
+    assert_eq!(
+        expanded,
+        vec![
+            "田中".to_string(),
+            "Tanaka".to_string(),
+            "tanaka@example.com".to_string()
+        ]
+    );
+
+    // Any one alias resolves the same way, case-insensitively, matching the
+    // rule process_contributor_log uses. "TANAKA" and "Tanaka" are one
+    // pattern to git's -i match, so the alias is not repeated.
+    let expanded = expand_author_aliases(&["TANAKA".to_string()], &members);
+    assert_eq!(
+        expanded,
+        vec![
+            "TANAKA".to_string(),
+            "田中".to_string(),
+            "tanaka@example.com".to_string()
+        ]
+    );
+
+    // Someone who is not a member is passed through untouched — the old
+    // behaviour for anyone missing from members.json.
+    assert_eq!(
+        expand_author_aliases(&["stranger".to_string()], &members),
+        vec!["stranger".to_string()]
+    );
+
+    // No members configured at all: still just the typed value.
+    assert_eq!(
+        expand_author_aliases(&["田中".to_string()], &[]),
+        vec!["田中".to_string()]
+    );
+}
+
+#[test]
+fn author_filter_finds_an_alias_of_the_searched_member_in_a_real_repo() {
+    use std::process::Command;
+
+    let temp_dir = std::env::temp_dir().join("gdt_search_author_aliases");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    for args in [vec!["init"], vec!["config", "user.email", "t@e.com"]] {
+        Command::new("git")
+            .args(&args)
+            .current_dir(&temp_dir)
+            .output()
+            .unwrap();
+    }
+    // The same person committing under two different names.
+    for (name, msg) in [("田中", "alias-test one"), ("Tanaka", "alias-test two")] {
+        Command::new("git")
+            .args(["config", "user.name", name])
+            .current_dir(&temp_dir)
+            .output()
+            .unwrap();
+        std::fs::write(temp_dir.join("f.txt"), msg).unwrap();
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(&temp_dir)
+            .output()
+            .unwrap();
+        Command::new("git")
+            .args(["commit", "-m", msg])
+            .current_dir(&temp_dir)
+            .output()
+            .unwrap();
+    }
+
+    let query = crate::git::CommitSearchQuery::parse("alias-test author:田中").unwrap();
+    let repos = vec![(0, "r".to_string(), temp_dir.clone())];
+
+    // Without the member list, only the commits literally authored as 田中.
+    let plain = search_commits_across(&query, &repos, &[]);
+    assert_eq!(plain.hits.len(), 1);
+
+    // With it, both of that person's names are found.
+    let members = vec![Member {
+        canonical_name: "田中".to_string(),
+        aliases: vec!["Tanaka".to_string()],
+        is_active: true,
+    }];
+    let merged = search_commits_across(&query, &repos, &members);
+    assert_eq!(merged.hits.len(), 2);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn a_rejected_query_keeps_the_previous_result_and_explains_itself() {
+    let mut app = App::new();
+    app.commit_search = Some(CommitSearchState {
+        query: "earlier".into(),
+        hits: vec![CommitSearchHit {
+            repo_index: 0,
+            repo_name: "r".into(),
+            hash: "abc123".into(),
+            author: "A".into(),
+            date: "2024-01-01".into(),
+            message: "m".into(),
+        }],
+        selected: 0,
+        loading: false,
+        ..Default::default()
+    });
+    app.screen = Screen::CommitSearch;
+    app.input = Some(InputKind::CommitSearchQuery);
+    app.input_buf = "author:-x".into();
+    app.handle_key(KeyEvent::from(KeyCode::Enter));
+
+    // Refused before any git ran: the earlier result is still on screen and
+    // is not silently replaced by an empty one.
+    let err = app.error.clone().unwrap();
+    assert!(err.contains("author"), "{err}");
+    let search = app.commit_search.as_ref().unwrap();
+    assert_eq!(search.query, "earlier");
+    assert_eq!(search.hits.len(), 1);
+    assert!(!search.loading);
+
+    // Both languages are wired up.
+    app.prefs.language = crate::config::Language::Japanese;
+    let ja = app.commit_search_error_text(&crate::git::SearchQueryError::LeadingDash("author"));
+    assert!(ja.contains("値は"), "{ja}");
 }
 
 #[test]
@@ -669,6 +898,7 @@ fn jump_to_search_hit_refuses_a_stale_repo_index() {
         }],
         selected: 0,
         loading: false,
+        ..Default::default()
     });
     app.screen = Screen::CommitSearch;
 

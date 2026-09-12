@@ -1,7 +1,7 @@
 use crate::config::{Language, Member};
 use crate::git::{
-    BlameEntry, BranchInfo, ChangedFile, CommitSummary, Contributor, DiffRowKind, FileDiff,
-    GitOpState, StashEntry, Summary, TagInfo, TimeSpan, WorktreeInfo,
+    BlameEntry, BranchInfo, ChangedFile, CommitSearchQuery, CommitSummary, Contributor,
+    DiffRowKind, FileDiff, GitOpState, StashEntry, Summary, TagInfo, TimeSpan, WorktreeInfo,
 };
 use std::path::PathBuf;
 
@@ -324,10 +324,19 @@ pub struct CommitSearchHit {
 
 #[derive(Clone, Debug, Default)]
 pub struct CommitSearchState {
+    /// The line the user typed, filter prefixes and all — shown in the
+    /// heading so the result is always labelled with the query that produced
+    /// it, including the parts git applied as filters.
     pub query: String,
     pub hits: Vec<CommitSearchHit>,
     pub selected: usize,
     pub loading: bool,
+    /// Repos whose hits were cut at the per-repository cap, and whether the
+    /// merged list was cut at the total cap. Both are rendered in the
+    /// heading: a result that silently hides matches is worse than one that
+    /// admits it.
+    pub truncated_repos: Vec<String>,
+    pub total_truncated: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -434,8 +443,11 @@ pub enum Job {
     },
     SearchCommits {
         seq: u64,
-        query: String,
+        query: CommitSearchQuery,
         repos: Vec<(usize, String, PathBuf)>,
+        /// Needed to widen an `author:` filter across that person's commit
+        /// aliases, the same way the contributor views do.
+        members: Vec<Member>,
     },
 }
 
@@ -545,6 +557,10 @@ pub enum Msg {
         /// host, `git` missing, timeout, ...) — distinct from a repo that
         /// was searched successfully and simply had no matches.
         failed_repos: Vec<String>,
+        /// Names of repos that had more matches than the per-repository cap.
+        truncated_repos: Vec<String>,
+        /// The merged result was cut at the total cap.
+        total_truncated: bool,
     },
     GlobalMembersLoaded {
         generation: u64,

@@ -687,17 +687,230 @@ fn test_search_commits_across_a_real_repo() {
             .unwrap();
     }
 
+    let q = |s: &str| CommitSearchQuery::parse(s).unwrap();
+
     // Case-insensitive, and "(auth)" must not be read as regex syntax.
-    let hits = search_commits(&temp_dir, "fix(auth)", 10).unwrap();
+    // `fix(auth):` also proves an unknown `x:` prefix stays message text.
+    let hits = search_commits(&temp_dir, &q("fix(auth)"), 10).unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].message, "fix(auth): patch login bug");
 
     // Substring match across commits, case-insensitive.
-    let hits = search_commits(&temp_dir, "FIX", 10).unwrap();
+    let hits = search_commits(&temp_dir, &q("FIX"), 10).unwrap();
     assert_eq!(hits.len(), 2);
 
-    let hits = search_commits(&temp_dir, "nonexistent-term", 10).unwrap();
+    let hits = search_commits(&temp_dir, &q("nonexistent-term"), 10).unwrap();
     assert!(hits.is_empty());
+
+    let _ = fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn commit_search_query_parses_plain_text_unchanged() {
+    // The whole point of the prefix grammar is that it costs the old
+    // behaviour nothing: no prefix, no filters, and the words stay one
+    // message substring.
+    let q = CommitSearchQuery::parse("fix login bug").unwrap();
+    assert_eq!(q.text, "fix login bug");
+    assert!(q.authors.is_empty());
+    assert!(q.paths.is_empty());
+    assert_eq!(q.since, None);
+    assert_eq!(q.until, None);
+
+    // A conventional-commit subject is not a filter: `fix:` is not a known
+    // prefix, so it must survive as text rather than vanish.
+    let q = CommitSearchQuery::parse("fix: auth").unwrap();
+    assert_eq!(q.text, "fix: auth");
+    assert!(q.authors.is_empty());
+
+    // Surrounding whitespace collapses; an empty line asks for nothing.
+    assert!(CommitSearchQuery::parse("   ").unwrap().is_empty());
+}
+
+#[test]
+fn commit_search_query_parses_each_prefix_and_combinations() {
+    let q = CommitSearchQuery::parse("author:jane").unwrap();
+    assert_eq!(q.authors, vec!["jane".to_string()]);
+    assert_eq!(q.text, "");
+
+    let q = CommitSearchQuery::parse("path:src/app/mod.rs").unwrap();
+    assert_eq!(q.paths, vec!["src/app/mod.rs".to_string()]);
+
+    let q = CommitSearchQuery::parse("since:2.weeks").unwrap();
+    assert_eq!(q.since, Some("2.weeks".to_string()));
+
+    let q = CommitSearchQuery::parse("until:2024-01-01").unwrap();
+    assert_eq!(q.until, Some("2024-01-01".to_string()));
+
+    // Everything at once, with the free words gathered in order regardless
+    // of where the prefixes sit.
+    let q =
+        CommitSearchQuery::parse("login author:jane path:src since:2.weeks bug until:yesterday")
+            .unwrap();
+    assert_eq!(q.text, "login bug");
+    assert_eq!(q.authors, vec!["jane".to_string()]);
+    assert_eq!(q.paths, vec!["src".to_string()]);
+    assert_eq!(q.since, Some("2.weeks".to_string()));
+    assert_eq!(q.until, Some("yesterday".to_string()));
+
+    // author:/path: repeat (git ORs them); a second since:/until: replaces
+    // the first, because a commit cannot be after two different instants.
+    let q = CommitSearchQuery::parse("author:a author:b path:x path:y since:1.day since:2.days")
+        .unwrap();
+    assert_eq!(q.authors, vec!["a".to_string(), "b".to_string()]);
+    assert_eq!(q.paths, vec!["x".to_string(), "y".to_string()]);
+    assert_eq!(q.since, Some("2.days".to_string()));
+}
+
+#[test]
+fn commit_search_query_handles_quoted_values() {
+    let q = CommitSearchQuery::parse("author:\"Jane Doe\" fix").unwrap();
+    assert_eq!(q.authors, vec!["Jane Doe".to_string()]);
+    assert_eq!(q.text, "fix");
+
+    let q = CommitSearchQuery::parse("path:\"src/a b.rs\"").unwrap();
+    assert_eq!(q.paths, vec!["src/a b.rs".to_string()]);
+
+    let q = CommitSearchQuery::parse("since:\"2 weeks ago\"").unwrap();
+    assert_eq!(q.since, Some("2 weeks ago".to_string()));
+
+    // A token that *starts* quoted is literal text — the escape hatch for
+    // searching messages that contain a prefix word.
+    let q = CommitSearchQuery::parse("\"author:jane\"").unwrap();
+    assert!(q.authors.is_empty());
+    assert_eq!(q.text, "author:jane");
+
+    // An unclosed quote runs to end of line instead of erroring: this is a
+    // live prompt and a half-typed query should not be rejected.
+    let q = CommitSearchQuery::parse("author:\"Jane Doe").unwrap();
+    assert_eq!(q.authors, vec!["Jane Doe".to_string()]);
+}
+
+#[test]
+fn commit_search_query_rejects_malformed_and_unsafe_values() {
+    // A prefix with nothing after it (bare, or an empty quoted value).
+    assert_eq!(
+        CommitSearchQuery::parse("author:"),
+        Err(SearchQueryError::MissingValue("author"))
+    );
+    assert_eq!(
+        CommitSearchQuery::parse("path:\"\""),
+        Err(SearchQueryError::MissingValue("path"))
+    );
+
+    // A value that git would read as an option. `--author=-x` could not
+    // actually be split, but a pathspec is its own argv token and the rule
+    // is applied uniformly rather than per-field.
+    for bad in [
+        "author:-x",
+        "path:--output=/tmp/x",
+        "since:-1",
+        "until:--help",
+    ] {
+        let err = CommitSearchQuery::parse(bad).unwrap_err();
+        assert!(
+            matches!(err, SearchQueryError::LeadingDash(_)),
+            "{bad} should be refused as an option-looking value, got {err:?}"
+        );
+    }
+
+    // Control characters. An ESC would drive the terminal when the hit is
+    // drawn; a newline (inside quotes, where it survives tokenisation)
+    // would forge a line in the batched remote script used for ssh://
+    // repositories.
+    let err = CommitSearchQuery::parse("author:ja\u{1b}[31mne").unwrap_err();
+    assert_eq!(err, SearchQueryError::ControlChar("author"));
+    let err = CommitSearchQuery::parse("path:\"a\nb\"").unwrap_err();
+    assert_eq!(err, SearchQueryError::ControlChar("path"));
+    let err = CommitSearchQuery::parse("mess\u{1b}[31mage").unwrap_err();
+    assert_eq!(err, SearchQueryError::ControlChar("query"));
+
+    // ...and nothing unsafe can reach git even if a caller builds the
+    // struct by hand and skips the parser.
+    let hand_built = CommitSearchQuery {
+        paths: vec!["-x".to_string()],
+        ..Default::default()
+    };
+    assert!(hand_built.check_safe().is_err());
+    let err = search_commits(Path::new("/nonexistent-repo"), &hand_built, 5).unwrap_err();
+    assert!(err.contains("cannot start with"), "{err}");
+}
+
+#[test]
+fn test_search_commits_filters_by_author_path_and_date() {
+    let temp_dir = std::env::temp_dir().join("git_test_search_commit_filters");
+    let _ = fs::remove_dir_all(&temp_dir);
+    fs::create_dir_all(temp_dir.join("sub")).unwrap();
+    let git = |args: &[&str]| {
+        Command::new("git")
+            .args(args)
+            .current_dir(&temp_dir)
+            .output()
+            .unwrap();
+    };
+    // `--since`/`--until` compare against the *committer* date, so both
+    // dates have to be pinned or every commit lands at "now".
+    let commit_at = |message: &str, date: &str| {
+        Command::new("git")
+            .args(["commit", "-m", message])
+            .env("GIT_AUTHOR_DATE", date)
+            .env("GIT_COMMITTER_DATE", date)
+            .current_dir(&temp_dir)
+            .output()
+            .unwrap();
+    };
+    git(&["init"]);
+    git(&["config", "user.name", "Jane Doe"]);
+    git(&["config", "user.email", "jane@example.com"]);
+    fs::write(temp_dir.join("root.txt"), "a").unwrap();
+    git(&["add", "."]);
+    commit_at("fix root thing", "2020-01-02T00:00:00+0000");
+
+    git(&["config", "user.name", "Other Person"]);
+    git(&["config", "user.email", "other@example.com"]);
+    fs::write(temp_dir.join("sub/nested.txt"), "b").unwrap();
+    git(&["add", "."]);
+    commit_at("fix nested thing", "2021-06-02T00:00:00+0000");
+
+    // author: narrows to one of the two "fix" commits...
+    let q = CommitSearchQuery::parse("fix author:\"Jane Doe\"").unwrap();
+    let hits = search_commits(&temp_dir, &q, 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].message, "fix root thing");
+
+    // ...and matches the email side of "Name <email>" too.
+    let q = CommitSearchQuery::parse("author:other@example.com").unwrap();
+    let hits = search_commits(&temp_dir, &q, 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].message, "fix nested thing");
+
+    // path: restricts to commits touching that path.
+    let q = CommitSearchQuery::parse("path:sub").unwrap();
+    let hits = search_commits(&temp_dir, &q, 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].message, "fix nested thing");
+
+    // since:/until: bracket the author dates set above.
+    let q = CommitSearchQuery::parse("since:2021-01-01").unwrap();
+    let hits = search_commits(&temp_dir, &q, 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].message, "fix nested thing");
+
+    let q = CommitSearchQuery::parse("until:2021-01-01").unwrap();
+    let hits = search_commits(&temp_dir, &q, 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].message, "fix root thing");
+
+    // A filter with no message text still searches (no empty --grep).
+    let q = CommitSearchQuery::parse("author:Jane").unwrap();
+    assert_eq!(search_commits(&temp_dir, &q, 10).unwrap().len(), 1);
+
+    // Two authors are OR'd by git, not AND'd.
+    let q = CommitSearchQuery::parse("author:\"Jane Doe\" author:\"Other Person\"").unwrap();
+    assert_eq!(search_commits(&temp_dir, &q, 10).unwrap().len(), 2);
+
+    // A value that would be an option never reaches git.
+    assert!(CommitSearchQuery::parse("path:-x").is_err());
 
     let _ = fs::remove_dir_all(&temp_dir);
 }
