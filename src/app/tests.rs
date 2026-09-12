@@ -429,7 +429,7 @@ fn auto_refresh_only_fires_on_home_after_the_interval_elapses() {
 }
 
 #[test]
-fn bulk_cross_repo_jobs_route_to_the_secondary_worker() {
+fn jobs_route_to_the_worker_lane_that_owns_them() {
     // SearchCommits and LoadGlobalMembers each run one git invocation per
     // registered repository, same shape as Pull/Fetch's remote-timeout risk
     // — all four must stay off the shared worker or a single unreachable
@@ -468,30 +468,47 @@ fn bulk_cross_repo_jobs_route_to_the_secondary_worker() {
         .is_secondary_worker()
     );
 
+    // Repository discovery has its own worker, so a scan neither waits for
+    // nor delays anything else.
+    let scan = Job::ScanRepos {
+        seq: 0,
+        generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        root: path.clone(),
+    };
+    assert!(scan.is_finder_worker());
+    assert!(!scan.is_secondary_worker() && !scan.is_home_worker());
+
+    // A refresh queues one LoadHome per repository: those belong on the Home
+    // pool, where they run several at a time.
+    let home = Job::LoadHome {
+        generation: 0,
+        index: 0,
+        path: path.clone(),
+    };
+    assert!(home.is_home_worker());
+    assert!(!home.is_secondary_worker() && !home.is_finder_worker());
+
     // Per-file/per-repo interactive loads must stay on the primary worker —
-    // routing these to the secondary one would defeat the whole point.
-    assert!(
-        !Job::LoadDiff {
-            seq: 0,
-            path: path.clone(),
-            base: None,
-            target: "HEAD".into(),
-            file: "f".into(),
-            three_dot: false,
-            ignore_whitespace: false,
-            full: false,
-        }
-        .is_secondary_worker()
-    );
-    assert!(
-        !Job::LoadHome {
-            generation: 0,
-            index: 0,
-            path,
-            members: vec![],
-        }
-        .is_secondary_worker()
-    );
+    // routing these anywhere else would defeat the whole point: it is the
+    // lane that is kept empty so an opened diff starts immediately.
+    let diff = Job::LoadDiff {
+        seq: 0,
+        path: path.clone(),
+        base: None,
+        target: "HEAD".into(),
+        file: "f".into(),
+        three_dot: false,
+        ignore_whitespace: false,
+        full: false,
+    };
+    assert!(!diff.is_secondary_worker() && !diff.is_home_worker() && !diff.is_finder_worker());
+    let repo = Job::LoadRepo {
+        index: 0,
+        path,
+        members: vec![],
+        time_span: TimeSpan::All,
+    };
+    assert!(!repo.is_secondary_worker() && !repo.is_home_worker() && !repo.is_finder_worker());
 }
 
 #[test]

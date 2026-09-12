@@ -340,7 +340,6 @@ pub enum Job {
         generation: u64,
         index: usize,
         path: PathBuf,
-        members: Vec<Member>,
     },
     LoadRepo {
         index: usize,
@@ -432,6 +431,24 @@ impl Job {
                 | Job::SearchCommits { .. }
                 | Job::LoadGlobalMembers { .. }
         )
+    }
+
+    /// A Home refresh enqueues one of these *per registered repository*, and
+    /// each one is a batch of `git` calls plus, for GitHub remotes, two `gh`
+    /// calls. On a single worker that serialises the whole dashboard behind
+    /// itself, so they run on their own small pool (see
+    /// [`crate::app::worker::spawn_home_pool`]) — which also keeps them off
+    /// the interactive worker, so opening a diff stays immediate mid-refresh.
+    pub fn is_home_worker(&self) -> bool {
+        matches!(self, Job::LoadHome { .. })
+    }
+
+    /// Repository discovery walks a whole directory tree and streams results
+    /// as it goes, so it gets its own worker: the finder stays responsive
+    /// while a refresh or a pull is running, and a long scan never delays
+    /// anything else.
+    pub fn is_finder_worker(&self) -> bool {
+        matches!(self, Job::ScanRepos { .. })
     }
 }
 

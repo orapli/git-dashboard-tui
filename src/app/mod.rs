@@ -157,6 +157,7 @@ pub struct App {
     preview_seq: u64,
     job_tx: Sender<Job>,
     bulk_tx: Sender<Job>,
+    home_tx: Sender<Job>,
     msg_rx: Receiver<Msg>,
     diff_seq: u64,
     last_auto_refresh: std::time::Instant,
@@ -177,15 +178,25 @@ impl App {
         let (job_tx, job_rx) = mpsc::channel::<Job>();
         let (finder_tx, finder_rx) = mpsc::channel::<Job>();
         let (bulk_tx, bulk_rx) = mpsc::channel::<Job>();
+        let (home_tx, home_rx) = mpsc::channel::<Job>();
         let (msg_tx, msg_rx) = mpsc::channel::<Msg>();
         let home_gen = Arc::new(AtomicU64::new(0));
+        // The interactive worker: single-threaded on purpose, so diffs, file
+        // lists and repo loads keep their queue order and a diff opened now
+        // is not queued behind a dashboard refresh.
         spawn_worker(job_rx, msg_tx.clone(), Arc::clone(&home_gen));
         // Remote operations and cross-repo (one-git-call-per-repo)
         // aggregations get their own worker: a 120 s `pull`, or a commit
         // search that reaches an unresponsive SSH host, would otherwise
         // block every diff and single-repo load queued behind it.
         spawn_worker(bulk_rx, msg_tx.clone(), Arc::clone(&home_gen));
-        spawn_worker(finder_rx, msg_tx, Arc::clone(&home_gen));
+        spawn_worker(finder_rx, msg_tx.clone(), Arc::clone(&home_gen));
+        // A refresh queues one `LoadHome` per repository, so Home gets a
+        // small pool rather than a single worker — on 30 repositories the
+        // serialised version took ~12 s to paint the dashboard.
+        let home_threads =
+            worker::home_pool_size(std::thread::available_parallelism().ok().map(|n| n.get()));
+        spawn_home_pool(home_rx, msg_tx, Arc::clone(&home_gen), home_threads);
 
         let mut load_errors = Vec::new();
         let mut config_state = ConfigLoadState::default();
@@ -288,6 +299,7 @@ impl App {
             preview_seq: 0,
             job_tx,
             bulk_tx,
+            home_tx,
             msg_rx,
             diff_seq: 0,
             last_auto_refresh: std::time::Instant::now(),
@@ -1974,11 +1986,13 @@ impl App {
             _ => {}
         }
         let workspace_job = matches!(&job, Job::LoadWorkspace { .. });
-        let finder_job = matches!(&job, Job::ScanRepos { .. });
+        let finder_job = job.is_finder_worker();
         let tx = if finder_job {
             &self.finder_tx
         } else if job.is_secondary_worker() {
             &self.bulk_tx
+        } else if job.is_home_worker() {
+            &self.home_tx
         } else {
             &self.job_tx
         };
@@ -2060,7 +2074,6 @@ impl App {
             generation: self.home_generation(),
             index,
             path: repo.path.clone(),
-            members: self.members.clone(),
         };
         self.send_job(job);
     }
@@ -2077,7 +2090,6 @@ impl App {
                 generation,
                 index,
                 path: repo.path.clone(),
-                members: self.members.clone(),
             })
             .collect();
         for job in jobs {
@@ -2660,7 +2672,7 @@ impl App {
     /// Called on every event-loop tick. Home is the only screen that refreshes
     /// itself: it is where a user leaves the app open to watch many
     /// repositories, and refresh_home()'s per-repository jobs are already
-    /// deduplicated by generation (see worker::spawn_worker), so a periodic
+    /// deduplicated by generation (see worker::run_job), so a periodic
     /// call here cannot pile up work behind a slow repository.
     pub fn maybe_auto_refresh(&mut self) {
         if self.prefs.auto_refresh_secs == 0 || self.screen != Screen::Home {
@@ -2735,7 +2747,6 @@ impl App {
             generation: self.home_generation(),
             index,
             path,
-            members: self.members.clone(),
         });
         self.status = self.t("added_success");
         self.show_onboarding(first_registration);
@@ -2982,7 +2993,6 @@ impl App {
                     generation: self.home_generation(),
                     index,
                     path: self.repos[index].path.clone(),
-                    members: self.members.clone(),
                 });
             }
             self.show_onboarding(previous_len == 0);

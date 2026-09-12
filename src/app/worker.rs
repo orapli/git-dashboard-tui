@@ -5,179 +5,271 @@ use crate::git::{
     WorktreeInfo,
 };
 use std::collections::HashMap;
+use std::ops::ControlFlow;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
-/// `home_gen` is the newest home-refresh generation the app has issued. The
-/// queue is unbounded and holding `r` (or a bulk pull) enqueues one `LoadHome`
-/// per repository per refresh, so superseded ones are dropped here rather than
-/// each running a full repository analysis whose result is then discarded.
+/// Spawn a single-threaded worker: jobs sent to `job_rx` run one at a time,
+/// in the order they were queued. The app runs several of these on separate
+/// queues (interactive, bulk, finder) plus the Home pool below; the per-job
+/// work itself lives in [`run_job`] so every lane handles a job kind exactly
+/// the same way.
 pub fn spawn_worker(job_rx: Receiver<Job>, msg_tx: Sender<Msg>, home_gen: Arc<AtomicU64>) {
     thread::spawn(move || {
         while let Ok(job) = job_rx.recv() {
-            let msg = match job {
-                Job::ScanRepos {
-                    seq,
-                    generation,
-                    root,
-                } => {
-                    let errors = super::finder::scan_repositories(
-                        &root,
-                        || generation.load(Ordering::Relaxed) != seq,
-                        |path| {
-                            let _ = msg_tx.send(Msg::FinderRepo {
-                                seq,
-                                repo: super::finder::found_repository(path),
-                            });
-                        },
-                    );
-                    Msg::FinderDone { seq, errors }
-                }
-
-                Job::LoadWorkspace {
-                    seq,
-                    generation,
-                    repos,
-                } => {
-                    let errors = super::workspace::collect_workspace(
-                        &repos,
-                        || generation.load(Ordering::Relaxed) != seq,
-                        |row| {
-                            let _ = msg_tx.send(Msg::WorkspaceRow { seq, row });
-                        },
-                    );
-                    Msg::WorkspaceDone { seq, errors }
-                }
-                Job::LoadHome {
-                    generation,
-                    index,
-                    path,
-                    // A Home row needs no member list; see `load_home_row`.
-                    members: _,
-                } => {
-                    if generation < home_gen.load(Ordering::Relaxed) {
-                        continue;
-                    }
-                    let row = load_home_row(&path);
-                    Msg::HomeLoaded {
-                        generation,
-                        index,
-                        row,
-                    }
-                }
-                Job::LoadRepo {
-                    index,
-                    path,
-                    members,
-                    time_span,
-                } => {
-                    let data = Box::new(load_repo(&path, &members, time_span));
-                    Msg::RepoLoaded { index, data }
-                }
-                Job::LoadDiff {
-                    seq,
-                    path,
-                    base,
-                    target,
-                    file,
-                    three_dot,
-                    ignore_whitespace,
-                    full,
-                } => {
-                    let result = git::get_file_diff(
-                        &path,
-                        base.as_deref(),
-                        &target,
-                        &file,
-                        ignore_whitespace,
-                        full,
-                        three_dot,
-                    );
-                    Msg::DiffLoaded { seq, result }
-                }
-                Job::LoadBlame {
-                    seq,
-                    path,
-                    blame_ref,
-                    file,
-                } => {
-                    let result = git::get_file_blame(&path, &blame_ref, &file);
-                    Msg::BlameLoaded { seq, result }
-                }
-                Job::LoadCommitMeta { seq, path, hash } => {
-                    let header = git::get_commit_show(&path, &hash);
-                    let files = git::get_changed_files(&path, None, &hash, false);
-                    Msg::CommitMeta { seq, header, files }
-                }
-                Job::LoadFiles {
-                    seq,
-                    path,
-                    base,
-                    target,
-                    three_dot,
-                    preselect,
-                } => {
-                    let files = git::get_changed_files(&path, base.as_deref(), &target, three_dot);
-                    Msg::FilesLoaded {
-                        seq,
-                        files,
-                        preselect,
-                    }
-                }
-                Job::Pull { index, path, lang } => {
-                    op_done(git::pull_repository(&path, lang), Some(index))
-                }
-                Job::Fetch { index, path, lang } => {
-                    op_done(git::fetch_repository(&path, lang), Some(index))
-                }
-                Job::StashApply { path, stash_ref } => {
-                    op_done(git::apply_stash(&path, &stash_ref), None)
-                }
-                Job::StashDrop { path, stash_ref } => {
-                    op_done(git::drop_stash(&path, &stash_ref), None)
-                }
-                Job::LoadBranchLog { path, branch } => {
-                    let body = git::get_branch_oneline_log(&path, &branch, 200);
-                    Msg::LogLoaded {
-                        title: branch,
-                        body,
-                    }
-                }
-                Job::LoadGlobalMembers {
-                    generation,
-                    repos,
-                    members,
-                } => Msg::GlobalMembersLoaded {
-                    generation,
-                    list: compute_global_members(&repos, &members),
-                },
-                Job::SearchCommits { seq, query, repos } => {
-                    let result = search_commits_across(&query, &repos);
-                    Msg::CommitSearchLoaded {
-                        seq,
-                        hits: result.hits,
-                        failed_repos: result.failed_repos,
-                    }
-                }
-                Job::LoadCommitPreview { seq, path, hash } => {
-                    let header = git::get_commit_show(&path, &hash);
-                    let files = git::get_changed_files(&path, None, &hash, false);
-                    Msg::CommitPreviewLoaded {
-                        seq,
-                        hash,
-                        header,
-                        files,
-                    }
-                }
-            };
-            if msg_tx.send(msg).is_err() {
+            if run_one(job, &msg_tx, &home_gen).is_break() {
                 break;
             }
         }
     });
+}
+
+/// Lower bound on the Home pool, and what we fall back to when
+/// `available_parallelism` cannot report (a restricted container, say).
+const HOME_POOL_MIN: usize = 2;
+/// Upper bound on the Home pool. These jobs are process-spawn and I/O bound
+/// rather than CPU bound, so more threads than cores would still help in
+/// principle — but each one spawns several `git` processes and, for a GitHub
+/// remote, two `gh` processes. An unbounded pool would thrash a laptop's
+/// process table and disk and hammer the GitHub API rate limit, so the win is
+/// capped here well before that.
+const HOME_POOL_MAX: usize = 8;
+
+/// Size of the Home pool for a machine reporting `parallelism` usable
+/// threads (`None` when `available_parallelism` failed).
+pub fn home_pool_size(parallelism: Option<usize>) -> usize {
+    parallelism
+        .unwrap_or(HOME_POOL_MIN)
+        .clamp(HOME_POOL_MIN, HOME_POOL_MAX)
+}
+
+/// Spawn the Home pool: `threads` threads sharing one queue, so that many
+/// `LoadHome` jobs are analysed at once instead of the whole dashboard
+/// refresh serialising behind a single worker.
+///
+/// The receiver is shared under a mutex that is held *only* across `recv()`
+/// and released before the job runs — holding it over the work would quietly
+/// re-serialise the pool into one thread with extra steps.
+pub fn spawn_home_pool(
+    job_rx: Receiver<Job>,
+    msg_tx: Sender<Msg>,
+    home_gen: Arc<AtomicU64>,
+    threads: usize,
+) {
+    spawn_pool(job_rx, threads, move |job| run_one(job, &msg_tx, &home_gen));
+}
+
+/// Generic shared-queue pool used by [`spawn_home_pool`]. Each thread loops:
+/// lock, `recv()`, unlock, then run `run` outside the lock. A thread stops on
+/// its own when `run` reports `Break` (its message receiver is gone) or the
+/// queue closes; the other threads keep going, matching the single worker's
+/// "break out of my own loop" semantics.
+fn spawn_pool<F>(job_rx: Receiver<Job>, threads: usize, run: F)
+where
+    F: Fn(Job) -> ControlFlow<()> + Clone + Send + 'static,
+{
+    let shared = Arc::new(Mutex::new(job_rx));
+    for _ in 0..threads {
+        let shared = Arc::clone(&shared);
+        let run = run.clone();
+        thread::spawn(move || {
+            loop {
+                let job = {
+                    // Recovering from poisoning is safe here: the lock is only
+                    // ever held across `recv()`, which leaves no half-updated
+                    // state behind, and one panicking thread must not take the
+                    // rest of the pool down with it.
+                    let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
+                    match guard.recv() {
+                        Ok(job) => job,
+                        Err(_) => break,
+                    }
+                };
+                if run(job).is_break() {
+                    break;
+                }
+            }
+        });
+    }
+}
+
+/// Run one job and post its result, reporting whether this worker should keep
+/// going (`Continue`) or stop because the UI's receiver is gone (`Break`).
+fn run_one(job: Job, msg_tx: &Sender<Msg>, home_gen: &AtomicU64) -> ControlFlow<()> {
+    let Some(msg) = run_job(job, msg_tx, home_gen) else {
+        return ControlFlow::Continue(());
+    };
+    if msg_tx.send(msg).is_err() {
+        ControlFlow::Break(())
+    } else {
+        ControlFlow::Continue(())
+    }
+}
+
+/// Execute one job, returning the message to hand back to the UI thread, or
+/// `None` when the job produced nothing to report.
+///
+/// Every lane runs jobs through here, so a job kind is handled in exactly one
+/// place no matter which worker picked it up.
+///
+/// `home_gen` is the newest home-refresh generation the app has issued. The
+/// queue is unbounded and holding `r` (or a bulk pull) enqueues one `LoadHome`
+/// per repository per refresh, so superseded ones are dropped here rather than
+/// each running a full repository analysis whose result is then discarded.
+/// This check has to keep working from every pool thread, which it does: the
+/// generation is a shared atomic, read at the moment the job is picked up.
+fn run_job(job: Job, msg_tx: &Sender<Msg>, home_gen: &AtomicU64) -> Option<Msg> {
+    let msg = match job {
+        Job::ScanRepos {
+            seq,
+            generation,
+            root,
+        } => {
+            let errors = super::finder::scan_repositories(
+                &root,
+                || generation.load(Ordering::Relaxed) != seq,
+                |path| {
+                    let _ = msg_tx.send(Msg::FinderRepo {
+                        seq,
+                        repo: super::finder::found_repository(path),
+                    });
+                },
+            );
+            Msg::FinderDone { seq, errors }
+        }
+
+        Job::LoadWorkspace {
+            seq,
+            generation,
+            repos,
+        } => {
+            let errors = super::workspace::collect_workspace(
+                &repos,
+                || generation.load(Ordering::Relaxed) != seq,
+                |row| {
+                    let _ = msg_tx.send(Msg::WorkspaceRow { seq, row });
+                },
+            );
+            Msg::WorkspaceDone { seq, errors }
+        }
+        Job::LoadHome {
+            generation,
+            index,
+            path,
+        } => {
+            if generation < home_gen.load(Ordering::Relaxed) {
+                return None;
+            }
+            let row = load_home_row(&path);
+            Msg::HomeLoaded {
+                generation,
+                index,
+                row,
+            }
+        }
+        Job::LoadRepo {
+            index,
+            path,
+            members,
+            time_span,
+        } => {
+            let data = Box::new(load_repo(&path, &members, time_span));
+            Msg::RepoLoaded { index, data }
+        }
+        Job::LoadDiff {
+            seq,
+            path,
+            base,
+            target,
+            file,
+            three_dot,
+            ignore_whitespace,
+            full,
+        } => {
+            let result = git::get_file_diff(
+                &path,
+                base.as_deref(),
+                &target,
+                &file,
+                ignore_whitespace,
+                full,
+                three_dot,
+            );
+            Msg::DiffLoaded { seq, result }
+        }
+        Job::LoadBlame {
+            seq,
+            path,
+            blame_ref,
+            file,
+        } => {
+            let result = git::get_file_blame(&path, &blame_ref, &file);
+            Msg::BlameLoaded { seq, result }
+        }
+        Job::LoadCommitMeta { seq, path, hash } => {
+            let header = git::get_commit_show(&path, &hash);
+            let files = git::get_changed_files(&path, None, &hash, false);
+            Msg::CommitMeta { seq, header, files }
+        }
+        Job::LoadFiles {
+            seq,
+            path,
+            base,
+            target,
+            three_dot,
+            preselect,
+        } => {
+            let files = git::get_changed_files(&path, base.as_deref(), &target, three_dot);
+            Msg::FilesLoaded {
+                seq,
+                files,
+                preselect,
+            }
+        }
+        Job::Pull { index, path, lang } => op_done(git::pull_repository(&path, lang), Some(index)),
+        Job::Fetch { index, path, lang } => {
+            op_done(git::fetch_repository(&path, lang), Some(index))
+        }
+        Job::StashApply { path, stash_ref } => op_done(git::apply_stash(&path, &stash_ref), None),
+        Job::StashDrop { path, stash_ref } => op_done(git::drop_stash(&path, &stash_ref), None),
+        Job::LoadBranchLog { path, branch } => {
+            let body = git::get_branch_oneline_log(&path, &branch, 200);
+            Msg::LogLoaded {
+                title: branch,
+                body,
+            }
+        }
+        Job::LoadGlobalMembers {
+            generation,
+            repos,
+            members,
+        } => Msg::GlobalMembersLoaded {
+            generation,
+            list: compute_global_members(&repos, &members),
+        },
+        Job::SearchCommits { seq, query, repos } => {
+            let result = search_commits_across(&query, &repos);
+            Msg::CommitSearchLoaded {
+                seq,
+                hits: result.hits,
+                failed_repos: result.failed_repos,
+            }
+        }
+        Job::LoadCommitPreview { seq, path, hash } => {
+            let header = git::get_commit_show(&path, &hash);
+            let files = git::get_changed_files(&path, None, &hash, false);
+            Msg::CommitPreviewLoaded {
+                seq,
+                hash,
+                header,
+                files,
+            }
+        }
+    };
+    Some(msg)
 }
 
 /// Per-repository cap on search hits, and overall cap after merging — a
@@ -534,6 +626,101 @@ pub fn split_list<T>(result: Result<Vec<T>, String>) -> (Vec<T>, Option<String>)
     match result {
         Ok(v) => (v, None),
         Err(e) => (Vec::new(), Some(e)),
+    }
+}
+
+#[cfg(test)]
+mod pool_tests {
+    use super::*;
+    use std::sync::Barrier;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    /// The clamp is the whole point of [`home_pool_size`]: a 1-core box still
+    /// gets two threads (these jobs wait on `git`/`gh`, not on the CPU), a
+    /// 64-core box does not get 64 concurrent `gh` calls, and a machine that
+    /// cannot report its parallelism falls back to the low end.
+    #[test]
+    fn the_home_pool_size_is_clamped_to_a_sane_range() {
+        assert_eq!(home_pool_size(None), HOME_POOL_MIN);
+        assert_eq!(home_pool_size(Some(0)), HOME_POOL_MIN);
+        assert_eq!(home_pool_size(Some(1)), HOME_POOL_MIN);
+        assert_eq!(home_pool_size(Some(4)), 4);
+        assert_eq!(home_pool_size(Some(HOME_POOL_MAX)), HOME_POOL_MAX);
+        assert_eq!(home_pool_size(Some(64)), HOME_POOL_MAX);
+    }
+
+    fn dummy_job(index: usize) -> Job {
+        Job::LoadHome {
+            generation: 0,
+            index,
+            path: PathBuf::from("/nonexistent"),
+        }
+    }
+
+    /// Two jobs must actually be in flight at once. The handler waits on a
+    /// two-party barrier, which can only be cleared if a second pool thread
+    /// picked up the second job while the first was still running — the exact
+    /// thing that breaks if the queue mutex is held across the work.
+    #[test]
+    fn two_pool_threads_run_two_jobs_at_the_same_time() {
+        let (job_tx, job_rx) = mpsc::channel::<Job>();
+        let (done_tx, done_rx) = mpsc::channel::<usize>();
+        let barrier = Arc::new(Barrier::new(2));
+        spawn_pool(job_rx, 2, move |job| {
+            let Job::LoadHome { index, .. } = job else {
+                unreachable!("test only queues LoadHome");
+            };
+            barrier.wait();
+            let _ = done_tx.send(index);
+            ControlFlow::Continue(())
+        });
+        job_tx.send(dummy_job(1)).unwrap();
+        job_tx.send(dummy_job(2)).unwrap();
+
+        let mut seen = vec![
+            done_rx
+                .recv_timeout(Duration::from_secs(10))
+                .expect("both jobs must run concurrently, not one after the other"),
+            done_rx
+                .recv_timeout(Duration::from_secs(10))
+                .expect("both jobs must run concurrently, not one after the other"),
+        ];
+        seen.sort_unstable();
+        assert_eq!(seen, vec![1, 2]);
+    }
+
+    /// One thread giving up (its `msg_tx` receiver is gone) must not take the
+    /// pool down with it — the single worker breaks out of its own loop only,
+    /// and the pool keeps that semantic.
+    #[test]
+    fn a_thread_that_breaks_does_not_stop_the_rest_of_the_pool() {
+        let (job_tx, job_rx) = mpsc::channel::<Job>();
+        let (done_tx, done_rx) = mpsc::channel::<usize>();
+        spawn_pool(job_rx, 2, move |job| {
+            let Job::LoadHome { index, .. } = job else {
+                unreachable!("test only queues LoadHome");
+            };
+            let _ = done_tx.send(index);
+            // Index 0 stands in for "the UI receiver went away".
+            if index == 0 {
+                ControlFlow::Break(())
+            } else {
+                ControlFlow::Continue(())
+            }
+        });
+        for index in 0..6 {
+            job_tx.send(dummy_job(index)).unwrap();
+        }
+        let mut seen = Vec::new();
+        while seen.len() < 6 {
+            match done_rx.recv_timeout(Duration::from_secs(10)) {
+                Ok(index) => seen.push(index),
+                Err(_) => break,
+            }
+        }
+        seen.sort_unstable();
+        assert_eq!(seen, vec![0, 1, 2, 3, 4, 5]);
     }
 }
 
