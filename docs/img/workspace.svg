@@ -6,10 +6,16 @@
 <circle cx="50.0" cy="15.0" r="5" fill="#a6e3a1"/>
 <text x="608.0" y="19.0" fill="#7f849c" font-size="10.8" text-anchor="middle">git-dashboard-tui — local worktrees, notes and favorites (W)</text>
 <rect x="14.00" y="40.00" width="1188.00" height="514.80" fill="#1e1e2e"/>
-<rect x="14.00" y="40.00" width="153.00" height="19.80" fill="#89b4fa"/>
-<text x="23.00" y="55.05" fill="#1e1e2e" font-weight="bold" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Local</text>
-<text x="77.00" y="55.05" fill="#1e1e2e" font-weight="bold" textLength="81.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">worktrees</text>
-<text x="185.00" y="55.05" fill="#6c7086" textLength="153.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">git-dashboard-tui</text>
+<rect x="14.00" y="40.00" width="54.00" height="19.80" fill="#89b4fa"/>
+<rect x="77.00" y="40.00" width="54.00" height="19.80" fill="#89b4fa"/>
+<rect x="140.00" y="40.00" width="90.00" height="19.80" fill="#89b4fa"/>
+<rect x="239.00" y="40.00" width="153.00" height="19.80" fill="#89b4fa"/>
+<text x="14.00" y="55.05" fill="#1e1e2e" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[Back]</text>
+<text x="77.00" y="55.05" fill="#1e1e2e" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[Home]</text>
+<text x="140.00" y="55.05" fill="#1e1e2e" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[Navigate]</text>
+<text x="248.00" y="55.05" fill="#1e1e2e" font-weight="bold" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Local</text>
+<text x="302.00" y="55.05" fill="#1e1e2e" font-weight="bold" textLength="81.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">worktrees</text>
+<text x="410.00" y="55.05" fill="#6c7086" textLength="153.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">git-dashboard-tui</text>
 <text x="14.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">6</text>
 <text x="32.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/</text>
 <text x="50.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">6</text>
@@ -18,7 +24,9 @@
 <text x="185.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
 <text x="212.00" y="74.85" fill="#cdd6f4" textLength="63.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">errors:</text>
 <text x="284.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
-<text x="311.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/</text>
+<text x="311.00" y="74.85" fill="#a6adc8" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">unknown:</text>
+<text x="392.00" y="74.85" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
+<text x="419.00" y="74.85" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/</text>
 <text x="14.00" y="94.65" fill="#cdd6f4" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">┌Worktrees</text>
 <text x="113.00" y="94.65" fill="#cdd6f4" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">(local</text>
 <text x="176.00" y="94.65" fill="#cdd6f4" textLength="1026.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">only)────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
@@ -104,10 +112,10 @@
 <text x="14.00" y="411.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
 <text x="1193.00" y="411.45" fill="#cdd6f4" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
 <text x="14.00" y="431.25" fill="#cdd6f4" textLength="1188.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
-<text x="14.00" y="451.05" fill="#a6adc8" textLength="315.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-tour-workspace/api-gateway</text>
+<text x="14.00" y="451.05" fill="#a6adc8" textLength="225.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">/tmp/gdt-demo/api-gateway</text>
 <text x="14.00" y="490.65" fill="#a6adc8" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Checked:</text>
-<text x="95.00" y="490.65" fill="#a6adc8" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2026-09-05</text>
-<text x="194.00" y="490.65" fill="#a6adc8" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">14:51:29</text>
+<text x="95.00" y="490.65" fill="#a6adc8" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2026-09-12</text>
+<text x="194.00" y="490.65" fill="#a6adc8" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">19:00:54</text>
 <rect x="14.00" y="515.20" width="1188.00" height="19.80" fill="#313244"/>
 <text x="14.00" y="530.25" fill="#89b4fa" font-weight="bold" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">j/k</text>
 <text x="50.00" y="530.25" fill="#a6adc8" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">move</text>
@@ -125,11 +133,13 @@
 <text x="644.00" y="530.25" fill="#89b4fa" font-weight="bold" textLength="63.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Enter/O</text>
 <text x="716.00" y="530.25" fill="#a6adc8" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">open</text>
 <text x="761.00" y="530.25" fill="#a6adc8" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">tools</text>
-<text x="824.00" y="530.25" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">t</text>
-<text x="842.00" y="530.25" fill="#a6adc8" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">shell</text>
-<text x="905.00" y="530.25" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">r</text>
-<text x="923.00" y="530.25" fill="#a6adc8" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">reload</text>
-<text x="995.00" y="530.25" fill="#89b4fa" font-weight="bold" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Esc</text>
-<text x="1031.00" y="530.25" fill="#a6adc8" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Home</text>
+<text x="824.00" y="530.25" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">y</text>
+<text x="842.00" y="530.25" fill="#a6adc8" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">copy</text>
+<text x="896.00" y="530.25" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">t</text>
+<text x="914.00" y="530.25" fill="#a6adc8" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">shell</text>
+<text x="977.00" y="530.25" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">r</text>
+<text x="995.00" y="530.25" fill="#a6adc8" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">reload</text>
+<text x="1067.00" y="530.25" fill="#89b4fa" font-weight="bold" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Esc</text>
+<text x="1103.00" y="530.25" fill="#a6adc8" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Home</text>
 <rect x="14.00" y="535.00" width="1188.00" height="19.80" fill="#313244"/>
 </svg>

@@ -6,143 +6,159 @@
 <circle cx="50.0" cy="15.0" r="5" fill="#a6e3a1"/>
 <text x="608.0" y="19.0" fill="#7f849c" font-size="10.8" text-anchor="middle">git-dashboard-tui — Contributors tab</text>
 <rect x="14.00" y="40.00" width="1188.00" height="356.40" fill="#1e1e2e"/>
-<rect x="14.00" y="40.00" width="126.00" height="19.80" fill="#89b4fa"/>
-<text x="23.00" y="55.05" fill="#1e1e2e" font-weight="bold" xml:space="preserve">web-frontend</text>
-<text x="158.00" y="55.05" fill="#6c7086" xml:space="preserve">git-dashboard-tui</text>
-<text x="14.00" y="74.85" fill="#45475a" xml:space="preserve">┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
-<text x="14.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
-<text x="32.00" y="94.65" fill="#a6adc8" xml:space="preserve">1</text>
-<text x="50.00" y="94.65" fill="#a6adc8">状</text>
-<text x="68.00" y="94.65" fill="#a6adc8">態</text>
-<text x="95.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
-<text x="113.00" y="94.65" fill="#a6adc8" xml:space="preserve">2</text>
-<text x="131.00" y="94.65" fill="#a6adc8">コ</text>
-<text x="149.00" y="94.65" fill="#a6adc8">ミ</text>
-<text x="167.00" y="94.65" fill="#a6adc8">ッ</text>
-<text x="185.00" y="94.65" fill="#a6adc8">ト</text>
-<text x="212.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
-<text x="230.00" y="94.65" fill="#a6adc8" xml:space="preserve">3</text>
-<text x="248.00" y="94.65" fill="#a6adc8">ブ</text>
-<text x="266.00" y="94.65" fill="#a6adc8">ラ</text>
-<text x="284.00" y="94.65" fill="#a6adc8">ン</text>
-<text x="302.00" y="94.65" fill="#a6adc8">チ</text>
-<text x="329.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
-<text x="347.00" y="94.65" fill="#a6adc8" xml:space="preserve">4</text>
-<text x="365.00" y="94.65" fill="#a6adc8">タ</text>
-<text x="383.00" y="94.65" fill="#a6adc8">グ</text>
-<text x="410.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
-<text x="428.00" y="94.65" fill="#a6adc8" xml:space="preserve">5</text>
-<text x="446.00" y="94.65" fill="#a6adc8" xml:space="preserve">Stash</text>
-<text x="500.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
-<text x="518.00" y="94.65" fill="#89b4fa" font-weight="bold" xml:space="preserve">6</text>
-<text x="536.00" y="94.65" fill="#89b4fa" font-weight="bold">コ</text>
-<text x="554.00" y="94.65" fill="#89b4fa" font-weight="bold">ン</text>
-<text x="572.00" y="94.65" fill="#89b4fa" font-weight="bold">ト</text>
-<text x="590.00" y="94.65" fill="#89b4fa" font-weight="bold">リ</text>
-<text x="608.00" y="94.65" fill="#89b4fa" font-weight="bold">ビ</text>
-<text x="626.00" y="94.65" fill="#89b4fa" font-weight="bold">ュ</text>
-<text x="644.00" y="94.65" fill="#89b4fa" font-weight="bold">ー</text>
-<text x="662.00" y="94.65" fill="#89b4fa" font-weight="bold">タ</text>
-<text x="680.00" y="94.65" fill="#89b4fa" font-weight="bold">ー</text>
-<text x="707.00" y="94.65" fill="#a6adc8" xml:space="preserve">│</text>
-<text x="725.00" y="94.65" fill="#a6adc8" xml:space="preserve">7</text>
-<text x="743.00" y="94.65" fill="#a6adc8">ワ</text>
-<text x="761.00" y="94.65" fill="#a6adc8">ー</text>
-<text x="779.00" y="94.65" fill="#a6adc8">ク</text>
-<text x="797.00" y="94.65" fill="#a6adc8">ツ</text>
-<text x="815.00" y="94.65" fill="#a6adc8">リ</text>
-<text x="833.00" y="94.65" fill="#a6adc8">ー</text>
-<text x="1193.00" y="94.65" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="114.45" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
-<text x="14.00" y="134.25" fill="#45475a" xml:space="preserve">┌</text>
-<text x="23.00" y="134.25" fill="#89b4fa">貢</text>
-<text x="41.00" y="134.25" fill="#89b4fa">献</text>
-<text x="59.00" y="134.25" fill="#89b4fa">者</text>
-<text x="86.00" y="134.25" fill="#89b4fa" xml:space="preserve">(2/2)</text>
-<text x="140.00" y="134.25" fill="#89b4fa">[</text>
-<text x="149.00" y="134.25" fill="#89b4fa">全</text>
-<text x="167.00" y="134.25" fill="#89b4fa">期</text>
-<text x="185.00" y="134.25" fill="#89b4fa">間</text>
-<text x="203.00" y="134.25" fill="#89b4fa" xml:space="preserve">]</text>
-<text x="212.00" y="134.25" fill="#45475a" xml:space="preserve">─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<rect x="14.00" y="40.00" width="54.00" height="19.80" fill="#89b4fa"/>
+<rect x="77.00" y="40.00" width="54.00" height="19.80" fill="#89b4fa"/>
+<rect x="140.00" y="40.00" width="54.00" height="19.80" fill="#89b4fa"/>
+<rect x="203.00" y="40.00" width="126.00" height="19.80" fill="#89b4fa"/>
+<text x="14.00" y="55.05" fill="#1e1e2e" textLength="9.00" lengthAdjust="spacingAndGlyphs">[</text>
+<text x="23.00" y="55.05" fill="#1e1e2e" textLength="18.00" lengthAdjust="spacingAndGlyphs">戻</text>
+<text x="41.00" y="55.05" fill="#1e1e2e" textLength="18.00" lengthAdjust="spacingAndGlyphs">る</text>
+<text x="59.00" y="55.05" fill="#1e1e2e" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">]</text>
+<text x="77.00" y="55.05" fill="#1e1e2e" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[Home]</text>
+<text x="140.00" y="55.05" fill="#1e1e2e" textLength="9.00" lengthAdjust="spacingAndGlyphs">[</text>
+<text x="149.00" y="55.05" fill="#1e1e2e" textLength="18.00" lengthAdjust="spacingAndGlyphs">移</text>
+<text x="167.00" y="55.05" fill="#1e1e2e" textLength="18.00" lengthAdjust="spacingAndGlyphs">動</text>
+<text x="185.00" y="55.05" fill="#1e1e2e" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">]</text>
+<text x="212.00" y="55.05" fill="#1e1e2e" font-weight="bold" textLength="108.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">web-frontend</text>
+<text x="347.00" y="55.05" fill="#6c7086" textLength="153.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">git-dashboard-tui</text>
+<text x="14.00" y="74.85" fill="#45475a" textLength="1188.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
+<text x="14.00" y="94.65" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="32.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">1</text>
+<text x="50.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">状</text>
+<text x="68.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">態</text>
+<text x="95.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="113.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2</text>
+<text x="131.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">コ</text>
+<text x="149.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ミ</text>
+<text x="167.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ッ</text>
+<text x="185.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ト</text>
+<text x="212.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="230.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">3</text>
+<text x="248.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ブ</text>
+<text x="266.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ラ</text>
+<text x="284.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ン</text>
+<text x="302.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">チ</text>
+<text x="329.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="347.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">4</text>
+<text x="365.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">タ</text>
+<text x="383.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">グ</text>
+<text x="410.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="428.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">5</text>
+<text x="446.00" y="94.65" fill="#a6adc8" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Stash</text>
+<text x="500.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="518.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">6</text>
+<text x="536.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="18.00" lengthAdjust="spacingAndGlyphs">コ</text>
+<text x="554.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="18.00" lengthAdjust="spacingAndGlyphs">ン</text>
+<text x="572.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="18.00" lengthAdjust="spacingAndGlyphs">ト</text>
+<text x="590.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="18.00" lengthAdjust="spacingAndGlyphs">リ</text>
+<text x="608.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="18.00" lengthAdjust="spacingAndGlyphs">ビ</text>
+<text x="626.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="18.00" lengthAdjust="spacingAndGlyphs">ュ</text>
+<text x="644.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="662.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="18.00" lengthAdjust="spacingAndGlyphs">タ</text>
+<text x="680.00" y="94.65" fill="#89b4fa" font-weight="bold" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="707.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="725.00" y="94.65" fill="#a6adc8" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">7</text>
+<text x="743.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ワ</text>
+<text x="761.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="779.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ク</text>
+<text x="797.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ツ</text>
+<text x="815.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">リ</text>
+<text x="833.00" y="94.65" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="1193.00" y="94.65" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="114.45" fill="#45475a" textLength="1188.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<text x="14.00" y="134.25" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">┌</text>
+<text x="23.00" y="134.25" fill="#89b4fa" textLength="18.00" lengthAdjust="spacingAndGlyphs">貢</text>
+<text x="41.00" y="134.25" fill="#89b4fa" textLength="18.00" lengthAdjust="spacingAndGlyphs">献</text>
+<text x="59.00" y="134.25" fill="#89b4fa" textLength="18.00" lengthAdjust="spacingAndGlyphs">者</text>
+<text x="86.00" y="134.25" fill="#89b4fa" textLength="45.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">(2/2)</text>
+<text x="140.00" y="134.25" fill="#89b4fa" textLength="9.00" lengthAdjust="spacingAndGlyphs">[</text>
+<text x="149.00" y="134.25" fill="#89b4fa" textLength="18.00" lengthAdjust="spacingAndGlyphs">全</text>
+<text x="167.00" y="134.25" fill="#89b4fa" textLength="18.00" lengthAdjust="spacingAndGlyphs">期</text>
+<text x="185.00" y="134.25" fill="#89b4fa" textLength="18.00" lengthAdjust="spacingAndGlyphs">間</text>
+<text x="203.00" y="134.25" fill="#89b4fa" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">]</text>
+<text x="212.00" y="134.25" fill="#45475a" textLength="990.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
 <rect x="23.00" y="139.00" width="1170.00" height="19.80" fill="#45475a"/>
-<text x="14.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
-<text x="23.00" y="154.05" fill="#cdd6f4" font-weight="bold" xml:space="preserve">▸</text>
-<text x="77.00" y="154.05" fill="#6c7086" font-weight="bold" xml:space="preserve">-</text>
-<text x="203.00" y="154.05" fill="#89b4fa" font-weight="bold" xml:space="preserve">2</text>
-<text x="230.00" y="154.05" fill="#a6adc8" font-weight="bold" xml:space="preserve">Aya</text>
-<text x="266.00" y="154.05" fill="#a6adc8" font-weight="bold" xml:space="preserve">Tanaka</text>
-<text x="446.00" y="154.05" fill="#6c7086" font-weight="bold" xml:space="preserve">last</text>
-<text x="491.00" y="154.05" fill="#6c7086" font-weight="bold" xml:space="preserve">2025-08-13</text>
-<text x="590.00" y="154.05" fill="#6c7086" font-weight="bold" xml:space="preserve">06:20:00</text>
-<text x="680.00" y="154.05" fill="#a6adc8" font-weight="bold" xml:space="preserve">aya@example.com</text>
-<text x="1193.00" y="154.05" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
-<text x="77.00" y="173.85" fill="#6c7086" xml:space="preserve">-</text>
-<text x="203.00" y="173.85" fill="#89b4fa" xml:space="preserve">1</text>
-<text x="230.00" y="173.85" fill="#a6adc8" xml:space="preserve">Chen</text>
-<text x="275.00" y="173.85" fill="#a6adc8" xml:space="preserve">Wei</text>
-<text x="446.00" y="173.85" fill="#6c7086" xml:space="preserve">last</text>
-<text x="491.00" y="173.85" fill="#6c7086" xml:space="preserve">2025-08-13</text>
-<text x="590.00" y="173.85" fill="#6c7086" xml:space="preserve">01:40:00</text>
-<text x="680.00" y="173.85" fill="#a6adc8" xml:space="preserve">chen@example.com</text>
-<text x="1193.00" y="173.85" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="193.65" fill="#45475a" xml:space="preserve">│</text>
-<text x="1193.00" y="193.65" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="213.45" fill="#45475a" xml:space="preserve">│</text>
-<text x="1193.00" y="213.45" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
-<text x="1193.00" y="233.25" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="253.05" fill="#45475a" xml:space="preserve">│</text>
-<text x="1193.00" y="253.05" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="272.85" fill="#45475a" xml:space="preserve">│</text>
-<text x="1193.00" y="272.85" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
-<text x="1193.00" y="292.65" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
-<text x="1193.00" y="312.45" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
-<text x="1193.00" y="332.25" fill="#45475a" xml:space="preserve">│</text>
-<text x="14.00" y="352.05" fill="#45475a" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
+<text x="14.00" y="154.05" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="23.00" y="154.05" fill="#cdd6f4" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">▸</text>
+<text x="77.00" y="154.05" fill="#6c7086" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">-</text>
+<text x="203.00" y="154.05" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2</text>
+<text x="230.00" y="154.05" fill="#a6adc8" font-weight="bold" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Aya</text>
+<text x="266.00" y="154.05" fill="#a6adc8" font-weight="bold" textLength="54.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Tanaka</text>
+<text x="446.00" y="154.05" fill="#6c7086" font-weight="bold" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">last</text>
+<text x="491.00" y="154.05" fill="#6c7086" font-weight="bold" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2025-08-13</text>
+<text x="590.00" y="154.05" fill="#6c7086" font-weight="bold" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">06:20:00</text>
+<text x="680.00" y="154.05" fill="#a6adc8" font-weight="bold" textLength="135.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">aya@example.com</text>
+<text x="1193.00" y="154.05" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="173.85" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="77.00" y="173.85" fill="#6c7086" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">-</text>
+<text x="203.00" y="173.85" fill="#89b4fa" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">1</text>
+<text x="230.00" y="173.85" fill="#a6adc8" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Chen</text>
+<text x="275.00" y="173.85" fill="#a6adc8" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Wei</text>
+<text x="446.00" y="173.85" fill="#6c7086" textLength="36.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">last</text>
+<text x="491.00" y="173.85" fill="#6c7086" textLength="90.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2025-08-13</text>
+<text x="590.00" y="173.85" fill="#6c7086" textLength="72.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">01:40:00</text>
+<text x="680.00" y="173.85" fill="#a6adc8" textLength="144.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">chen@example.com</text>
+<text x="1193.00" y="173.85" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="193.65" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="193.65" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="213.45" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="213.45" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="233.25" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="233.25" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="253.05" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="253.05" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="272.85" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="272.85" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="292.65" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="292.65" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="312.45" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="312.45" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="332.25" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="1193.00" y="332.25" fill="#45475a" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">│</text>
+<text x="14.00" y="352.05" fill="#45475a" textLength="1188.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text>
 <rect x="14.00" y="356.80" width="1188.00" height="19.80" fill="#313244"/>
-<text x="14.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">1-7</text>
-<text x="50.00" y="371.85" fill="#a6adc8">タ</text>
-<text x="68.00" y="371.85" fill="#a6adc8">ブ</text>
-<text x="104.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">j/k</text>
-<text x="140.00" y="371.85" fill="#a6adc8">移</text>
-<text x="158.00" y="371.85" fill="#a6adc8">動</text>
-<text x="194.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">space/t</text>
-<text x="266.00" y="371.85" fill="#a6adc8">在</text>
-<text x="284.00" y="371.85" fill="#a6adc8">籍</text>
-<text x="302.00" y="371.85" fill="#a6adc8">切</text>
-<text x="320.00" y="371.85" fill="#a6adc8">替</text>
-<text x="356.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">w</text>
-<text x="374.00" y="371.85" fill="#a6adc8">期</text>
-<text x="392.00" y="371.85" fill="#a6adc8">間</text>
-<text x="410.00" y="371.85" fill="#a6adc8">切</text>
-<text x="428.00" y="371.85" fill="#a6adc8">替</text>
-<text x="464.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">m</text>
-<text x="482.00" y="371.85" fill="#a6adc8">在</text>
-<text x="500.00" y="371.85" fill="#a6adc8">籍</text>
-<text x="518.00" y="371.85" fill="#a6adc8">の</text>
-<text x="536.00" y="371.85" fill="#a6adc8">み</text>
-<text x="572.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">t</text>
-<text x="590.00" y="371.85" fill="#a6adc8">シ</text>
-<text x="608.00" y="371.85" fill="#a6adc8">ェ</text>
-<text x="626.00" y="371.85" fill="#a6adc8">ル</text>
-<text x="662.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">r</text>
-<text x="680.00" y="371.85" fill="#a6adc8">再</text>
-<text x="698.00" y="371.85" fill="#a6adc8">読</text>
-<text x="716.00" y="371.85" fill="#a6adc8">込</text>
-<text x="752.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">?</text>
-<text x="770.00" y="371.85" fill="#a6adc8">ヘ</text>
-<text x="788.00" y="371.85" fill="#a6adc8">ル</text>
-<text x="806.00" y="371.85" fill="#a6adc8">プ</text>
-<text x="842.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">esc</text>
-<text x="878.00" y="371.85" fill="#a6adc8">戻</text>
-<text x="896.00" y="371.85" fill="#a6adc8">る</text>
-<text x="932.00" y="371.85" fill="#89b4fa" font-weight="bold" xml:space="preserve">q</text>
-<text x="950.00" y="371.85" fill="#a6adc8">終</text>
-<text x="968.00" y="371.85" fill="#a6adc8">了</text>
+<text x="14.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">1-7</text>
+<text x="50.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">タ</text>
+<text x="68.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ブ</text>
+<text x="104.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">j/k</text>
+<text x="140.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">移</text>
+<text x="158.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">動</text>
+<text x="194.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="63.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">space/t</text>
+<text x="266.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">在</text>
+<text x="284.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">籍</text>
+<text x="302.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">切</text>
+<text x="320.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">替</text>
+<text x="356.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">w</text>
+<text x="374.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">期</text>
+<text x="392.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">間</text>
+<text x="410.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">切</text>
+<text x="428.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">替</text>
+<text x="464.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">m</text>
+<text x="482.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">在</text>
+<text x="500.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">籍</text>
+<text x="518.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">の</text>
+<text x="536.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">み</text>
+<text x="572.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">y</text>
+<text x="590.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">コ</text>
+<text x="608.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ピ</text>
+<text x="626.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ー</text>
+<text x="662.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">t</text>
+<text x="680.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">シ</text>
+<text x="698.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ェ</text>
+<text x="716.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
+<text x="752.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">r</text>
+<text x="770.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">再</text>
+<text x="788.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">読</text>
+<text x="806.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">込</text>
+<text x="842.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">?</text>
+<text x="860.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ヘ</text>
+<text x="878.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">ル</text>
+<text x="896.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">プ</text>
+<text x="932.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="27.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">esc</text>
+<text x="968.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">戻</text>
+<text x="986.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">る</text>
+<text x="1022.00" y="371.85" fill="#89b4fa" font-weight="bold" textLength="9.00" lengthAdjust="spacingAndGlyphs" xml:space="preserve">q</text>
+<text x="1040.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">終</text>
+<text x="1058.00" y="371.85" fill="#a6adc8" textLength="18.00" lengthAdjust="spacingAndGlyphs">了</text>
 <rect x="14.00" y="376.60" width="1188.00" height="19.80" fill="#313244"/>
 </svg>
