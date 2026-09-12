@@ -28,6 +28,36 @@
 /// copying it.
 pub const MAX_CLIPBOARD_BYTES: usize = 4096;
 
+/// Characters `char::is_control` does not cover — it knows only C0, C1 and
+/// DEL — but which change how the copied text *reads* once it is pasted.
+///
+/// The payloads offered by `y` are branch names, tags, file paths and commit
+/// author e-mail addresses, every one of them chosen by the repository. Git
+/// refuses very little inside a refname, so `U+202E RIGHT-TO-LEFT OVERRIDE`
+/// and friends can sit in one: pasted into a shell or a review comment, the
+/// identifier then renders as something other than the bytes that were
+/// copied (the trojan-source presentation trick). There is no execution risk
+/// — the bytes are inert — but a deceptive identifier is exactly what an
+/// identifier must not be.
+///
+/// Stripped rather than refused, consistently with the control characters
+/// beside them: the sanitiser's contract is "reduce this to something safe",
+/// and a hash or a path that merely *carries* an invisible is still the value
+/// the user asked for once the invisible is gone. Refusal stays for the two
+/// cases where nothing usable is left — empty, or over the cap.
+fn is_invisible_or_bidi(c: char) -> bool {
+    matches!(c,
+        // Zero-width joiners/non-joiners and the LRM/RLM bidi marks.
+        '\u{200b}'..='\u{200f}'
+        // LINE SEPARATOR / PARAGRAPH SEPARATOR: a paste would submit on them.
+        | '\u{2028}' | '\u{2029}'
+        // LRE…RLO: bidi embeddings and overrides.
+        | '\u{202a}'..='\u{202e}'
+        // WORD JOINER, the invisible operators, and the LRI…PDI isolates.
+        | '\u{2060}'..='\u{2069}'
+    )
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClipboardError {
     /// Nothing left to copy once control characters were removed.
@@ -38,9 +68,14 @@ pub enum ClipboardError {
 
 /// Reduce a value to something safe to put on the clipboard: no control
 /// characters (a paste would otherwise execute in the shell the user is
-/// jumping to), no surrounding whitespace, bounded length.
+/// jumping to), no invisible or bidi-reordering characters (see
+/// [`is_invisible_or_bidi`] — a paste would otherwise *read* as something
+/// else), no surrounding whitespace, bounded length.
 pub fn sanitize(text: &str) -> Result<String, ClipboardError> {
-    let cleaned: String = text.chars().filter(|c| !c.is_control()).collect();
+    let cleaned: String = text
+        .chars()
+        .filter(|c| !c.is_control() && !is_invisible_or_bidi(*c))
+        .collect();
     let cleaned = cleaned.trim().to_string();
     if cleaned.is_empty() {
         return Err(ClipboardError::Empty);
@@ -151,6 +186,49 @@ mod tests {
         assert!(!clean.chars().any(|c| c.is_control()));
         assert_eq!(sanitize("\u{7}\u{1b}\n\t  "), Err(ClipboardError::Empty));
         assert_eq!(sanitize("   "), Err(ClipboardError::Empty));
+    }
+
+    /// `char::is_control` covers C0, C1 and DEL and nothing else, so the
+    /// characters that make a copied identifier *render* as a different one
+    /// went straight through. A ref may contain them, and the value lands in
+    /// a shell or a review comment.
+    #[test]
+    fn invisible_and_bidi_characters_are_stripped_too() {
+        // The classic presentation attack: RLO makes `gnp.exe` read as
+        // `exe.png`, and the PDF pops the override again.
+        assert_eq!(
+            sanitize("release-\u{202e}gnp.\u{202c}exe").unwrap(),
+            "release-gnp.exe"
+        );
+        // Zero-width space splitting a branch name, and an LRM/RLM pair.
+        assert_eq!(
+            sanitize("fea\u{200b}ture/\u{200e}x\u{200f}").unwrap(),
+            "feature/x"
+        );
+        // Every listed range, plus the separators that would submit a paste.
+        for c in [
+            '\u{200b}', '\u{200c}', '\u{200d}', '\u{200e}', '\u{200f}', '\u{2028}', '\u{2029}',
+            '\u{202a}', '\u{202b}', '\u{202c}', '\u{202d}', '\u{202e}', '\u{2060}', '\u{2066}',
+            '\u{2067}', '\u{2068}', '\u{2069}',
+        ] {
+            assert_eq!(
+                sanitize(&format!("a{c}b")).unwrap(),
+                "ab",
+                "U+{:04X}",
+                c as u32
+            );
+            assert_eq!(
+                sanitize(&c.to_string()),
+                Err(ClipboardError::Empty),
+                "U+{:04X} alone leaves nothing to copy",
+                c as u32
+            );
+        }
+        // Neighbouring characters that are ordinary text must survive: the
+        // ranges are closed intervals, not "everything around U+2000".
+        for s in ["a\u{200a}b", "a\u{2010}b", "a\u{205f}b", "a\u{206a}b"] {
+            assert_eq!(sanitize(s).unwrap(), s);
+        }
     }
 
     #[test]

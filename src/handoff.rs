@@ -104,8 +104,12 @@ pub fn expand(template: &str, ctx: &ToolContext) -> Result<(String, Vec<String>)
     // default `code`) is handed the repository root, because that is what the
     // user obviously meant. A template that does use placeholders gets exactly
     // what it asked for — appending a stray path to `jj log` would be nonsense.
+    // Checked with `dash_ok = false`, exactly as an explicit `{path}` at the
+    // start of an argument is: this value *is* the whole argument, so a root
+    // beginning with `-` would be read by the child as an option. No
+    // repository root legitimately starts with one, so refusing costs nothing.
     if !PLACEHOLDERS.iter().any(|p| template.contains(p)) {
-        args.push(checked_value("{path}", &ctx.repo.to_string_lossy(), true)?);
+        args.push(checked_value("{path}", &ctx.repo.to_string_lossy(), false)?);
     }
     Ok((program, args))
 }
@@ -312,6 +316,24 @@ mod tests {
         assert_eq!(
             expand("code {path}", &ctx()).unwrap().1,
             vec!["/w/repo".to_string()]
+        );
+    }
+
+    /// The appended root goes through the same check an explicit `{path}` at
+    /// the start of an argument does: it is the whole argument, so a leading
+    /// dash would reach the child as an option rather than as a directory.
+    #[test]
+    fn the_appended_repository_path_may_not_turn_into_an_option_either() {
+        let mut c = ctx();
+        c.repo = PathBuf::from("-rf");
+        assert_eq!(
+            expand("code --wait", &c),
+            Err(TemplateError::OptionLike("{path}"))
+        );
+        // Same value, same verdict, through the explicit placeholder.
+        assert_eq!(
+            expand("code {path}", &c),
+            Err(TemplateError::OptionLike("{path}"))
         );
     }
 

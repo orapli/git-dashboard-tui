@@ -1,7 +1,7 @@
 //! GitHub refreshes have their own cache period; local reloads never force API calls.
 use super::{
-    BranchPr, GithubState, RemoteCiPrInfo, parse_gh_runs, parse_ssh_repo, quiet_command,
-    run_git_cmd, run_with_timeout,
+    BranchPr, GithubState, MAX_GH_FIELD_CHARS, RemoteCiPrInfo, check_safe_ref, gh_field,
+    parse_gh_runs, parse_ssh_repo, quiet_command, run_git_cmd, run_with_timeout,
 };
 use std::{
     collections::HashMap,
@@ -135,11 +135,37 @@ fn get_status_with(
     // API call — `get_summary` knows the branch already, but threading it
     // through would change a signature another caller owns.
     //
-    // A detached HEAD prints nothing, and an unreadable repository errors;
-    // both mean "no branch to scope to".
-    let branch = run_git_cmd(path, &["branch", "--show-current"])
-        .map(|b| b.trim().to_string())
-        .unwrap_or_default();
+    // A detached HEAD prints nothing. An unreadable repository *errors*, and
+    // that is not the same answer: collapsing the two with `unwrap_or_default`
+    // reported a 30 s timeout on a slow mount, or a repository transiently
+    // locked mid-`gc`, as a detached HEAD — and `Detached.is_settled()` is
+    // true, so the wrong answer was cached for the full refresh period and
+    // never flagged as unverified. A failed read is a failed refresh.
+    let branch = match run_git_cmd(path, &["branch", "--show-current"]) {
+        Ok(branch) => branch.trim().to_string(),
+        Err(_) => {
+            return Some(RemoteCiPrInfo {
+                ci_state: GithubState::Failed,
+                pr_state: GithubState::Failed,
+                review_state: GithubState::Failed,
+                checked_at: now,
+                ..Default::default()
+            });
+        }
+    };
+    // Git does not forbid a leading `-` in a refname, and cloning a remote
+    // whose HEAD points at one reproduces it locally, so `--show-current` can
+    // hand back `-oProxyCommand=id`. Today that would survive only because
+    // `gh` uses pflag, whose `--flag value` form consumes the next argument
+    // verbatim — a guarantee that lives in someone else's parser, which is
+    // the same reason `is_safe_ssh_host` exists. A ref that fails validation
+    // takes the detached-HEAD path instead: there is no branch we are willing
+    // to ask about.
+    let branch = if check_safe_ref(&branch).is_ok() {
+        branch
+    } else {
+        String::new()
+    };
     static CACHE: OnceLock<Mutex<HashMap<CacheKey, Entry>>> = OnceLock::new();
     let cache = CACHE.get_or_init(Mutex::default);
     let key = (
@@ -184,9 +210,13 @@ fn cached(
 /// 3. the pull requests in this repository waiting on the current user's
 ///    review — optional, and its failure changes nothing but its own state.
 ///
-/// A first call that fails because `gh` is missing or unauthenticated ends
-/// the refresh: those are properties of the environment, not of the query, so
-/// the remaining calls would only reproduce the same failure more slowly.
+/// A first call that fails because `gh` is missing, unauthenticated, or timed
+/// out ends the refresh: those are properties of the environment, not of the
+/// query, so the remaining calls would only reproduce the same failure more
+/// slowly. The timeout belongs in that set for the cost as much as the
+/// reasoning — a black-holed network spent the whole [`GH_TIMEOUT`] on the
+/// first call and would spend two more, 30 s per repository, which over 30
+/// repositories on a pool of 8 is about two minutes of every refresh.
 fn fetch(
     mut info: RemoteCiPrInfo,
     now: i64,
@@ -208,7 +238,7 @@ fn fetch(
     }
     if matches!(
         info.pr_state,
-        GithubState::Unavailable | GithubState::Unauthenticated
+        GithubState::Unavailable | GithubState::Unauthenticated | GithubState::TimedOut
     ) {
         info.ci_state = info.pr_state;
         info.review_state = info.pr_state;
@@ -225,11 +255,14 @@ fn fetch(
             info.ci_branch = None;
             info.ci_fetched_at = now;
         }
+        // `--branch=<b>` rather than `--branch <b>`, the way `search_commits`
+        // already passes `--author=`: one token can never be re-read as a
+        // flag, so a refname that survived `check_safe_ref` still does not
+        // depend on how the callee's parser treats the argument after a flag.
         Some(branch) => match run(&[
             "run",
             "list",
-            "--branch",
-            branch,
+            &format!("--branch={branch}"),
             "--json",
             "conclusion,status,url,headBranch",
             "--limit",
@@ -253,13 +286,17 @@ fn fetch(
                             info.ci_state = GithubState::Ready;
                             info.ci_status = status;
                             info.last_run_url = url;
+                            // Through the same filter its siblings get:
+                            // `headBranch` is `gh` output, it is rendered
+                            // into a row, and it is written to the on-disk
+                            // cache. The fall-back is the local branch,
+                            // already vetted by `check_safe_ref`.
                             info.ci_branch = Some(
                                 runs[0]
                                     .get("headBranch")
                                     .and_then(|v| v.as_str())
-                                    .filter(|b| !b.is_empty())
-                                    .unwrap_or(branch)
-                                    .to_string(),
+                                    .and_then(|b| gh_field(b, MAX_GH_FIELD_CHARS))
+                                    .unwrap_or_else(|| branch.to_string()),
                             );
                             info.ci_fetched_at = now;
                         } else {
@@ -314,12 +351,13 @@ fn parse_pr_list(json: &str, branch: Option<&str>) -> Option<(usize, Option<Box<
     let value: serde_json::Value = serde_json::from_str(json).ok()?;
     let prs = value.as_array()?;
     // Every string here reaches a terminal, and a pull request title (or a
-    // decision string from a newer GitHub) is not this program's text.
-    let field = |pr: &serde_json::Value, name: &str| -> Option<String> {
+    // decision string from a newer GitHub) is not this program's text. The
+    // cap is part of that, not an afterthought for the title alone: see
+    // [`gh_field`].
+    let field = |pr: &serde_json::Value, name: &str, max_chars: usize| -> Option<String> {
         pr.get(name)
             .and_then(|v| v.as_str())
-            .map(|s| s.chars().filter(|c| !c.is_control()).collect::<String>())
-            .filter(|s| !s.is_empty())
+            .and_then(|s| gh_field(s, max_chars))
     };
     let branch_pr = branch
         .and_then(|b| {
@@ -332,17 +370,13 @@ fn parse_pr_list(json: &str, branch: Option<&str>) -> Option<(usize, Option<Box<
                     .get("number")
                     .and_then(serde_json::Value::as_u64)
                     .unwrap_or_default() as usize,
-                title: field(pr, "title")
-                    .unwrap_or_default()
-                    .chars()
-                    .take(MAX_TITLE_CHARS)
-                    .collect(),
-                url: field(pr, "url").unwrap_or_default(),
+                title: field(pr, "title", MAX_TITLE_CHARS).unwrap_or_default(),
+                url: field(pr, "url", MAX_GH_FIELD_CHARS).unwrap_or_default(),
                 is_draft: pr
                     .get("isDraft")
                     .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false),
-                review_decision: field(pr, "reviewDecision"),
+                review_decision: field(pr, "reviewDecision", MAX_GH_FIELD_CHARS),
             })
         });
     Some((prs.len(), branch_pr))
@@ -527,16 +561,132 @@ mod tests {
             .find(|a| a.first().map(String::as_str) == Some("run"))
             .cloned()
             .expect("the run list was not queried");
-        let branch_flag = run_args.iter().position(|a| a == "--branch");
-        assert_eq!(
-            branch_flag
-                .and_then(|i| run_args.get(i + 1))
-                .map(String::as_str),
-            Some("feature"),
+        // One token, not `--branch` followed by the value: a repository-chosen
+        // refname must not arrive at `gh` in a position where whether it is
+        // read as a flag depends on the callee's parser.
+        assert!(
+            run_args.iter().any(|a| a == "--branch=feature"),
             "{run_args:?}"
+        );
+        assert!(
+            !run_args.iter().any(|a| a == "--branch"),
+            "the branch must not be a bare argv token: {run_args:?}"
         );
         assert_eq!(info.ci_state, GithubState::Ready);
         assert_eq!(info.ci_branch.as_deref(), Some("feature"));
+    }
+
+    /// Git does not forbid a leading `-` in a refname, and a clone of a remote
+    /// whose HEAD points at one reproduces it locally. Such a branch is not
+    /// handed to `gh` at all — it takes the detached-HEAD path — and even a
+    /// legitimate one goes as a single `--branch=` token.
+    #[test]
+    fn an_option_like_branch_is_refused_before_it_reaches_gh() {
+        assert!(check_safe_ref("-oProxyCommand=id").is_err());
+        assert!(check_safe_ref("feature/x").is_ok());
+
+        // `get_status_with` maps a ref that fails validation to the empty
+        // branch, which `fetch` sees as "no branch to scope to".
+        let info = fetch(RemoteCiPrInfo::default(), 100, None, |args| {
+            assert_ne!(
+                query(args),
+                "runs",
+                "an unvalidated branch must not be queried: {args:?}"
+            );
+            Ok("[]".to_string())
+        });
+        assert_eq!(info.ci_state, GithubState::Detached);
+    }
+
+    /// A *failed* branch read is not a detached HEAD. It used to be collapsed
+    /// into one by `unwrap_or_default`, and `Detached.is_settled()` is true,
+    /// so the wrong answer was kept for the whole refresh period.
+    #[test]
+    fn an_unreadable_branch_is_a_failed_refresh_not_a_detached_head() {
+        // A path that is a git repository with no commits still answers
+        // `--show-current`; a path that is not one errors, which is the case
+        // the guard is about.
+        let path = std::env::temp_dir().join(format!("gdt-github-noread-{}", std::process::id()));
+        std::fs::create_dir_all(&path).unwrap();
+        run_git_cmd(&path, &["init", "-q"]).unwrap();
+        run_git_cmd(
+            &path,
+            &["remote", "add", "origin", "https://github.com/a/b.git"],
+        )
+        .unwrap();
+        // Break the repository so `branch --show-current` fails.
+        std::fs::remove_dir_all(path.join(".git")).unwrap();
+        std::fs::write(path.join(".git"), "gitdir: /nonexistent/nowhere").unwrap();
+
+        let info = get_status_with(&path, 100, |_| {
+            panic!("gh must not be called when the branch could not be read")
+        });
+        // The remote read fails too here, so the function may bail before the
+        // branch read; what must never happen is a settled `Detached`.
+        if let Some(info) = info {
+            assert_eq!(info.ci_state, GithubState::Failed);
+            assert!(!info.ci_state.is_settled());
+            assert_eq!(retry_after(&info), RETRY_SECS);
+        }
+        std::fs::remove_file(path.join(".git")).ok();
+        std::fs::remove_dir_all(&path).ok();
+    }
+
+    /// `gh` stdout never passes through `strip_control_sequences`, and
+    /// `serde_json` decodes a `\u001b` escape into a real ESC. `headBranch`,
+    /// `conclusion`, `status` and `url` are rendered *and* written to the
+    /// on-disk cache, so anything that slipped through would replay on every
+    /// start-up — they get the same filter the title already had.
+    #[test]
+    fn every_gh_derived_string_is_filtered_and_capped() {
+        let hostile = r#"[{"conclusion":"fail\u001b[2Jure","status":"completed",
+            "url":"https://e\u001b]52;c;cA==\u0007x","headBranch":"ma\u001b[31min"}]"#;
+        let info = fetch(RemoteCiPrInfo::default(), 100, Some("main"), |args| {
+            Ok(match query(args) {
+                "runs" => hostile,
+                _ => "[]",
+            }
+            .to_string())
+        });
+        assert_eq!(info.ci_status.as_deref(), Some("fail[2Jure"));
+        assert_eq!(info.ci_branch.as_deref(), Some("ma[31min"));
+        assert_eq!(info.last_run_url.as_deref(), Some("https://e]52;c;cA==x"));
+        for field in [&info.ci_status, &info.ci_branch, &info.last_run_url] {
+            assert!(
+                !field.as_deref().unwrap().chars().any(char::is_control),
+                "{field:?}"
+            );
+        }
+
+        // And every one of them is bounded, the URL and the review decision
+        // included — only the title used to be.
+        let long = "a".repeat(MAX_GH_FIELD_CHARS + 50);
+        let runs = format!(
+            r#"[{{"conclusion":"{long}","status":"","url":"{long}","headBranch":"{long}"}}]"#
+        );
+        let capped = fetch(RemoteCiPrInfo::default(), 100, Some("main"), |args| {
+            Ok(match query(args) {
+                "runs" => runs.as_str(),
+                _ => "[]",
+            }
+            .to_string())
+        });
+        for field in [&capped.ci_status, &capped.ci_branch, &capped.last_run_url] {
+            assert_eq!(
+                field.as_deref().unwrap().chars().count(),
+                MAX_GH_FIELD_CHARS
+            );
+        }
+        let prs = format!(
+            r#"[{{"number":1,"headRefName":"main","title":"t","url":"{long}",
+                "reviewDecision":"{long}"}}]"#
+        );
+        let pr = parse_pr_list(&prs, Some("main")).unwrap().1.unwrap();
+        assert_eq!(pr.url.chars().count(), MAX_GH_FIELD_CHARS);
+        assert_eq!(
+            pr.review_decision.as_deref().unwrap().chars().count(),
+            MAX_GH_FIELD_CHARS
+        );
     }
 
     /// A detached HEAD has no branch to scope to, so it gets its own state
@@ -631,11 +781,18 @@ mod tests {
         assert_eq!(retry_after(&degraded), REFRESH_SECS);
     }
 
-    /// `gh` missing or unauthenticated is a property of the machine, not of
-    /// the query, so the refresh stops instead of reproducing it three times.
+    /// `gh` missing, unauthenticated or timed out is a property of the
+    /// machine, not of the query, so the refresh stops instead of reproducing
+    /// it three times. The timeout is there for the cost: three 10 s budgets
+    /// per repository against a black-holed network is two minutes of a
+    /// 30-repository refresh spent proving the same thing.
     #[test]
     fn an_environment_failure_stops_the_refresh_after_one_call() {
-        for state in [GithubState::Unavailable, GithubState::Unauthenticated] {
+        for state in [
+            GithubState::Unavailable,
+            GithubState::Unauthenticated,
+            GithubState::TimedOut,
+        ] {
             let calls = std::cell::Cell::new(0);
             let info = fetch(RemoteCiPrInfo::default(), 100, Some("main"), |_| {
                 calls.set(calls.get() + 1);

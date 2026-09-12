@@ -38,6 +38,25 @@ pub const SCHEMA_ID: &str = "git-dashboard-tui.status-snapshot";
 /// turning a status-line call into a fork bomb.
 const MAX_SNAPSHOT_THREADS: usize = 8;
 
+/// Wall-clock ceiling on a whole `--json` run, from the moment
+/// [`build_snapshot`] starts.
+///
+/// Without one there is no ceiling at all: [`local_status`] issues eleven
+/// sequential commands, each carrying `git::GIT_TIMEOUT` (30 s), so a single
+/// repository on a wedged filesystem can hold a snapshot for 330 s — and
+/// `Path::exists` on a hard-mounted dead NFS path blocks uninterruptibly
+/// before any child is even spawned, which no per-command timeout can reach.
+/// The help text calls `--json` safe to shell out to from a prompt, and a
+/// prompt cannot wait five and a half minutes.
+///
+/// Ten seconds: far above a healthy run (tens of milliseconds per repository,
+/// eight at a time), the same order as the `gh` budget the dashboard already
+/// allows one call, and short enough that a status line which misses one tick
+/// is the worst that happens. What is *not* done is silently dropping the
+/// slow repositories — they are reported as failed with the reason, so the
+/// consumer can tell a timed-out repository from a clean one.
+const SNAPSHOT_BUDGET: std::time::Duration = std::time::Duration::from_secs(10);
+
 /// Exit code for a command line that could not be parsed, matching what the
 /// binary has always returned for an unrecognised argument.
 pub const EXIT_USAGE: u8 = 2;
@@ -394,17 +413,27 @@ fn short_error(text: &str) -> String {
 }
 
 /// Indices into the command batch issued by [`local_status`].
+///
+/// `REBASE_HEAD` is absent: it was only ever consulted on the `ssh://` path,
+/// as the fall-back for a repository with no local state directory to look
+/// at, and that path no longer reaches here. Sending it anyway would be an
+/// eleventh git invocation per repository whose result nothing reads — and
+/// the invocation count is exactly what [`SNAPSHOT_BUDGET`] is rationing.
 const CMD_BRANCH: usize = 0;
 const CMD_STATUS: usize = 1;
 const CMD_UPSTREAM: usize = 2;
 const CMD_COUNTS: usize = 3;
 const CMD_LAST_COMMIT: usize = 4;
 const CMD_MERGE_HEAD: usize = 5;
-const CMD_REBASE_HEAD: usize = 6;
-const CMD_CHERRY_PICK_HEAD: usize = 7;
-const CMD_REVERT_HEAD: usize = 8;
-const CMD_REBASE_MERGE_DIR: usize = 9;
-const CMD_REBASE_APPLY_DIR: usize = 10;
+const CMD_CHERRY_PICK_HEAD: usize = 6;
+const CMD_REVERT_HEAD: usize = 7;
+const CMD_REBASE_MERGE_DIR: usize = 8;
+const CMD_REBASE_APPLY_DIR: usize = 9;
+
+/// What an `ssh://` repository is reported as. English, like the rest of the
+/// `--json` surface, and it names the flag that would read it.
+const SSH_NOT_MEASURED: &str = "skipped: this is an ssh:// repository and reading it would open a network \
+     connection, which --json never does; run the dashboard to see it";
 
 /// Read one repository's local state.
 ///
@@ -415,24 +444,32 @@ const CMD_REBASE_APPLY_DIR: usize = 10;
 /// same command list, so the numbers match what the dashboard shows — and,
 /// like the dashboard, every invocation carries `git::GIT_TIMEOUT`.
 fn local_status(path: &Path) -> Result<LocalStatus, String> {
-    let ssh = git::parse_ssh_repo(path).is_some();
-    if !ssh {
-        if !path.exists() {
-            return Err(format!("path does not exist: {}", path.display()));
-        }
-        if !git::is_git_repo(path) {
-            return Err(format!("not a git repository: {}", path.display()));
-        }
+    // `run_git_batch` is only *local* git for a local path. Given an
+    // `ssh://…` locator it spawns `ssh <host> <script>`, so the command list
+    // below would emit DNS, TCP and an SSH handshake to every configured
+    // remote host — from a status line, every few seconds — and could block
+    // for `git::GIT_NETWORK_TIMEOUT` (120 s) against one that is hung. The
+    // promise in the module docs, in `GithubStatus` and in `main.rs`'s HELP
+    // is kept by not measuring these at all: the repository is reported as
+    // failed with the reason, every measured field `null`, exactly like a
+    // repository whose path has vanished.
+    if git::parse_ssh_repo(path).is_some() {
+        return Err(SSH_NOT_MEASURED.to_string());
+    }
+    if !path.exists() {
+        return Err(format!("path does not exist: {}", path.display()));
+    }
+    if !git::is_git_repo(path) {
+        return Err(format!("not a git repository: {}", path.display()));
     }
 
-    let cmds: [&[&str]; 11] = [
+    let cmds: [&[&str]; 10] = [
         &["branch", "--show-current"],
         &["status", "--porcelain=v1", "--untracked-files=all"],
         &["rev-parse", "--abbrev-ref", "@{u}"],
         &["rev-list", "--left-right", "--count", "HEAD...@{u}"],
         &["log", "-1", "--format=%ct"],
         &["rev-parse", "-q", "--verify", "MERGE_HEAD"],
-        &["rev-parse", "-q", "--verify", "REBASE_HEAD"],
         &["rev-parse", "-q", "--verify", "CHERRY_PICK_HEAD"],
         &["rev-parse", "-q", "--verify", "REVERT_HEAD"],
         &["rev-parse", "--git-path", "rebase-merge"],
@@ -442,28 +479,22 @@ fn local_status(path: &Path) -> Result<LocalStatus, String> {
 
     // `REBASE_HEAD` alone is unreliable: git leaves the pseudo-ref behind
     // after a successful `rebase --continue`, but removes the state
-    // directory. Same reasoning (and the same fallback for SSH repositories,
-    // which have no local directory to look at) as `git::get_summary`.
-    let rebase = if ssh {
-        results
-            .get(CMD_REBASE_HEAD)
-            .is_some_and(|r: &Result<String, String>| r.is_ok())
-    } else {
-        [CMD_REBASE_MERGE_DIR, CMD_REBASE_APPLY_DIR]
-            .iter()
-            .any(|&i| match results.get(i).and_then(|r| r.as_ref().ok()) {
-                Some(resolved) => {
-                    let resolved = resolved.trim();
-                    let dir = if Path::new(resolved).is_absolute() {
-                        PathBuf::from(resolved)
-                    } else {
-                        path.join(resolved)
-                    };
-                    dir.is_dir()
-                }
-                None => false,
-            })
-    };
+    // directory. Same reasoning as `git::get_summary` — minus its SSH
+    // fall-back, since an `ssh://` repository never reaches this point.
+    let rebase = [CMD_REBASE_MERGE_DIR, CMD_REBASE_APPLY_DIR]
+        .iter()
+        .any(|&i| match results.get(i).and_then(|r| r.as_ref().ok()) {
+            Some(resolved) => {
+                let resolved = resolved.trim();
+                let dir = if Path::new(resolved).is_absolute() {
+                    PathBuf::from(resolved)
+                } else {
+                    path.join(resolved)
+                };
+                dir.is_dir()
+            }
+            None => false,
+        });
 
     local_status_from_batch(&results, rebase)
 }
@@ -614,9 +645,48 @@ fn repository_status(
     }
 }
 
+/// Run `local_status` under `deadline`, giving up on the *wait* rather than
+/// on the work.
+///
+/// The analysis runs on a detached thread because the two things that make a
+/// repository slow cannot be interrupted from here: `Path::exists` on a dead
+/// hard mount blocks in the kernel, and a git child already spawned is
+/// `git::GIT_TIMEOUT`'s problem, not ours. Abandoning the thread is safe
+/// precisely because this is a one-shot CLI — the snapshot is printed and the
+/// process exits, taking the stragglers with it. Doing the same inside the
+/// TUI would leak a thread per refresh; that is why this lives here.
+fn local_status_by(path: &Path, deadline: std::time::Instant) -> Result<LocalStatus, String> {
+    let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+    if remaining.is_zero() {
+        return Err(snapshot_budget_error());
+    }
+    let owned = path.to_path_buf();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(local_status(&owned));
+    });
+    rx.recv_timeout(remaining)
+        .unwrap_or_else(|_| Err(snapshot_budget_error()))
+}
+
+fn snapshot_budget_error() -> String {
+    format!(
+        "not read within the {}s snapshot budget (an unresponsive filesystem, \
+         or too many repositories); the dashboard has no such limit",
+        SNAPSHOT_BUDGET.as_secs()
+    )
+}
+
 /// Analyse every target, at most [`MAX_SNAPSHOT_THREADS`] at a time, and
 /// return the results in input order.
-fn collect_statuses(targets: &[(Repository, bool)], now: i64) -> Vec<RepositoryStatus> {
+///
+/// `deadline` bounds the whole call: a target that cannot be measured before
+/// it is reported as failed with the reason, not dropped and not waited for.
+fn collect_statuses(
+    targets: &[(Repository, bool)],
+    now: i64,
+    deadline: std::time::Instant,
+) -> Vec<RepositoryStatus> {
     if targets.is_empty() {
         return Vec::new();
     }
@@ -635,7 +705,10 @@ fn collect_statuses(targets: &[(Repository, bool)], now: i64) -> Vec<RepositoryS
                     let status = repository_status(
                         repo,
                         *registered,
-                        local_status(&repo.path),
+                        local_status_by(&repo.path, deadline),
+                        // Still reported past the deadline: this reads the
+                        // dashboard's own cache file, not the repository, so
+                        // it cannot be what is slow.
                         cached_github(&repo.path, now),
                     );
                     // The receiver outlives the scope, so a send can only
@@ -651,9 +724,30 @@ fn collect_statuses(targets: &[(Repository, bool)], now: i64) -> Vec<RepositoryS
     collected.into_iter().map(|(_, status)| status).collect()
 }
 
+/// Name for a repository named on the command line but not in `config.json`.
+///
+/// The second place the no-network promise leaked: [`git::get_repo_name`]
+/// starts by running `git config --get remote.origin.url` *in the
+/// repository*, which for an `ssh://` locator is `run_git_cmd` spawning
+/// `ssh`. Deriving the name from the locator's own last path segment answers
+/// the same question without a connection; local paths keep the existing
+/// behaviour, where that git call is local.
+fn snapshot_repo_name(path: &Path) -> String {
+    if let Some((_, remote_path)) = git::parse_ssh_repo(path) {
+        return git::repo_name_from_ssh_path(&remote_path)
+            .unwrap_or_else(|| path.to_string_lossy().into_owned());
+    }
+    git::get_repo_name(path)
+}
+
 /// Build the snapshot document. `path`, when given, limits it to that one
 /// repository (which need not be registered).
 pub fn build_snapshot(path: Option<PathBuf>) -> Result<Snapshot, String> {
+    // Started before anything that can block, so the budget covers the whole
+    // run rather than only the fan-out: resolving the operand canonicalises a
+    // path the user just named, which is itself a filesystem call.
+    let deadline = std::time::Instant::now() + SNAPSHOT_BUDGET;
+
     // Loaded even for the single-path form: `registered` is a claim about the
     // configuration, and reporting `false` from a config we could not read
     // would be a guess dressed up as a fact.
@@ -670,7 +764,7 @@ pub fn build_snapshot(path: Option<PathBuf>) -> Result<Snapshot, String> {
                 Some(repo) => vec![(repo, true)],
                 None => vec![(
                     Repository {
-                        name: git::get_repo_name(&path),
+                        name: snapshot_repo_name(&path),
                         path,
                         group: None,
                     },
@@ -681,7 +775,7 @@ pub fn build_snapshot(path: Option<PathBuf>) -> Result<Snapshot, String> {
     };
 
     let now = chrono::Utc::now().timestamp();
-    let repositories = collect_statuses(&targets, now);
+    let repositories = collect_statuses(&targets, now, deadline);
     Ok(Snapshot {
         schema: SCHEMA_ID,
         schema_version: SCHEMA_VERSION,
@@ -1036,7 +1130,6 @@ mod tests {
             Err("fatal: Needed a single revision".into()),
             Err("fatal: Needed a single revision".into()),
             Err("fatal: Needed a single revision".into()),
-            Err("fatal: Needed a single revision".into()),
             ok(".git/rebase-merge"),
             ok(".git/rebase-apply"),
         ]
@@ -1088,6 +1181,115 @@ mod tests {
         // Multi-line git stderr is collapsed into one line.
         assert!(!err.contains('\n'), "{err}");
         assert!(local_status_from_batch(&[], false).is_err());
+    }
+
+    // -- the no-network promise ---------------------------------------------
+
+    /// `run_git_batch` on an `ssh://` locator is not local git: it spawns
+    /// `ssh <host> <script>`. A status line shelling out every few seconds
+    /// would emit DNS, TCP and an SSH handshake to every configured remote
+    /// host, and could block for `GIT_NETWORK_TIMEOUT` against a hung one —
+    /// while the same document says `--json` never contacts the network.
+    #[test]
+    fn an_ssh_repository_is_reported_as_failed_instead_of_being_dialled() {
+        let path = PathBuf::from("ssh://example.invalid/srv/app");
+        // Precondition: this really is the locator shape that would dial out.
+        assert!(git::parse_ssh_repo(&path).is_some());
+
+        let error = local_status(&path).unwrap_err();
+        assert!(error.contains("ssh://"), "{error}");
+        assert!(error.contains("--json"), "{error}");
+
+        // ...and it is reported exactly like any other failed repository:
+        // ok = false, and no measured field readable as a result.
+        let v = value(&repository_status(
+            &Repository {
+                name: "remote".into(),
+                path,
+                group: None,
+            },
+            true,
+            local_status(&PathBuf::from("ssh://example.invalid/srv/app")),
+            GithubStatus::absent("nothing cached"),
+        ));
+        assert_eq!(v["ok"], serde_json::json!(false));
+        for field in [
+            "branch",
+            "has_upstream",
+            "ahead",
+            "behind",
+            "uncommitted",
+            "conflicts",
+            "operation",
+            "last_commit",
+            "last_commit_unix",
+        ] {
+            assert!(v[field].is_null(), "{field} should be null: {v}");
+        }
+    }
+
+    /// The other leak: naming an unregistered repository called
+    /// `git::get_repo_name`, whose first act is `git config --get
+    /// remote.origin.url` *in the repository* — over `ssh` for an `ssh://`
+    /// locator.
+    #[test]
+    fn naming_an_ssh_repository_does_not_ask_the_remote() {
+        assert_eq!(
+            snapshot_repo_name(Path::new("ssh://build.example/srv/app.git")),
+            "app"
+        );
+        assert_eq!(
+            snapshot_repo_name(Path::new("ssh://build.example/home/dev/myrepo")),
+            "myrepo"
+        );
+    }
+
+    /// Eleven sequential commands at `GIT_TIMEOUT` each is 330 s per
+    /// repository, and `Path::exists` on a dead hard mount blocks in the
+    /// kernel before any child is spawned. The budget is what makes "safe to
+    /// call from a shell prompt" true.
+    #[test]
+    fn a_repository_that_misses_the_budget_is_failed_rather_than_waited_for() {
+        let past = std::time::Instant::now() - std::time::Duration::from_secs(1);
+        let error = local_status_by(Path::new("/nonexistent/repo"), past).unwrap_err();
+        assert!(error.contains("budget"), "{error}");
+        assert!(error.contains("10s"), "{error}");
+
+        // The budget bounds the whole call, not each repository: eight
+        // unreadable paths past the deadline all come back, all failed, and
+        // the call returns promptly.
+        let targets: Vec<(Repository, bool)> = (0..8)
+            .map(|i| {
+                (
+                    Repository {
+                        name: format!("r{i}"),
+                        path: PathBuf::from(format!("/nonexistent/r{i}")),
+                        group: None,
+                    },
+                    true,
+                )
+            })
+            .collect();
+        let started = std::time::Instant::now();
+        let statuses = collect_statuses(&targets, 0, past);
+        assert!(started.elapsed() < SNAPSHOT_BUDGET);
+        assert_eq!(statuses.len(), 8);
+        for status in &statuses {
+            assert!(!status.ok);
+            assert!(status.error.as_deref().unwrap().contains("budget"));
+            assert!(status.branch.is_none());
+        }
+
+        // With budget left, the same paths are measured and fail on their own
+        // merits — the deadline must not short-circuit a healthy run.
+        let ample = std::time::Instant::now() + SNAPSHOT_BUDGET;
+        let measured = collect_statuses(&targets, 0, ample);
+        assert!(
+            measured
+                .iter()
+                .all(|s| s.error.as_deref().unwrap().contains("does not exist")),
+            "{measured:?}"
+        );
     }
 
     #[test]

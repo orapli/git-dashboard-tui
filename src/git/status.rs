@@ -98,7 +98,14 @@ pub fn is_git_repo(repo_path: &Path) -> bool {
     if repo_path.join(".git").exists() {
         return true;
     }
-    run_git_cmd(repo_path, &["rev-parse", "--is-inside-work-tree"]).is_ok()
+    // The *answer* matters, not just the exit status: inside a **bare**
+    // repository `git rev-parse --is-inside-work-tree` succeeds and prints
+    // `false`. Accepting that made the dashboard adopt a directory with no
+    // work tree — every later command then failed with "this operation must
+    // be run in a work tree", which `--json` reported as the repository's
+    // error and the TUI opened as a focused, permanently broken row.
+    run_git_cmd(repo_path, &["rev-parse", "--is-inside-work-tree"])
+        .is_ok_and(|out| out.trim() == "true")
 }
 
 /// Scan a directory for valid Git repositories up to `max_depth`.
@@ -1113,6 +1120,36 @@ pub fn parse_gh_prs(json: &str) -> Option<usize> {
     Some(arr.len())
 }
 
+/// Upper bound on a `gh`-derived string. Every real value — a conclusion
+/// (`success`), a run or pull-request URL, a review decision, a head branch —
+/// is far below this; the cap exists so that a reply which is not what we
+/// think it is cannot put an unbounded blob into a terminal row and into the
+/// on-disk cache. 200 matches the bound `cli::short_error` puts on git stderr
+/// for the same reason.
+pub const MAX_GH_FIELD_CHARS: usize = 200;
+
+/// Filter one string that came out of `gh` before it is shown or stored.
+///
+/// `gh` stdout is **not** git output, so it never passes through
+/// [`strip_control_sequences`] — and `serde_json` decodes `` into a
+/// real ESC, so a JSON string field arrives with its control characters
+/// intact. These values are rendered into terminal rows *and* persisted to
+/// the home cache, which means anything that slipped through would replay on
+/// every start-up, long after the reply that carried it. Nothing GitHub
+/// returns today contains one; the point is that the fields which are
+/// filtered and the fields which are not should not be decided by which
+/// function happened to parse them.
+///
+/// `None` for a value that is empty, or that is empty once filtered.
+pub fn gh_field(text: &str, max_chars: usize) -> Option<String> {
+    let cleaned: String = text
+        .chars()
+        .filter(|c| !c.is_control())
+        .take(max_chars)
+        .collect();
+    (!cleaned.is_empty()).then_some(cleaned)
+}
+
 pub fn parse_gh_runs(json: &str) -> (Option<String>, Option<String>) {
     let val: serde_json::Value = serde_json::from_str(json)
         .ok()
@@ -1124,9 +1161,13 @@ pub fn parse_gh_runs(json: &str) -> (Option<String>, Option<String>) {
             .and_then(|c| c.as_str())
             .filter(|s| !s.is_empty())
             .or_else(|| r.get("status").and_then(|s| s.as_str()))
-            .map(|s| s.to_string())
+            .and_then(|s| gh_field(s, MAX_GH_FIELD_CHARS))
     });
-    let url = first.and_then(|r| r.get("url").and_then(|u| u.as_str()).map(|s| s.to_string()));
+    let url = first.and_then(|r| {
+        r.get("url")
+            .and_then(|u| u.as_str())
+            .and_then(|s| gh_field(s, MAX_GH_FIELD_CHARS))
+    });
     (conclusion, url)
 }
 

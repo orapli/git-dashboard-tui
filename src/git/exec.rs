@@ -569,24 +569,80 @@ mod wait_tests {
     /// Waiting for the child used to be a flat 25 ms sleep between `try_wait`
     /// polls, which put a ~25 ms floor under every git invocation — 10 calls
     /// could not finish in under 250 ms no matter how trivial the commands.
-    /// The bound here is 100 ms: 10 ms per invocation is over an order of
-    /// magnitude more than a `true` costs in practice (~1 ms, spawn included),
-    /// so a loaded CI machine has ample slack, while still being 2.5× below
-    /// the old floor — the flat-sleep version cannot pass this.
+    ///
+    /// The bound is **relative**, against the same ten commands run through
+    /// `Command::output()` in the same process, interleaved with the measured
+    /// ones. An absolute deadline measures the machine as much as the code:
+    /// the 100 ms this used to assert is exceeded (117 ms measured) under a
+    /// 16-way CPU load purely because spawning ten processes got slower, and
+    /// it failed 4/4 that way. Spawn cost is what the baseline cancels — a
+    /// loaded machine slows both halves together, so the ratio holds while
+    /// the absolute numbers move.
+    ///
+    /// `output()` is the right baseline because it is this function minus the
+    /// wait loop: same fork/exec, same pipe drain, blocking `wait` instead of
+    /// polling. What is left over is the poll overhead, which is the thing
+    /// under test. The multiple is 4× plus 20 ms of floor, so that a baseline
+    /// of a few milliseconds does not turn scheduler noise into a failure;
+    /// against the flat 25 ms sleep the measured side is ~250 ms versus a
+    /// budget of ~60 ms, so the regression this exists for still fails it by
+    /// a factor of four.
     #[test]
     #[cfg(unix)]
     fn short_commands_are_not_charged_a_fixed_poll_interval() {
         const RUNS: u32 = 10;
-        let start = std::time::Instant::now();
-        for _ in 0..RUNS {
-            let out = run_with_timeout(Command::new("true"), std::time::Duration::from_secs(10))
-                .expect("`true` should run");
-            assert!(out.status.success());
+        /// Multiple of the baseline the wait loop is allowed to cost.
+        ///
+        /// `run_with_timeout` is legitimately a few times the cost of a bare
+        /// `output()` — it spawns two drain threads per call and naps at
+        /// least once — and measures at a ratio around 3.5 on an idle
+        /// machine. The old flat 25 ms sleep measured around 50×, so ten
+        /// leaves a wide margin on both sides: ordinary jitter cannot reach
+        /// it, and the regression this test exists for cannot hide under it.
+        const SLACK_FACTOR: u32 = 10;
+        /// Absolute floor, so that a sub-millisecond baseline cannot make
+        /// ordinary scheduler jitter look like a regression.
+        const SLACK_FLOOR: std::time::Duration = std::time::Duration::from_millis(20);
+
+        let baseline_run = || {
+            let start = std::time::Instant::now();
+            for _ in 0..RUNS {
+                let out = Command::new("true").output().expect("`true` should run");
+                assert!(out.status.success());
+            }
+            start.elapsed()
+        };
+        let measured_run = || {
+            let start = std::time::Instant::now();
+            for _ in 0..RUNS {
+                let out =
+                    run_with_timeout(Command::new("true"), std::time::Duration::from_secs(10))
+                        .expect("`true` should run");
+                assert!(out.status.success());
+            }
+            start.elapsed()
+        };
+
+        // One untimed round of each first: the first spawn in a process pays
+        // for loading `/bin/true` and warming the allocator, and whichever
+        // side went first would otherwise carry that alone.
+        baseline_run();
+        measured_run();
+        // Interleaved and taken as the best of three, so a burst of load that
+        // lands on one side does not decide the result.
+        let mut baseline = std::time::Duration::MAX;
+        let mut measured = std::time::Duration::MAX;
+        for _ in 0..3 {
+            baseline = baseline.min(baseline_run());
+            measured = measured.min(measured_run());
         }
-        let elapsed = start.elapsed();
+
+        let budget = baseline * SLACK_FACTOR + SLACK_FLOOR;
         assert!(
-            elapsed < std::time::Duration::from_millis(100),
-            "{RUNS} trivial commands took {elapsed:?}; the wait loop is charging a fixed interval again"
+            measured <= budget,
+            "{RUNS} trivial commands took {measured:?} through run_with_timeout \
+             against {baseline:?} through Command::output() (budget {budget:?}); \
+             the wait loop is charging a fixed interval again"
         );
     }
 
