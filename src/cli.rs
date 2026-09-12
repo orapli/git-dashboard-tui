@@ -360,6 +360,8 @@ fn github_state_name(state: GithubState) -> &'static str {
         GithubState::Failed => "fetch_failed",
         GithubState::Unavailable => "gh_not_installed",
         GithubState::Unsupported => "unsupported",
+        GithubState::Detached => "detached_head",
+        GithubState::TimedOut => "fetch_timed_out",
     }
 }
 
@@ -962,6 +964,7 @@ mod tests {
             checked_at: 1_700_000_000,
             open_prs: Some(3),
             last_run_url: Some("https://github.com/a/b/actions/runs/1".into()),
+            ..Default::default()
         };
 
         let fresh = serde_json::to_value(github_status(&info, 1_700_000_060)).unwrap();

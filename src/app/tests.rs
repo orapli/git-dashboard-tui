@@ -953,6 +953,111 @@ fn needs_attention_flags_failing_ci_conflicts_and_op_state() {
     assert!(needs_attention(&home_row(None, GitOpState::None, 1)));
 }
 
+/// A row whose GitHub half is known. `branch` is the branch the repository
+/// is actually on, which is what the CI answer has to be about.
+fn github_row(branch: &str, github: crate::git::RemoteCiPrInfo) -> HomeRow {
+    HomeRow {
+        branch: branch.into(),
+        ci_status: github.ci_status.clone(),
+        open_prs: github.open_prs,
+        github: Some(github),
+        ..Default::default()
+    }
+}
+
+fn branch_pr(is_draft: bool, review_decision: Option<&str>) -> Box<crate::git::BranchPr> {
+    Box::new(crate::git::BranchPr {
+        number: 42,
+        title: "Scope CI to the branch".into(),
+        url: "https://github.com/a/b/pull/42".into(),
+        is_draft,
+        review_decision: review_decision.map(str::to_string),
+    })
+}
+
+/// The GitHub signals a person actually has to act on. Each one has a
+/// matching reason line in the selected-repository panel — see
+/// `home::tests::github_context_explains_the_branch_pr_and_the_review_queue`.
+#[test]
+fn needs_attention_flags_a_review_request_and_changes_requested_on_this_branchs_pr() {
+    use crate::git::RemoteCiPrInfo;
+    // Someone is blocked waiting on this user's review.
+    assert!(needs_attention(&github_row(
+        "feature",
+        RemoteCiPrInfo {
+            review_requests: Some(1),
+            ..Default::default()
+        }
+    )));
+    assert!(!needs_attention(&github_row(
+        "feature",
+        RemoteCiPrInfo {
+            review_requests: Some(0),
+            ..Default::default()
+        }
+    )));
+    // The review came back asking for changes: the ball is with the author.
+    assert!(needs_attention(&github_row(
+        "feature",
+        RemoteCiPrInfo {
+            branch_pr: Some(branch_pr(false, Some("changes_requested"))),
+            ..Default::default()
+        }
+    )));
+    // Deliberately not attention: a draft is a choice, an approval is good
+    // news (and merging is a write operation this dashboard does not do),
+    // and an undecided review is just a review in flight.
+    for pr in [
+        branch_pr(true, None),
+        branch_pr(false, Some("APPROVED")),
+        branch_pr(false, Some("REVIEW_REQUIRED")),
+    ] {
+        assert!(!needs_attention(&github_row(
+            "feature",
+            RemoteCiPrInfo {
+                branch_pr: Some(pr),
+                open_prs: Some(7),
+                ..Default::default()
+            }
+        )));
+    }
+    // Nor is being behind upstream: nearly every repository is behind
+    // something, so counting it would make the filter select everything.
+    assert!(!needs_attention(&HomeRow {
+        behind: 99,
+        dirty: 4,
+        ..Default::default()
+    }));
+}
+
+/// ⑦: a red run belonging to a different branch is not this row's problem.
+/// The query is branch-scoped now, so this only happens with a row restored
+/// from a cache written before the branch was switched — which is exactly
+/// when the old repository-wide query produced its false warnings.
+#[test]
+fn a_failing_ci_run_recorded_for_another_branch_does_not_flag_this_one() {
+    use crate::git::RemoteCiPrInfo;
+    let failing = |ci_branch: Option<&str>| RemoteCiPrInfo {
+        ci_state: crate::git::GithubState::Ready,
+        ci_status: Some("failure".into()),
+        ci_branch: ci_branch.map(str::to_string),
+        ..Default::default()
+    };
+    assert!(!needs_attention(&github_row(
+        "feature",
+        failing(Some("main"))
+    )));
+    assert!(needs_attention(&github_row(
+        "feature",
+        failing(Some("feature"))
+    )));
+    // An answer with no recorded branch keeps the old behaviour rather than
+    // silently dropping a failure.
+    assert!(needs_attention(&github_row("feature", failing(None))));
+    // On a detached HEAD there is no branch to compare against.
+    assert!(needs_attention(&github_row("", failing(Some("main")))));
+}
+
 #[test]
 fn classify_ci_status_treats_cancelled_timed_out_and_action_required_as_failing() {
     // A timed-out or cancelled run, or one blocked on a human action, means

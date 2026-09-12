@@ -46,17 +46,69 @@ pub fn classify_ci_status(status: &str) -> CiOutcome {
     }
 }
 
-/// A repository the "n" (needs attention) filter should surface: a failing
-/// CI run, an unresolved conflict, or a merge/rebase/etc. left mid-operation.
-/// Deliberately excludes plain uncommitted changes or being behind upstream —
-/// those are normal working state, not something that needs a response.
-pub fn needs_attention(row: &HomeRow) -> bool {
-    row.op_state != GitOpState::None
-        || row.conflicts > 0
-        || row
+/// Whether this row's CI answer is a failure *on the branch it is checked
+/// out on*.
+///
+/// The run list is queried scoped to the current branch, so normally the
+/// answer is about that branch by construction. A row restored from the
+/// on-disk cache can still carry the answer for the branch that was checked
+/// out when it was written, and another branch's red run is not this
+/// repository's problem — until the next refresh replaces it.
+pub fn ci_failed_on_branch(row: &HomeRow) -> bool {
+    let other_branch = row
+        .github
+        .as_ref()
+        .and_then(|g| g.ci_branch.as_deref())
+        .is_some_and(|b| !row.branch.is_empty() && b != row.branch);
+    !other_branch
+        && row
             .ci_status
             .as_deref()
             .is_some_and(|s| classify_ci_status(s) == CiOutcome::Failure)
+}
+
+/// How many open pull requests in this repository are waiting on the current
+/// user's review. 0 when the lookup has never succeeded.
+pub fn review_requests(row: &HomeRow) -> usize {
+    row.github
+        .as_ref()
+        .and_then(|g| g.review_requests)
+        .unwrap_or(0)
+}
+
+/// A reviewer asked for changes on the pull request opened from the branch
+/// this repository is on.
+pub fn branch_pr_changes_requested(row: &HomeRow) -> bool {
+    row.github
+        .as_ref()
+        .and_then(|g| g.branch_pr.as_deref())
+        .is_some_and(crate::git::BranchPr::changes_requested)
+}
+
+/// A repository the "n" (needs attention) filter should surface. Every one of
+/// these is something a person has to *do* something about, and every one has
+/// a matching reason line in the selected-repository panel — a flag the panel
+/// cannot explain would be worse than no flag:
+///
+/// * a merge/rebase/cherry-pick/revert left mid-operation,
+/// * an unresolved conflict,
+/// * a failing CI run on the branch this repository is on,
+/// * a pull request waiting on this user's review — someone else is blocked,
+/// * changes requested on this branch's own pull request — the review came
+///   back and the ball is with the author.
+///
+/// Deliberately excluded: plain uncommitted changes, and being behind
+/// upstream — nearly every repository is behind something, so counting it
+/// would leave the filter selecting almost everything. The Home summary
+/// counts sync deltas separately. A *draft* pull request is excluded too
+/// (being a draft is a choice, not a problem), and so is an approved one:
+/// merging is a write operation this dashboard does not do.
+pub fn needs_attention(row: &HomeRow) -> bool {
+    row.op_state != GitOpState::None
+        || row.conflicts > 0
+        || ci_failed_on_branch(row)
+        || review_requests(row) > 0
+        || branch_pr_changes_requested(row)
 }
 
 pub fn filter_repo_indices(
