@@ -161,11 +161,13 @@ fn panic_report(job: &Job) -> Option<Msg> {
     match job {
         Job::LoadHome {
             generation,
+            seq,
             index,
             lang,
             ..
         } => Some(Msg::HomeLoaded {
             generation: *generation,
+            seq: *seq,
             index: *index,
             row: Err(panic_text(*lang)),
         }),
@@ -238,6 +240,7 @@ fn run_job(job: Job, msg_tx: &Sender<Msg>, home_gen: &AtomicU64) -> Option<Msg> 
         }
         Job::LoadHome {
             generation,
+            seq,
             index,
             path,
             // Only [`panic_report`] needs the language; the happy path reports
@@ -250,6 +253,7 @@ fn run_job(job: Job, msg_tx: &Sender<Msg>, home_gen: &AtomicU64) -> Option<Msg> 
             let row = load_home_row(&path);
             Msg::HomeLoaded {
                 generation,
+                seq,
                 index,
                 row,
             }
@@ -812,6 +816,7 @@ mod pool_tests {
     fn dummy_job(index: usize) -> Job {
         Job::LoadHome {
             generation: 0,
+            seq: 1,
             index,
             path: PathBuf::from("/nonexistent"),
             lang: Language::English,
@@ -859,13 +864,18 @@ mod pool_tests {
         let report = guard_panics(dummy_job(7), |_| panic!("unusual git output"));
         let Some(Msg::HomeLoaded {
             generation,
+            seq,
             index,
             row,
         }) = report
         else {
             panic!("a panicked LoadHome must come back as a failed HomeLoaded");
         };
-        assert_eq!((generation, index), (0, 7));
+        // The order number has to survive too: the UI drops a HomeLoaded
+        // older than the newest it has applied for that row, so a failure
+        // reported with the wrong seq would either be discarded or discard a
+        // good result.
+        assert_eq!((generation, seq, index), (0, 1, 7));
         assert!(row.is_err(), "a panicked analysis is not a loaded row");
         // And the caller is still standing — that is the other half of it.
         assert!(guard_panics(dummy_job(8), |_| None).is_none());

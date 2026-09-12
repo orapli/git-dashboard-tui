@@ -366,6 +366,12 @@ pub enum Job {
     },
     LoadHome {
         generation: u64,
+        /// Per-index issue order. `generation` alone cannot order two jobs
+        /// for the *same* row: `refresh_home_row` deliberately does not bump
+        /// it, so a row refreshed after its own pull shares a generation with
+        /// the full refresh already in flight for it, and on the pool those
+        /// two run concurrently.
+        seq: u64,
         index: usize,
         path: PathBuf,
         /// Carried so a worker that has to report a failure on its own — a
@@ -507,6 +513,7 @@ pub enum Msg {
     },
     HomeLoaded {
         generation: u64,
+        seq: u64,
         index: usize,
         row: Result<HomeRow, String>,
     },

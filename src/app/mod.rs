@@ -141,6 +141,12 @@ pub struct App {
     confirm: Option<Confirm>,
     help_return: Option<Screen>,
     home_gen: Arc<AtomicU64>,
+    /// Next issue order to hand a `LoadHome` for this row, and the newest one
+    /// already applied. `home_gen` orders *refreshes*; these order the jobs
+    /// for a single row within one refresh, which the pool can now run
+    /// concurrently.
+    home_seq: HashMap<usize, u64>,
+    home_applied: HashMap<usize, u64>,
     pending_add_path: Option<PathBuf>,
     rename_idx: Option<usize>,
     editing_repo_group_idx: Option<usize>,
@@ -239,6 +245,8 @@ impl App {
             tab_bounds: std::cell::RefCell::new(Vec::new()),
             help_scroll: std::cell::Cell::new(0),
             home_rows: HashMap::new(),
+            home_seq: HashMap::new(),
+            home_applied: HashMap::new(),
             repo_tab: RepoTab::Commits,
             repo_index: None,
             repo_data: None,
@@ -2079,13 +2087,15 @@ impl App {
     /// Re-analyse one repository's home row without bumping the generation,
     /// so the refreshes already in flight for the other rows stay valid.
     fn refresh_home_row(&mut self, index: usize) {
-        let Some(repo) = self.repos.get(index) else {
+        let Some(path) = self.repos.get(index).map(|r| r.path.clone()) else {
             return;
         };
+        let seq = self.next_home_seq(index);
         let job = Job::LoadHome {
             generation: self.home_generation(),
+            seq,
             index,
-            path: repo.path.clone(),
+            path,
             lang: self.lang(),
         };
         self.send_job(job);
@@ -2107,6 +2117,17 @@ impl App {
     /// so they have to survive. That index is also why `busy` is not
     /// re-indexed when a repository is removed: the key has to keep matching
     /// the one the in-flight job will report, not the row's new position.
+    /// Issue the next order number for this row's analysis.
+    ///
+    /// Monotonic across generations on purpose: resetting per refresh would
+    /// let a job issued before the reset compare as newer than one issued
+    /// after it.
+    fn next_home_seq(&mut self, index: usize) -> u64 {
+        let next = self.home_seq.entry(index).or_insert(0);
+        *next += 1;
+        *next
+    }
+
     fn begin_home_generation(&mut self) -> u64 {
         self.busy
             .retain(|_, activity| *activity != Activity::Refresh);
@@ -2118,14 +2139,19 @@ impl App {
         self.last_auto_refresh = std::time::Instant::now();
         let generation = self.begin_home_generation();
         let lang = self.lang();
-        let jobs: Vec<Job> = self
+        let paths: Vec<(usize, PathBuf)> = self
             .repos
             .iter()
             .enumerate()
-            .map(|(index, repo)| Job::LoadHome {
+            .map(|(index, repo)| (index, repo.path.clone()))
+            .collect();
+        let jobs: Vec<Job> = paths
+            .into_iter()
+            .map(|(index, path)| Job::LoadHome {
                 generation,
+                seq: self.next_home_seq(index),
                 index,
-                path: repo.path.clone(),
+                path,
                 lang,
             })
             .collect();
@@ -2780,8 +2806,10 @@ impl App {
             return;
         }
         let index = self.repos.len() - 1;
+        let seq = self.next_home_seq(index);
         self.send_job(Job::LoadHome {
             generation: self.home_generation(),
+            seq,
             index,
             path,
             lang: self.lang(),
@@ -3027,10 +3055,13 @@ impl App {
                 return;
             }
             for index in previous_len..self.repos.len() {
+                let path = self.repos[index].path.clone();
+                let seq = self.next_home_seq(index);
                 self.send_job(Job::LoadHome {
                     generation: self.home_generation(),
+                    seq,
                     index,
-                    path: self.repos[index].path.clone(),
+                    path,
                     lang: self.lang(),
                 });
             }
@@ -3544,6 +3575,12 @@ impl App {
             })
             .collect();
         self.home_rows = shifted;
+        // Unlike `busy`, these two *must* be re-indexed: they are keyed by
+        // row position rather than by an in-flight job's captured index, so
+        // a counter left at the old key would suppress the first real result
+        // for whichever repository shifts into it.
+        reindex_after_removal(&mut self.home_seq, i);
+        reindex_after_removal(&mut self.home_applied, i);
         // repo_index addresses self.repos by position, so leaving it alone
         // would silently repoint the open repository at a different one — and
         // an in-flight RepoLoaded for the old index would then be written into
@@ -3725,12 +3762,27 @@ impl App {
             Msg::WorkspaceDone { seq, errors } => self.finish_workspace(seq, errors),
             Msg::HomeLoaded {
                 generation,
+                seq,
                 index,
                 row,
             } => {
                 if generation != self.home_generation() {
                     return;
                 }
+                // Two analyses of the same row can be in flight at once —
+                // `refresh_home_row` (queued when that repository's pull
+                // finishes) does not bump the generation, so it shares one
+                // with the refresh already running for that row, and the
+                // pool runs them on different threads. Without this, whichever
+                // finished last won, and a pre-pull row could land on top of
+                // the post-pull one and sit there until the next refresh.
+                // `busy` is cleared before this point, so dropping a stale
+                // message cannot strand the row's activity marker.
+                let newest = self.home_applied.entry(index).or_insert(0);
+                if seq < *newest {
+                    return;
+                }
+                *newest = seq;
                 match row {
                     Ok(r) => {
                         if let Some(repo) = self.repos.get(index) {
@@ -3997,6 +4049,20 @@ impl App {
             },
         }
     }
+}
+
+/// Drop the entry for a removed row and shift every higher key down one, for
+/// the maps keyed by position in `self.repos`.
+fn reindex_after_removal(map: &mut HashMap<usize, u64>, removed: usize) {
+    let shifted = map
+        .drain()
+        .filter_map(|(k, v)| match k.cmp(&removed) {
+            std::cmp::Ordering::Equal => None,
+            std::cmp::Ordering::Greater => Some((k - 1, v)),
+            std::cmp::Ordering::Less => Some((k, v)),
+        })
+        .collect();
+    *map = shifted;
 }
 
 #[cfg(test)]

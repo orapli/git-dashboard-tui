@@ -483,6 +483,7 @@ fn jobs_route_to_the_worker_lane_that_owns_them() {
     // pool, where they run several at a time.
     let home = Job::LoadHome {
         generation: 0,
+        seq: 1,
         index: 0,
         path: path.clone(),
         lang: crate::config::Language::English,
@@ -1370,6 +1371,7 @@ fn home_selected_is_reclamped_when_a_background_load_shrinks_the_filtered_list()
     let generation = app.home_generation();
     app.apply_msg(Msg::HomeLoaded {
         generation,
+        seq: 1,
         index: 2,
         row: Ok(home_row(Some("success"), crate::git::GitOpState::None, 0)),
     });
@@ -2245,6 +2247,7 @@ mod activity_lifecycle {
         // ...and the reload finishing is what finally clears it.
         app.apply_msg_for_test(Msg::HomeLoaded {
             generation: u64::MAX,
+            seq: 1,
             index: 1,
             row: Ok(HomeRow::default()),
         });
@@ -2276,6 +2279,7 @@ mod activity_lifecycle {
         app.apply_msg_for_test(Msg::HomeLoaded {
             // Deliberately stale: `apply_msg` drops the row itself.
             generation: u64::MAX,
+            seq: 1,
             index: 0,
             row: Ok(HomeRow::default()),
         });
@@ -2288,6 +2292,7 @@ mod activity_lifecycle {
         app.busy.insert(0, Activity::Refresh);
         app.apply_msg_for_test(Msg::HomeLoaded {
             generation: u64::MAX,
+            seq: 1,
             index: 0,
             row: Err("not a git repository".to_string()),
         });
@@ -2384,6 +2389,58 @@ mod activity_lifecycle {
         });
         assert_eq!(app.activity(2), None);
         assert_eq!(app.busy_count(), 2);
+    }
+
+    /// Two analyses of the same row can be in flight at once: `refresh_home_row`
+    /// — queued when that repository's pull finishes — deliberately does not bump
+    /// the generation, so it shares one with the refresh already running for that
+    /// row, and the pool runs the two on different threads. Before the per-index
+    /// order number, whichever finished last won, so a pre-pull row could land on
+    /// top of the post-pull one and stay there until the next full refresh.
+    #[test]
+    fn a_stale_home_row_never_overwrites_a_fresher_one() {
+        let fresher = |branch: &str| HomeRow {
+            branch: branch.into(),
+            ..Default::default()
+        };
+
+        // Out of order: the newer analysis lands first, the older one after.
+        let mut app = app_with_repos(1);
+        let generation = app.home_generation();
+        app.busy.insert(0, Activity::Refresh);
+        app.apply_msg_for_test(Msg::HomeLoaded {
+            generation,
+            seq: 2,
+            index: 0,
+            row: Ok(fresher("after-pull")),
+        });
+        app.apply_msg_for_test(Msg::HomeLoaded {
+            generation,
+            seq: 1,
+            index: 0,
+            row: Ok(fresher("before-pull")),
+        });
+        assert_eq!(app.home_rows.get(&0).unwrap().branch, "after-pull");
+        // Dropping the stale message must not strand its activity marker — that
+        // is the leak the generation-scoped retire exists to prevent.
+        assert_eq!(app.busy_count(), 0);
+
+        // In order: the same end state, by the ordinary path.
+        let mut app = app_with_repos(1);
+        let generation = app.home_generation();
+        app.apply_msg_for_test(Msg::HomeLoaded {
+            generation,
+            seq: 1,
+            index: 0,
+            row: Ok(fresher("before-pull")),
+        });
+        app.apply_msg_for_test(Msg::HomeLoaded {
+            generation,
+            seq: 2,
+            index: 0,
+            row: Ok(fresher("after-pull")),
+        });
+        assert_eq!(app.home_rows.get(&0).unwrap().branch, "after-pull");
     }
 }
 
@@ -2599,6 +2656,7 @@ fn home_loaded_error_becomes_a_failed_row_with_an_attributed_message() {
     app.home_rows.clear();
     app.apply_msg_for_test(Msg::HomeLoaded {
         generation: app.home_generation(),
+        seq: 1,
         index: 0,
         row: Err("No such file or directory (os error 2)".into()),
     });
@@ -2617,6 +2675,7 @@ fn home_loaded_error_becomes_a_failed_row_with_an_attributed_message() {
     // A later success replaces the failure rather than sitting next to it.
     app.apply_msg_for_test(Msg::HomeLoaded {
         generation: app.home_generation(),
+        seq: 1,
         index: 0,
         row: Ok(HomeRow {
             branch: "main".into(),
