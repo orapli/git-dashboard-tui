@@ -2687,18 +2687,27 @@ fn home_loaded_error_becomes_a_failed_row_with_an_attributed_message() {
 
 #[test]
 fn shortened_paths_keep_the_leaf_and_drop_the_shared_middle() {
-    let home = PathBuf::from("/Users/dev");
-    let path = PathBuf::from("/Users/dev/work/clients/acme/git-dashboard-tui");
+    // Built from components rather than from a literal, so the path is the
+    // platform's own shape: a Unix-style literal on Windows produced the
+    // mixed `~\\work/clients/...` that no real path has, and the test then
+    // failed on the separator instead of on the behaviour.
+    let sep = std::path::MAIN_SEPARATOR;
+    let mut home = PathBuf::from(if cfg!(windows) { "C:\\Users" } else { "/Users" });
+    home.push("dev");
+    let mut path = home.clone();
+    for part in ["work", "clients", "acme", "git-dashboard-tui"] {
+        path.push(part);
+    }
 
     // Wide enough: just the home-relative form.
     assert_eq!(
         shorten_path_with_home(&path, Some(&home), 60),
-        "~/work/clients/acme/git-dashboard-tui"
+        format!("~{sep}work{sep}clients{sep}acme{sep}git-dashboard-tui")
     );
     // Too narrow: the middle goes, the distinguishing leaf stays.
     let narrow = shorten_path_with_home(&path, Some(&home), 26);
     assert!(narrow.ends_with("git-dashboard-tui"), "{narrow}");
-    assert!(narrow.starts_with("~/…/"), "{narrow}");
+    assert!(narrow.starts_with(&format!("~{sep}…{sep}")), "{narrow}");
     assert!(narrow.chars().count() <= 26, "{narrow}");
     // Narrower than the leaf itself: keep its end, where names differ.
     let tiny = shorten_path_with_home(&path, Some(&home), 8);

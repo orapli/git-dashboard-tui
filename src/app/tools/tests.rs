@@ -186,7 +186,18 @@ fn a_custom_command_launches_with_the_context_substituted() {
 
     let tool = app.take_work_tool().expect("custom command queued");
     assert!(tool.wait);
-    assert!(tool.command.program.ends_with("sh"));
+    // `resolve_program` returns the resolved executable, which on Windows is
+    // `…\\sh.EXE` — the extension and its case are the platform's business,
+    // so the assertion is on the file stem.
+    let program = std::path::Path::new(&tool.command.program);
+    assert_eq!(
+        program
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_lowercase()),
+        Some("sh".to_string()),
+        "{:?}",
+        tool.command.program
+    );
     assert_eq!(
         tool.command.args,
         vec!["-c", "git show abc1234def", "feature/x"]
