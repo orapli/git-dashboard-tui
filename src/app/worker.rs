@@ -55,12 +55,13 @@ pub fn spawn_worker(job_rx: Receiver<Job>, msg_tx: Sender<Msg>, home_gen: Arc<At
                     generation,
                     index,
                     path,
-                    members,
+                    // A Home row needs no member list; see `load_home_row`.
+                    members: _,
                 } => {
                     if generation < home_gen.load(Ordering::Relaxed) {
                         continue;
                     }
-                    let row = load_home_row(&path, &members);
+                    let row = load_home_row(&path);
                     Msg::HomeLoaded {
                         generation,
                         index,
@@ -313,8 +314,15 @@ fn op_done(result: Result<String, String>, repo_index: Option<usize>) -> Msg {
     }
 }
 
-pub fn load_home_row(path: &std::path::Path, members: &[Member]) -> Result<HomeRow, String> {
-    let summary = git::get_summary(path, members)?;
+/// Build one Home-list row.
+///
+/// Uses [`git::get_home_summary`], not `git::get_summary`: a Home row shows
+/// none of the whole-history/whole-tree statistics the full summary collects
+/// (commit count, contributors, branch count, tree size), and Home recomputes
+/// every repository on every refresh. The member list is therefore not needed
+/// here — it only ever fed contributor counting.
+pub fn load_home_row(path: &std::path::Path) -> Result<HomeRow, String> {
+    let summary = git::get_home_summary(path)?;
     let last_commit = git::get_recent_commits(path)
         .ok()
         .and_then(|c| c.into_iter().next())

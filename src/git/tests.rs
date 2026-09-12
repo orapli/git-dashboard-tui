@@ -1202,3 +1202,86 @@ fn test_parse_gh_runs() {
     assert_eq!(status, None);
     assert_eq!(url, None);
 }
+
+/// Helper for the home-summary tests: run git in `dir`, ignoring the exit
+/// code (a conflicting `merge` exits non-zero by design).
+fn git_in(dir: &Path, args: &[&str]) {
+    Command::new("git")
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .unwrap();
+}
+
+#[test]
+fn test_get_home_summary_agrees_with_get_summary() {
+    let temp_dir = std::env::temp_dir().join("git_test_home_summary_agrees");
+    let _ = fs::remove_dir_all(&temp_dir);
+    fs::create_dir_all(&temp_dir).unwrap();
+
+    git_in(&temp_dir, &["init"]);
+    git_in(&temp_dir, &["config", "user.name", "Home Tester"]);
+    git_in(&temp_dir, &["config", "user.email", "home@example.com"]);
+    git_in(&temp_dir, &["config", "commit.gpgsign", "false"]);
+
+    fs::write(temp_dir.join("f.txt"), "base\n").unwrap();
+    git_in(&temp_dir, &["add", "."]);
+    git_in(&temp_dir, &["commit", "-m", "base"]);
+
+    let base_branch = run_git_cmd(&temp_dir, &["branch", "--show-current"])
+        .unwrap()
+        .trim()
+        .to_string();
+    assert!(!base_branch.is_empty());
+
+    // 1. Clean-ish repository with an untracked file and *no upstream*.
+    fs::write(temp_dir.join("untracked.txt"), "scratch\n").unwrap();
+    let home = get_home_summary(&temp_dir).unwrap();
+    let full = get_summary(&temp_dir, &[]).unwrap();
+    assert!(!full.has_upstream, "fresh repo must have no upstream");
+    assert_eq!(home.current_branch, full.current_branch);
+    assert_eq!(home.current_branch, base_branch);
+    assert_eq!(home.uncommitted_changes, full.uncommitted_changes);
+    assert_eq!(home.uncommitted_changes, 1, "the untracked file counts");
+    assert_eq!(home.conflicts, full.conflicts);
+    assert_eq!(home.conflicts, 0);
+    assert_eq!(home.op_state, full.op_state);
+    assert_eq!(home.op_state, GitOpState::None);
+    assert_eq!((home.ahead, home.behind), (full.ahead, full.behind));
+    assert_eq!((home.ahead, home.behind), (0, 0));
+
+    // 2. A real, unresolved merge conflict on top of that.
+    git_in(&temp_dir, &["checkout", "-b", "feature"]);
+    fs::write(temp_dir.join("f.txt"), "feature side\n").unwrap();
+    git_in(&temp_dir, &["commit", "-am", "feature"]);
+    git_in(&temp_dir, &["checkout", &base_branch]);
+    fs::write(temp_dir.join("f.txt"), "mainline side\n").unwrap();
+    git_in(&temp_dir, &["commit", "-am", "mainline"]);
+    git_in(&temp_dir, &["merge", "feature"]);
+
+    let home = get_home_summary(&temp_dir).unwrap();
+    let full = get_summary(&temp_dir, &[]).unwrap();
+    assert_eq!(home.current_branch, full.current_branch);
+    assert_eq!(home.current_branch, base_branch);
+    assert_eq!(home.uncommitted_changes, full.uncommitted_changes);
+    assert_eq!(home.conflicts, full.conflicts);
+    assert_eq!(home.conflicts, 1, "f.txt is unmerged");
+    assert_eq!(home.op_state, full.op_state);
+    assert_eq!(home.op_state, GitOpState::Merge);
+    assert_eq!((home.ahead, home.behind), (full.ahead, full.behind));
+    assert!(!full.has_upstream);
+
+    let _ = fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_get_home_summary_missing_path_errors_like_get_summary() {
+    let missing = std::env::temp_dir().join("git_test_home_summary_missing");
+    let _ = fs::remove_dir_all(&missing);
+    assert!(!missing.exists());
+
+    // A moved or deleted repository must surface as an error row, exactly as
+    // it does through the full summary.
+    assert!(get_home_summary(&missing).is_err());
+    assert!(get_summary(&missing, &[]).is_err());
+}

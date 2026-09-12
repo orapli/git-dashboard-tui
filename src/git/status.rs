@@ -330,6 +330,99 @@ pub fn get_summary(repo_path: &Path, members: &[Member]) -> Result<Summary, Stri
     })
 }
 
+/// The repository state a Home-list row actually renders.
+///
+/// Home refreshes *every* configured repository on each reload, which makes it
+/// the hottest git path in the app, yet a row only shows the branch, the
+/// ahead/behind counts, the dirty/conflict counts, the in-progress operation
+/// badge and the GitHub CI/PR badge. [`Summary`] additionally walks the whole
+/// history (`rev-list --count HEAD` plus a 50k-commit contributor log), the
+/// whole tree (`ls-tree -r --long HEAD`) and every ref (`branch -a`) for the
+/// repository-detail screen. Measured on a synthetic 20k-commit / 3k-file
+/// repository (git 2.53), the full set costs ~105 ms against ~10 ms for the
+/// commands below — per repository, per refresh.
+///
+/// This is a purpose-built struct rather than a partially filled [`Summary`]
+/// on purpose: a `Summary` whose `total_commits` is `0` merely because nobody
+/// asked for it is indistinguishable from an empty repository, and the next
+/// reader would have no way to tell the difference.
+#[derive(Debug, Clone, Default)]
+pub struct HomeSummary {
+    pub current_branch: String,
+    pub ahead: usize,
+    pub behind: usize,
+    pub uncommitted_changes: usize,
+    pub conflicts: usize,
+    pub op_state: GitOpState,
+    pub remote_ci_pr: Option<RemoteCiPrInfo>,
+}
+
+/// Collect exactly the state a Home row displays — see [`HomeSummary`] for why
+/// this exists next to [`get_summary`] instead of reusing it.
+///
+/// Like `get_summary` this issues a *single* [`run_git_batch`]: over SSH that
+/// is one connection handshake for all eight commands, so splitting it into
+/// separate `run_git_cmd` calls would cost far more than the statistics this
+/// skips ever saved.
+pub fn get_home_summary(repo_path: &Path) -> Result<HomeSummary, String> {
+    // Same early error as `get_summary`: a repository that was moved or
+    // deleted must surface as an error row rather than a silently empty one.
+    // SSH locators (ssh://…) have no local path to canonicalize, so they are
+    // exempt here exactly as they are there.
+    if parse_ssh_repo(repo_path).is_none() {
+        repo_path.canonicalize().map_err(|e| e.to_string())?;
+    }
+
+    // The last four are existence checks for the pseudo-refs git creates for
+    // an in-progress merge/rebase/cherry-pick/revert; a non-zero exit just
+    // means "not in that state", not a failure.
+    let cmds: [&[&str]; 8] = [
+        &["branch", "--show-current"],
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+        &["rev-parse", "--abbrev-ref", "@{u}"],
+        &["rev-list", "--left-right", "--count", "HEAD...@{u}"],
+        &["rev-parse", "-q", "--verify", "MERGE_HEAD"],
+        &["rev-parse", "-q", "--verify", "REBASE_HEAD"],
+        &["rev-parse", "-q", "--verify", "CHERRY_PICK_HEAD"],
+        &["rev-parse", "-q", "--verify", "REVERT_HEAD"],
+    ];
+    let r = run_git_batch(repo_path, &cmds);
+    // "" on a failed command, mirroring `get_summary`
+    let out = |i: usize| -> &str {
+        r.get(i)
+            .and_then(|x| x.as_ref().ok())
+            .map(String::as_str)
+            .unwrap_or("")
+    };
+
+    let status_porcelain = out(1);
+    let sync_status = parse_sync_status(!out(2).trim().is_empty(), out(3));
+    let op_state = if r.get(4).is_some_and(|x| x.is_ok()) {
+        GitOpState::Merge
+    } else if rebase_in_progress(repo_path, r.get(5).is_some_and(|x| x.is_ok())) {
+        GitOpState::Rebase
+    } else if r.get(6).is_some_and(|x| x.is_ok()) {
+        GitOpState::CherryPick
+    } else if r.get(7).is_some_and(|x| x.is_ok()) {
+        GitOpState::Revert
+    } else {
+        GitOpState::None
+    };
+
+    Ok(HomeSummary {
+        current_branch: out(0).trim().to_string(),
+        ahead: sync_status.ahead,
+        behind: sync_status.behind,
+        uncommitted_changes: status_porcelain
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .count(),
+        conflicts: count_conflicts(status_porcelain),
+        op_state,
+        remote_ci_pr: get_github_status(repo_path),
+    })
+}
+
 /// Whether a rebase is genuinely in progress.
 ///
 /// `REBASE_HEAD` (the batched `rev-parse -q --verify` result passed in as
