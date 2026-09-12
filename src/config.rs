@@ -162,6 +162,21 @@ pub struct RecentCompare {
     pub target: String,
 }
 
+/// One user-defined entry in the `O` ("open in tool") menu.
+///
+/// `command` is a template in the same form as `editor_command`: split with
+/// shell quoting rules, then `{path}` `{file}` `{line}` `{branch}` `{hash}`
+/// are substituted from whatever the user is looking at (see
+/// [`crate::handoff`]). `wait` mirrors `editor_wait` — a terminal program
+/// needs the TUI suspended while it runs, a GUI one does not.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct CustomCommand {
+    pub label: String,
+    pub command: String,
+    pub wait: bool,
+}
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Language {
     #[default]
@@ -216,6 +231,12 @@ pub struct Preferences {
     /// upgrade would silently turn an idle screen into a background worker.
     #[serde(default = "default_auto_refresh_secs")]
     pub auto_refresh_secs: u64,
+    /// Extra entries for the `O` menu, beyond the built-in shell/editor/
+    /// lazygit/GitUI. Absent from a prefs.json written by an older build (and
+    /// from the sibling GUI app's, which knows nothing about it), so
+    /// `#[serde(default)]` leaves those loading as an empty list.
+    #[serde(default)]
+    pub custom_commands: Vec<CustomCommand>,
 }
 
 fn default_repo_sort() -> usize {
@@ -244,6 +265,7 @@ impl Default for Preferences {
             diff_command: String::new(),
             repo_sort: 2,
             auto_refresh_secs: default_auto_refresh_secs(),
+            custom_commands: Vec::new(),
         }
     }
 }
@@ -303,6 +325,48 @@ mod tests {
             Some(Vec::new())
         );
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn custom_commands_round_trip_and_are_optional() {
+        let prefs = Preferences {
+            custom_commands: vec![
+                CustomCommand {
+                    label: "jj log".into(),
+                    command: "jj log -r ::{branch}".into(),
+                    wait: true,
+                },
+                CustomCommand {
+                    label: "Review".into(),
+                    command: "review-script {file} {line}".into(),
+                    wait: false,
+                },
+            ],
+            ..Preferences::default()
+        };
+        let json = serde_json::to_string_pretty(&prefs).unwrap();
+        let decoded: Preferences = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.custom_commands, prefs.custom_commands);
+
+        // A prefs.json written before the field existed — or by the sibling
+        // GUI app, which has never heard of it — must still load.
+        let old = r#"{"theme":"Catppuccin Mocha","editor_command":"vim","editor_wait":true}"#;
+        let decoded: Preferences = serde_json::from_str(old).unwrap();
+        assert!(decoded.custom_commands.is_empty());
+        assert_eq!(decoded.editor_command, "vim");
+
+        // And a partially-written entry loads with the missing halves empty
+        // rather than failing the whole file.
+        let partial = r#"{"custom_commands":[{"label":"x"}]}"#;
+        let decoded: Preferences = serde_json::from_str(partial).unwrap();
+        assert_eq!(
+            decoded.custom_commands,
+            vec![CustomCommand {
+                label: "x".into(),
+                command: String::new(),
+                wait: false,
+            }]
+        );
     }
 
     #[test]

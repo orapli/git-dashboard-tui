@@ -2,9 +2,11 @@ rust_i18n::i18n!("locales", fallback = "en");
 
 pub mod app;
 pub mod cli;
+pub mod clipboard;
 pub mod colors;
 pub mod config;
 pub mod git;
+pub mod handoff;
 pub mod i18n;
 pub mod syntax;
 pub mod ui;

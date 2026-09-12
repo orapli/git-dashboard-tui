@@ -155,6 +155,10 @@ pub struct App {
     pending_external: Option<ExternalDiff>,
     pending_terminal: Option<PathBuf>,
     pub tool_menu: Option<PathBuf>,
+    /// Open custom-command editor (`x` from Settings or from the `O` menu).
+    /// Its own state rather than an `InputKind`, because it is a list and a
+    /// two-field form, which the single-line prompt cannot be.
+    pub tool_editor: Option<crate::handoff::ToolEditor>,
     pub workspace: Workspace,
     pub workspace_generation: Arc<AtomicU64>,
     pub workspace_viewport: std::cell::Cell<ListViewport>,
@@ -299,6 +303,7 @@ impl App {
             pending_external: None,
             pending_terminal: None,
             tool_menu: None,
+            tool_editor: None,
             workspace: Workspace::default(),
             workspace_generation: Arc::new(AtomicU64::new(0)),
             workspace_viewport: std::cell::Cell::new(ListViewport::default()),
@@ -1023,11 +1028,27 @@ impl App {
             self.handle_input(key);
             return;
         }
+        if self.tool_editor.is_some() {
+            self.handle_tool_editor(key);
+            return;
+        }
         if self.tool_menu.is_some() {
             self.handle_tool_menu(key);
             return;
         }
         if self.handle_navigation_popup(key) {
+            return;
+        }
+        // Copying the identifier under the cursor is a hand-off, not a
+        // per-screen action, so it lives next to `O` rather than being
+        // repeated in four handlers.
+        if key.code == KeyCode::Char('y')
+            && matches!(
+                self.screen,
+                Screen::Home | Screen::Repo | Screen::Diff | Screen::Workspace
+            )
+        {
+            self.yank_current();
             return;
         }
         if key.code == KeyCode::Char('O')
@@ -1748,6 +1769,7 @@ impl App {
                 self.input = Some(InputKind::DiffCommand);
                 self.input_buf.clone_from(&self.prefs.diff_command);
             }
+            KeyCode::Char('x') => self.open_tool_editor(),
             KeyCode::Char('l') => self.toggle_language(),
             KeyCode::Char('i') => self.cycle_auto_refresh(),
             KeyCode::Char('T') => self.toggle_theme(),
@@ -2184,7 +2206,6 @@ impl App {
         self.repo_index = Some(idx);
         self.repo_data = None;
         self.repo_loading = true;
-        self.repo_tab = RepoTab::Commits;
         self.list_selected = 0;
         self.list_filter.clear();
         self.tag_base = None;
@@ -2193,12 +2214,41 @@ impl App {
         self.commit_target = None;
         self.commit_preview = None;
         self.screen = Screen::Repo;
-        if let Some(cached) = load_tui_cache(&repo.path) {
+        let cached = load_tui_cache(&repo.path);
+        // Land where the reason for opening this repository is visible.
+        // Decided once, here, from what is already known — a repository was
+        // opened *because* of the conflict or the seven modified files shown
+        // in its Home row, and neither is visible on Commits. The later
+        // `RepoLoaded` must not revisit this: moving the tab under a user who
+        // has since pressed `2` is worse than starting on the wrong one.
+        self.repo_tab = Self::landing_tab(self.home_rows.get(&idx), cached.as_ref());
+        if let Some(cached) = cached {
             self.repo_data = Some(cached);
             self.repo_loading = true;
         }
         self.status = self.t("analyzing_repo_data");
         true
+    }
+
+    /// Status when the working tree has something to look at (uncommitted
+    /// changes, unresolved conflicts, or a merge/rebase left mid-flight),
+    /// Commits otherwise — including when nothing is known about the
+    /// repository yet, since a guess that flips later is worse than a
+    /// predictable default.
+    fn landing_tab(row: Option<&HomeRow>, cached: Option<&RepoSnapshot>) -> RepoTab {
+        let row_needs_status = row
+            .is_some_and(|r| r.dirty > 0 || r.conflicts > 0 || r.op_state != git::GitOpState::None);
+        let cache_needs_status = cached.is_some_and(|c| {
+            c.summary.uncommitted_changes > 0
+                || c.summary.conflicts > 0
+                || c.summary.op_state != git::GitOpState::None
+                || !c.working_files.is_empty()
+        });
+        if row_needs_status || cache_needs_status {
+            RepoTab::Status
+        } else {
+            RepoTab::Commits
+        }
     }
 
     fn open_repo(&mut self, idx: usize) {

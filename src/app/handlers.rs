@@ -23,6 +23,7 @@ impl App {
         if self.confirm.is_some()
             || self.input.is_some()
             || self.tool_menu.is_some()
+            || self.tool_editor.is_some()
             || self.nav_popup
         {
             return;
@@ -164,7 +165,13 @@ impl App {
     }
 
     pub fn handle_mouse_click(&mut self, col: u16, row: u16) {
-        if self.confirm.is_some() || self.input.is_some() || self.tool_menu.is_some() {
+        // A popup covers the screen it was opened over: a click that "lands"
+        // on a row underneath it is one the user cannot see.
+        if self.confirm.is_some()
+            || self.input.is_some()
+            || self.tool_menu.is_some()
+            || self.tool_editor.is_some()
+        {
             return;
         }
 

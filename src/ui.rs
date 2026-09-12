@@ -57,17 +57,26 @@ pub fn draw(frame: &mut Frame, app: &App) {
     draw_footer(frame, app, chunks[2], pal);
 
     if app.tool_menu.is_some() {
-        let rect = centered_rect(area, 30, 90, 12);
+        // Height follows the content: the menu grows with the user's custom
+        // commands, and a fixed box silently cut the last entries off.
+        let lines = app.tool_menu_lines();
+        let rect = centered_rect(area, 30, 90, lines.len() as u16 + 2);
         frame.render_widget(Clear, rect);
         frame.render_widget(
-            Paragraph::new(
-                app.tool_menu_lines()
-                    .into_iter()
-                    .map(Line::from)
-                    .collect::<Vec<_>>(),
-            )
-            .block(Block::bordered().title(app.tt("Open in tool", "ツールで開く")))
-            .style(Style::default().bg(pal.surface).fg(pal.text)),
+            Paragraph::new(lines.into_iter().map(Line::from).collect::<Vec<_>>())
+                .block(Block::bordered().title(app.tt("Open in tool", "ツールで開く")))
+                .style(Style::default().bg(pal.surface).fg(pal.text)),
+            rect,
+        );
+    }
+    if app.tool_editor.is_some() {
+        let lines = app.tool_editor_lines();
+        let rect = centered_rect(area, 40, 100, lines.len() as u16 + 2);
+        frame.render_widget(Clear, rect);
+        frame.render_widget(
+            Paragraph::new(lines.into_iter().map(Line::from).collect::<Vec<_>>())
+                .block(Block::bordered().title(app.tt("Custom commands", "追加コマンド")))
+                .style(Style::default().bg(pal.surface).fg(pal.text)),
             rect,
         );
     }
@@ -2054,6 +2063,17 @@ fn draw_settings(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             Span::styled("  (T)", Style::default().fg(pal.muted)),
         ]),
         Line::from(vec![
+            Span::styled(
+                app.tt("External commands  ", "追加コマンド  "),
+                Style::default().fg(pal.muted),
+            ),
+            Span::styled(
+                app.custom_commands().len().to_string(),
+                Style::default().fg(pal.accent),
+            ),
+            Span::styled("  (x)", Style::default().fg(pal.muted)),
+        ]),
+        Line::from(vec![
             Span::styled(config_label.clone(), Style::default().fg(pal.muted)),
             Span::raw("  "),
             Span::raw(truncate_middle(
@@ -2065,7 +2085,8 @@ fn draw_settings(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     let split = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(7),
+            // Six header lines plus the border.
+            Constraint::Length(8),
             Constraint::Length(3),
             Constraint::Min(1),
         ])
