@@ -177,6 +177,42 @@ pub const MAX_GIT_OUTPUT: usize = 64 * 1024 * 1024;
 /// the pipe and keeps its write end open (see `run_with_timeout`).
 const DRAIN_GRACE: std::time::Duration = std::time::Duration::from_secs(3);
 
+/// Floor on the `try_wait` poll interval, and so the floor under every git
+/// invocation: the first `try_wait` after spawn practically always finds the
+/// child still running, making this nap a fixed tax on even the fastest call.
+const POLL_MIN: std::time::Duration = std::time::Duration::from_micros(200);
+/// Ceiling while a command could still turn out to be a fast one. A flat
+/// 25 ms interval used to cost ~25 ms per call against ~0.5 ms of real git
+/// work, and at ~17 invocations per repository per refresh that sleeping
+/// dominated the dashboard's refresh time — so the loop stays tight here.
+const POLL_TIGHT_CAP: std::time::Duration = std::time::Duration::from_millis(2);
+/// How long a command is given to finish before it is treated as slow.
+const POLL_TIGHT_WINDOW: std::time::Duration = std::time::Duration::from_millis(100);
+/// Ceiling once a command has run past [`POLL_TIGHT_WINDOW`]. The tight cap is
+/// what the fast path needs, but on its own it also governed a two-minute
+/// `git pull`: 500 wakeups a second (`waitpid(WNOHANG)` + `nanosleep`) for the
+/// whole fetch — ~30,000 over a minute, against ~2,400 for the old flat
+/// interval — and with the Home pool and the bulk lane both busy that is
+/// around ten threads polling at once. Nothing that has already taken 100 ms
+/// cares about a 25 ms tail on noticing it finished, so the loop relaxes and
+/// the entire latency win on short commands is kept.
+const POLL_RELAXED_CAP: std::time::Duration = std::time::Duration::from_millis(25);
+
+/// The next `try_wait` poll interval, from the one just slept and how long the
+/// child has been running. Pure so the two-tier backoff can be pinned by tests
+/// directly, rather than by trying to count syscalls.
+fn next_poll_interval(
+    previous: std::time::Duration,
+    elapsed: std::time::Duration,
+) -> std::time::Duration {
+    let cap = if elapsed < POLL_TIGHT_WINDOW {
+        POLL_TIGHT_CAP
+    } else {
+        POLL_RELAXED_CAP
+    };
+    (previous * 2).min(cap)
+}
+
 /// Read up to `cap` bytes, then discard the rest so the writer never blocks on
 /// a full pipe.
 fn drain_capped(mut r: impl std::io::Read, cap: usize) -> Vec<u8> {
@@ -227,24 +263,17 @@ pub fn run_with_timeout(
         let _ = err_tx.send(buf);
     });
 
-    // The first `try_wait` after spawn practically always finds the child still
-    // running, so whatever the nap is, it becomes a *floor* under every single
-    // git invocation. A flat 25 ms one therefore cost ~25 ms per call against
-    // ~0.5 ms of real git work, and at ~17 invocations per repository per
-    // refresh that sleeping dominated the dashboard's refresh time. Starting
-    // short collects the fast commands — the overwhelming majority — almost
-    // immediately, and doubling up to a small cap keeps a genuinely
-    // long-running command from spinning the poll loop.
-    const POLL_MIN: std::time::Duration = std::time::Duration::from_micros(200);
-    const POLL_MAX: std::time::Duration = std::time::Duration::from_millis(2);
-
+    // Start short so the fast commands — the overwhelming majority — are
+    // collected almost immediately, and back off from there: see
+    // [`next_poll_interval`] for why the ceiling is two-tier.
     let start = std::time::Instant::now();
     let mut poll = POLL_MIN;
     let status = loop {
         match child.try_wait() {
             Ok(Some(status)) => break status,
             Ok(None) => {
-                if start.elapsed() > timeout {
+                let elapsed = start.elapsed();
+                if elapsed > timeout {
                     let _ = child.kill();
                     let _ = child.wait();
                     return Err(format!(
@@ -253,7 +282,7 @@ pub fn run_with_timeout(
                     ));
                 }
                 std::thread::sleep(poll);
-                poll = (poll * 2).min(POLL_MAX);
+                poll = next_poll_interval(poll, elapsed);
             }
             Err(e) => {
                 let _ = child.kill();
@@ -558,6 +587,60 @@ mod wait_tests {
         assert!(
             elapsed < std::time::Duration::from_millis(100),
             "{RUNS} trivial commands took {elapsed:?}; the wait loop is charging a fixed interval again"
+        );
+    }
+
+    /// The tight ceiling is what makes short commands cheap, but on its own it
+    /// governed a two-minute `git pull` too. Once a command has clearly missed
+    /// the fast path the loop has to relax: a 25 ms tail on noticing that
+    /// something already past 100 ms has finished is free, and it is the
+    /// difference between waking ~40 times a second and 500.
+    #[test]
+    fn the_poll_interval_relaxes_once_a_command_is_no_longer_short() {
+        // Inside the tight window the backoff doubles up to the tight cap and
+        // stops there — this is the behaviour the short-command test relies on.
+        let mut poll = POLL_MIN;
+        assert_eq!(
+            next_poll_interval(poll, std::time::Duration::ZERO),
+            POLL_MIN * 2
+        );
+        for _ in 0..64 {
+            poll = next_poll_interval(poll, std::time::Duration::from_millis(50));
+        }
+        assert_eq!(
+            poll, POLL_TIGHT_CAP,
+            "a command still inside the tight window must keep the tight interval"
+        );
+
+        // Past it, the same backoff must climb to the relaxed cap.
+        for _ in 0..64 {
+            poll = next_poll_interval(poll, std::time::Duration::from_secs(5));
+        }
+        assert_eq!(
+            poll, POLL_RELAXED_CAP,
+            "a long-running command is still being polled at the short-command rate"
+        );
+    }
+
+    /// Wakeup budget for a one-minute fetch, counted by walking the very
+    /// backoff the wait loop uses. A flat tight cap reaches ~30,000 here; the
+    /// old flat 25 ms interval reached ~2,400. Staying near the latter is the
+    /// point — a slow `git pull` must not cost a syscall pair every 2 ms for
+    /// its whole duration, on each of up to ten polling threads.
+    #[test]
+    fn a_one_minute_command_is_not_woken_thirty_thousand_times() {
+        let total = std::time::Duration::from_secs(60);
+        let mut elapsed = std::time::Duration::ZERO;
+        let mut poll = POLL_MIN;
+        let mut wakeups = 0u32;
+        while elapsed < total {
+            elapsed += poll;
+            poll = next_poll_interval(poll, elapsed);
+            wakeups += 1;
+        }
+        assert!(
+            wakeups < 3_000,
+            "a 60 s command would be woken {wakeups} times; the poll ceiling never relaxes"
         );
     }
 }

@@ -484,6 +484,7 @@ fn jobs_route_to_the_worker_lane_that_owns_them() {
         generation: 0,
         index: 0,
         path: path.clone(),
+        lang: crate::config::Language::English,
     };
     assert!(home.is_home_worker());
     assert!(!home.is_secondary_worker() && !home.is_finder_worker());
@@ -2094,6 +2095,64 @@ mod activity_lifecycle {
         assert_eq!(app.activity(0), Some(Activity::Fetch));
         assert_eq!(app.activity(1), None);
         assert_eq!(app.activity(2), Some(Activity::Fetch));
+        assert_eq!(app.busy_count(), 2);
+    }
+
+    /// Reproduction: three repositories, press `r`, then delete one before
+    /// the refresh lands. The deletion starts a new generation and queues
+    /// jobs for the two survivors only; the third repository's job is dropped
+    /// by the generation check on the worker and produces no `HomeLoaded`.
+    /// Nothing else removes a marker, so its key used to outlive the session
+    /// — `busy_count()` stuck at one, a title bar permanently claiming a job
+    /// is running, and a spinner that never stops.
+    ///
+    /// (The deletion is modelled without `delete_repo`'s config write; the
+    /// leak is in the generation bump, which is what this pins.)
+    #[test]
+    fn refresh_markers_from_a_superseded_generation_do_not_outlive_it() {
+        let mut app = app_with_repos(3);
+        app.refresh_home();
+        assert_eq!(app.busy_count(), 3);
+
+        app.repos.pop();
+        app.refresh_home();
+
+        assert_eq!(app.activity(0), Some(Activity::Refresh));
+        assert_eq!(app.activity(1), Some(Activity::Refresh));
+        assert_eq!(
+            app.activity(2),
+            None,
+            "the dropped job's marker outlived the generation that owned it"
+        );
+        assert_eq!(app.busy_count(), 2);
+    }
+
+    /// Retiring a generation must take the refresh markers and nothing else.
+    /// A pull reports back through `OpDone` however many refreshes have
+    /// happened meanwhile, carrying the index it was queued with — which is
+    /// also why `busy` is not re-indexed when a repository is removed: the
+    /// key has to keep matching what the in-flight job will report.
+    #[test]
+    fn a_new_generation_leaves_a_pull_that_is_still_running_alone() {
+        let mut app = app_with_repos(3);
+        app.busy.insert(2, Activity::Pull);
+
+        // The pulled repository is removed, so the refresh that follows
+        // covers indices 0 and 1 only.
+        app.repos.pop();
+        app.refresh_home();
+        assert_eq!(
+            app.activity(2),
+            Some(Activity::Pull),
+            "a running pull was retired along with the refresh generation"
+        );
+
+        app.apply_msg_for_test(Msg::OpDone {
+            ok: false,
+            text: "remote unreachable".to_string(),
+            repo_index: Some(2),
+        });
+        assert_eq!(app.activity(2), None);
         assert_eq!(app.busy_count(), 2);
     }
 }

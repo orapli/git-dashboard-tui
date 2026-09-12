@@ -359,6 +359,11 @@ pub enum Job {
         generation: u64,
         index: usize,
         path: PathBuf,
+        /// Carried so a worker that has to report a failure on its own — a
+        /// panicked job, which has no UI thread to ask — can word it in the
+        /// language the user is reading. `Job::Pull`/`Job::Fetch` carry it
+        /// for the same reason.
+        lang: Language,
     },
     LoadRepo {
         index: usize,

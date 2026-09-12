@@ -1,5 +1,5 @@
 use super::types::*;
-use crate::config::{self, Member};
+use crate::config::{self, Language, Member};
 use crate::git::{
     self, BranchInfo, CommitSummary, Contributor, StashEntry, Summary, TagInfo, TimeSpan,
     WorktreeInfo,
@@ -27,8 +27,12 @@ pub fn spawn_worker(job_rx: Receiver<Job>, msg_tx: Sender<Msg>, home_gen: Arc<At
     });
 }
 
-/// Lower bound on the Home pool, and what we fall back to when
-/// `available_parallelism` cannot report (a restricted container, say).
+/// Floor on the Home pool, applied to every machine — not just to the ones
+/// where `available_parallelism` cannot report (a restricted container, say).
+/// A genuine single-core box is raised to two threads as well, deliberately:
+/// these jobs spend their time waiting on `git` and `gh` processes rather
+/// than on a core, so serialising them there would cost the whole refresh for
+/// no CPU saved.
 const HOME_POOL_MIN: usize = 2;
 /// Upper bound on the Home pool. These jobs are process-spawn and I/O bound
 /// rather than CPU bound, so more threads than cores would still help in
@@ -67,6 +71,11 @@ pub fn spawn_home_pool(
 /// its own when `run` reports `Break` (its message receiver is gone) or the
 /// queue closes; the other threads keep going, matching the single worker's
 /// "break out of my own loop" semantics.
+///
+/// Nothing here respawns a dead thread, and nothing needs to: `run` is
+/// [`run_one`], which contains a panicking job rather than letting it unwind
+/// out (see there for why). A thread therefore only ever leaves for one of
+/// the two reasons above, both of which mean the pool is shutting down.
 fn spawn_pool<F>(job_rx: Receiver<Job>, threads: usize, run: F)
 where
     F: Fn(Job) -> ControlFlow<()> + Clone + Send + 'static,
@@ -79,9 +88,9 @@ where
             loop {
                 let job = {
                     // Recovering from poisoning is safe here: the lock is only
-                    // ever held across `recv()`, which leaves no half-updated
-                    // state behind, and one panicking thread must not take the
-                    // rest of the pool down with it.
+                    // ever held across `recv()` — never across the work — so
+                    // it cannot be poisoned by a job, and a poisoned guard
+                    // would leave no half-updated state behind anyway.
                     let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
                     match guard.recv() {
                         Ok(job) => job,
@@ -98,14 +107,86 @@ where
 
 /// Run one job and post its result, reporting whether this worker should keep
 /// going (`Continue`) or stop because the UI's receiver is gone (`Break`).
+///
+/// The job runs inside `catch_unwind`, because a panic in a parser — reached,
+/// say, by git output that one repository produces and no other — used to end
+/// the thread that hit it. On the Home pool that failed twice over: there is
+/// no join handle and no watcher, so a panic hit once per refresh walked the
+/// pool 8 → 7 → … → 1 with no user-visible signal at all, and only at zero
+/// threads did the queue's sender finally fail and report a stopped worker.
+///
+/// Catching is chosen over respawning a replacement thread because only the
+/// catching form can say *which* job died. The app marks a repository busy
+/// when it queues the job and clears that only when a message for that index
+/// arrives, so a job that simply vanishes leaves its row spinning forever; a
+/// respawn handler has no access to the job the old thread was holding, while
+/// here the job's identity is still in hand and can be turned into a failure
+/// message. Keeping the thread also avoids a panic-on-every-job loop turning
+/// into unbounded thread churn.
+///
+/// `AssertUnwindSafe` is a statement, not a shrug: what crosses the boundary
+/// is the `Sender` and the generation atomic, and neither can be left
+/// inconsistent by a half-finished job — every job builds a fresh value and
+/// mutates nothing that the next job reads.
 fn run_one(job: Job, msg_tx: &Sender<Msg>, home_gen: &AtomicU64) -> ControlFlow<()> {
-    let Some(msg) = run_job(job, msg_tx, home_gen) else {
+    let Some(msg) = guard_panics(job, |job| run_job(job, msg_tx, home_gen)) else {
         return ControlFlow::Continue(());
     };
     if msg_tx.send(msg).is_err() {
         ControlFlow::Break(())
     } else {
         ControlFlow::Continue(())
+    }
+}
+
+/// Run `job` through `work`, turning a panic into that job's failure message
+/// instead of letting it unwind out of the worker thread. See [`run_one`] for
+/// why the panic is caught rather than the thread replaced.
+fn guard_panics(job: Job, work: impl FnOnce(Job) -> Option<Msg>) -> Option<Msg> {
+    // Taken before the job is moved into the closure: after the unwind the
+    // job is gone, and the failure message needs its index and generation.
+    let on_panic = panic_report(&job);
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(job))).unwrap_or(on_panic)
+}
+
+/// The message to post on behalf of a job that panicked partway through.
+///
+/// Only the job kinds the app tracks in its `busy` map need one: those are
+/// marked running at queue time and unmarked when a message carrying their
+/// index arrives, so with nothing sent the repository would spin forever.
+/// The rest are tracked by per-screen loading flags that the screen's own
+/// interactions re-request, and giving each of them a synthetic result would
+/// mean a second, drifting definition of every job's result shape.
+fn panic_report(job: &Job) -> Option<Msg> {
+    match job {
+        Job::LoadHome {
+            generation,
+            index,
+            lang,
+            ..
+        } => Some(Msg::HomeLoaded {
+            generation: *generation,
+            index: *index,
+            row: Err(panic_text(*lang)),
+        }),
+        Job::Pull { index, lang, .. } | Job::Fetch { index, lang, .. } => Some(Msg::OpDone {
+            ok: false,
+            text: panic_text(*lang),
+            repo_index: Some(*index),
+        }),
+        _ => None,
+    }
+}
+
+/// Deliberately vague about the cause: the panic payload is a developer
+/// string, and the user's actionable information is only that this one
+/// repository did not get analysed and the others did.
+fn panic_text(lang: Language) -> String {
+    match lang {
+        Language::English => {
+            "Analysing this repository failed unexpectedly (internal error).".into()
+        }
+        Language::Japanese => "このリポジトリの解析が予期せず失敗しました（内部エラー）。".into(),
     }
 }
 
@@ -159,6 +240,9 @@ fn run_job(job: Job, msg_tx: &Sender<Msg>, home_gen: &AtomicU64) -> Option<Msg> 
             generation,
             index,
             path,
+            // Only [`panic_report`] needs the language; the happy path reports
+            // through `HomeRow`, which the UI thread renders itself.
+            lang: _,
         } => {
             if generation < home_gen.load(Ordering::Relaxed) {
                 return None;
@@ -660,6 +744,7 @@ mod pool_tests {
             generation: 0,
             index,
             path: PathBuf::from("/nonexistent"),
+            lang: Language::English,
         }
     }
 
@@ -693,6 +778,82 @@ mod pool_tests {
         ];
         seen.sort_unstable();
         assert_eq!(seen, vec![1, 2]);
+    }
+
+    /// A job that panics has to come back as that job's failure. The app
+    /// marks a repository busy when it queues the job and clears the marker
+    /// only when a message carrying that index arrives, so a job that
+    /// vanishes leaves the row spinning for the rest of the session.
+    #[test]
+    fn a_panicking_job_reports_a_failure_for_the_row_it_was_analysing() {
+        let report = guard_panics(dummy_job(7), |_| panic!("unusual git output"));
+        let Some(Msg::HomeLoaded {
+            generation,
+            index,
+            row,
+        }) = report
+        else {
+            panic!("a panicked LoadHome must come back as a failed HomeLoaded");
+        };
+        assert_eq!((generation, index), (0, 7));
+        assert!(row.is_err(), "a panicked analysis is not a loaded row");
+        // And the caller is still standing — that is the other half of it.
+        assert!(guard_panics(dummy_job(8), |_| None).is_none());
+    }
+
+    /// The pool has no join handles and nothing watching it, so a thread lost
+    /// to a panic never came back and nothing said so: a panic reachable once
+    /// per refresh walked the pool 8 → 7 → … → 1, and only at zero threads did
+    /// the queue's sender finally fail and report a stopped worker.
+    ///
+    /// Every thread is made to panic exactly once (the first barrier holds
+    /// them until all of them have a panicking job in hand), then the second
+    /// barrier can only clear if all of them are still there to run work.
+    /// The panic output in the test log is the point of the test, not a
+    /// failure.
+    #[test]
+    fn a_panicking_job_does_not_shrink_the_pool() {
+        const THREADS: usize = 3;
+        let (job_tx, job_rx) = mpsc::channel::<Job>();
+        let (done_tx, done_rx) = mpsc::channel::<Option<Msg>>();
+        let panicking = Arc::new(Barrier::new(THREADS));
+        let surviving = Arc::new(Barrier::new(THREADS));
+        spawn_pool(job_rx, THREADS, move |job| {
+            let Job::LoadHome { index, .. } = &job else {
+                unreachable!("test only queues LoadHome");
+            };
+            let should_panic = *index < THREADS;
+            let report = guard_panics(job, |_| {
+                if should_panic {
+                    panicking.wait();
+                    panic!("a parser met git output only this repository produces");
+                }
+                surviving.wait();
+                None
+            });
+            let _ = done_tx.send(report);
+            ControlFlow::Continue(())
+        });
+
+        for index in 0..THREADS {
+            job_tx.send(dummy_job(index)).unwrap();
+        }
+        for _ in 0..THREADS {
+            let report = done_rx
+                .recv_timeout(Duration::from_secs(10))
+                .expect("a panicking job must still report, not silently vanish");
+            assert!(matches!(report, Some(Msg::HomeLoaded { row: Err(_), .. })));
+        }
+
+        for index in THREADS..THREADS * 2 {
+            job_tx.send(dummy_job(index)).unwrap();
+        }
+        for _ in 0..THREADS {
+            done_rx.recv_timeout(Duration::from_secs(10)).expect(
+                "the pool is short a thread after the panics: the barrier never cleared, \
+                 so fewer than the full set of workers is left",
+            );
+        }
     }
 
     /// One thread giving up (its `msg_tx` receiver is gone) must not take the

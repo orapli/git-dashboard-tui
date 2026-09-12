@@ -2074,14 +2074,38 @@ impl App {
             generation: self.home_generation(),
             index,
             path: repo.path.clone(),
+            lang: self.lang(),
         };
         self.send_job(job);
+    }
+
+    /// Start a new home-refresh generation, retiring the previous one.
+    ///
+    /// `Activity::Refresh` entries in `busy` are generation-scoped, and that
+    /// is the invariant this keeps: a `LoadHome` whose generation has been
+    /// superseded is dropped on the worker and produces no `Msg::HomeLoaded`,
+    /// so nothing would ever remove its entry. Left alone, `busy_count()`
+    /// stays above zero for the rest of the session and the title bar spins
+    /// forever — reachable by pressing `r` with three repositories and
+    /// deleting one before the refresh lands, which supersedes the generation
+    /// while queueing jobs for only the surviving indices.
+    ///
+    /// Pull and fetch entries are *not* generation-scoped — they always come
+    /// back through `Msg::OpDone`, carrying the index they were queued with —
+    /// so they have to survive. That index is also why `busy` is not
+    /// re-indexed when a repository is removed: the key has to keep matching
+    /// the one the in-flight job will report, not the row's new position.
+    fn begin_home_generation(&mut self) -> u64 {
+        self.busy
+            .retain(|_, activity| *activity != Activity::Refresh);
+        self.home_gen.fetch_add(1, Ordering::Relaxed) + 1
     }
 
     fn refresh_home(&mut self) {
         self.status = self.t("analyzing");
         self.last_auto_refresh = std::time::Instant::now();
-        let generation = self.home_gen.fetch_add(1, Ordering::Relaxed) + 1;
+        let generation = self.begin_home_generation();
+        let lang = self.lang();
         let jobs: Vec<Job> = self
             .repos
             .iter()
@@ -2090,6 +2114,7 @@ impl App {
                 generation,
                 index,
                 path: repo.path.clone(),
+                lang,
             })
             .collect();
         for job in jobs {
@@ -2747,6 +2772,7 @@ impl App {
             generation: self.home_generation(),
             index,
             path,
+            lang: self.lang(),
         });
         self.status = self.t("added_success");
         self.show_onboarding(first_registration);
@@ -2993,6 +3019,7 @@ impl App {
                     generation: self.home_generation(),
                     index,
                     path: self.repos[index].path.clone(),
+                    lang: self.lang(),
                 });
             }
             self.show_onboarding(previous_len == 0);
