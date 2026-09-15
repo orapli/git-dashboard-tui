@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.5.1] - 2026-09-16
+
+A search usability release: list filters now show what is being searched, and commit
+and branch-log searches keep the surrounding history available while you navigate.
+
+### Changed
+
+- **In-list search stays visible.** Commits and Branch Log show a labelled search row,
+  the query, and the number of matches after the prompt closes. Matching text is
+  highlighted while all surrounding rows remain available for context.
+- **Search matches are easy to navigate.** Press `n` / `N` to move to the next or
+  previous match with wraparound; `Enter` selects the first match. `Esc` clears the
+  active search before leaving the screen.
+- **Every filtered list explains its state.** Repository tabs, Global Members and
+  Workspace label their active query, show the visible/total count, and explain when
+  there are no matches. Selection is retained when a filter is cleared.
+
 ## [0.5.0] - 2026-09-12
 
 A responsiveness and trust release: refreshes stop blocking the interface, the Home
@@ -468,7 +485,9 @@ externally; no released version was affected, as none of this had shipped.
 - Integration test suite running against real temporary Git repositories, plus CI on Linux,
   macOS, and Windows.
 
-[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/orapli/git-dashboard-tui/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/orapli/git-dashboard-tui/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.3.0...v0.3.1

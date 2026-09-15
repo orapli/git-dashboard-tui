@@ -7,13 +7,13 @@
 未コミットの変更、同期差分、CI失敗を一覧し、差分を確認して普段の作業ツールを開けます。
 横断コミット検索、貢献者分析、Worktree一覧にも対応します。
 
-v0.5.0では、30リポジトリの更新が約60倍速くなり、表が「確信のない答」を出さなくなり、
-スクリプトやシェルプロンプト向けにJSONで読み出せるようになり、
-見ているファイルと行をそのまま次のツールに渡せるようになりました。
+v0.5.1では一覧内検索が見つけやすくなりました。検索内容と一致件数を表示し、
+CommitsとBranch Logでは前後の履歴を残したまま一致箇所を移動できます。v0.5.0の
+更新処理の高速化、状態不明の明示、JSON出力、見ている場所の次のツールへの引き継ぎも含みます。
 
 ![登録 → 要対応 → 差分 → シェルの操作デモ](docs/img/quick-tour.ja.svg)
 
-このREADMEと公開マニュアルは **v0.5.0** の機能を説明します。インストーラは最新リリースを取得します。
+このREADMEと公開マニュアルは **v0.5.1** の機能を説明します。インストーラは最新リリースを取得します。
 初回登録ガイド、Homeの取得状態、`O` のツールメニュー、`W` の横断Worktree一覧に加え、
 未追跡ファイルの差分表示と中止できるバックグラウンド走査を利用できます。[変更履歴](CHANGELOG.md)
 
@@ -32,7 +32,7 @@ SHA-256 チェックサムと照合したうえで `~/.local/bin`（すでに `P
 ```bash
 # インストール先を指定する / バージョンを固定する
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | INSTALL_DIR=~/bin sh
-curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.5.0 sh
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.5.1 sh
 ```
 
 > スクリプトをシェルにパイプするのは、そのスクリプトを信頼することを意味します。本スクリプトは
