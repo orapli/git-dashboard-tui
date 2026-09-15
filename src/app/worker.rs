@@ -4,6 +4,7 @@ use crate::git::{
     self, BranchInfo, CommitSummary, Contributor, StashEntry, Summary, TagInfo, TimeSpan,
     WorktreeInfo,
 };
+use crate::handoff::is_hunk_program;
 use std::collections::HashMap;
 use std::ops::ControlFlow;
 use std::path::PathBuf;
@@ -836,7 +837,7 @@ pub fn resolve_diff_command(
         return Err("diff command is empty".into());
     }
     let first = t.split_whitespace().next().unwrap_or(t);
-    let is_hunk = first == "hunk" || first == "hunkdiff";
+    let is_hunk = is_hunk_program(first);
     if is_hunk && !t.contains('{') {
         let wt = target == "WORKING_TREE";
         if wt {
@@ -882,8 +883,7 @@ pub fn resolve_diff_command(
         .ok_or_else(|| "diff command has no program".to_string())?
         .to_string();
     let mut args: Vec<String> = parts.map(str::to_string).collect();
-    let is_hunk_bin = program == "hunk" || program == "hunkdiff" || program.ends_with("/hunk");
-    if is_hunk_bin
+    if is_hunk_program(&program)
         && args.first().is_some_and(|a| a == "show")
         && args.get(1).is_some_and(|a| a.contains(".."))
     {

@@ -1478,6 +1478,10 @@ fn resolve_hunk_command_variants() {
     let templated =
         resolve_diff_command("hunk show {base} {target}", &repo, Some("aaa"), "bbb").unwrap();
     assert_eq!(templated.args, vec!["diff", "aaa..bbb"]);
+    for command in ["/opt/hunk/bin/hunkdiff", r"C:\Hunk\hunk.exe"] {
+        let resolved = resolve_diff_command(command, &repo, None, "abc123").unwrap();
+        assert_eq!(resolved.args, vec!["show", "abc123"]);
+    }
     assert!(resolve_diff_command("", &repo, None, "abc").is_err());
 }
 

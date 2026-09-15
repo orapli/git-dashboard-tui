@@ -146,9 +146,9 @@ footer a{color:var(--muted)}
 </section>
 <section id="versions">
 <h2>リリース版と開発版<a href="#versions" aria-label="link">#</a></h2>
-<p>このマニュアルはv0.5.1を説明します。インストーラは最新の公開リリースを取得します。初回ガイド、Homeの取得状態、Oメニュー、W一覧、未追跡ファイルの差分、中止できる走査はv0.4.0に含まれます。v0.5.0ではタイトルバーのマウス移動と、設定・検出・横断メンバー・コミット検索のクリック操作を追加し、v0.5.1では一覧内検索を見えるようにして、一致箇所の前後の履歴を残しました。<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴</a>を参照してください。過去版は対応タグのREADMEで確認できます。開発用mainにはその後の未リリース変更が含まれる場合があります。</p>
+<p>このマニュアルはv0.5.2を説明します。インストーラは最新の公開リリースを取得します。初回ガイド、Homeの取得状態、Oメニュー、W一覧、未追跡ファイルの差分、中止できる走査はv0.4.0に含まれます。v0.5.0ではタイトルバーのマウス移動、v0.5.1では一覧内検索の改善、v0.5.2ではダッシュボードを点滅させないHunkのバックグラウンド起動を追加しました。<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴</a>を参照してください。過去版は対応タグのREADMEで確認できます。開発用mainにはその後の未リリース変更が含まれる場合があります。</p>
 <pre><code>cargo install --git https://github.com/orapli/git-dashboard-tui --branch main --locked</code></pre>
-<p>mainのビルドにはRust 1.88以上とネイティブのリンカ・ビルド環境が必要です。配布バイナリにはRustは不要です。インストーラでバージョンを固定する場合は <code>sh</code> を <code>VERSION=v0.5.1 sh</code> に置き換えます。</p>
+<p>mainのビルドにはRust 1.88以上とネイティブのリンカ・ビルド環境が必要です。配布バイナリにはRustは不要です。インストーラでバージョンを固定する場合は <code>sh</code> を <code>VERSION=v0.5.2 sh</code> に置き換えます。</p>
 </section>
 <section id="tasks">
 <h2>目的別の操作手順<a href="#tasks" aria-label="link">#</a></h2>
@@ -180,7 +180,7 @@ footer a{color:var(--muted)}
 <tr><td class="term"><span>Neovim / Vim</span></td><td><code>nvim "{path}"</code> または <code>vim "{path}"</code> — 待機オン。エディタ終了まで端末を渡します。</td></tr>
 <tr><td class="term"><span>空白を含む絶対パス</span></td><td><code>"/opt/editor tools/editor" "{path}"</code>。Windowsでは実行ファイルを指定します。例: <code>"C:/Program Files/Neovim/bin/nvim.exe" "{path}"</code>、待機オン。</td></tr>
 </tbody></table>
-<p>コマンドは実行ファイルと引数に分解され、シェルスクリプトとしては実行しません。引用符には対応しますが、シェルのalias、$HOME、~、パイプ、リダイレクトは展開しません。実行ファイルの絶対パスか、絶対パスのPATH要素上にある正確なファイル名を使ってください。{path} がなければリポジトリパスを追加します。設定画面の <kbd>c</kbd> は別の外部diffコマンド用です。プレースホルダはリファレンスを参照してください。</p>
+<p>コマンドは実行ファイルと引数に分解され、シェルスクリプトとしては実行しません。引用符には対応しますが、シェルのalias、$HOME、~、パイプ、リダイレクトは展開しません。実行ファイルの絶対パスか、絶対パスのPATH要素上にある正確なファイル名を使ってください。{path} がなければリポジトリパスを追加します。設定画面の <kbd>c</kbd> は別の外部diffコマンド用です。プレースホルダはリファレンスを参照してください。HunkのGUIコマンドは端末を引き渡さずバックグラウンドで起動し、それ以外のdiffコマンドは従来どおり終了まで端末を引き渡します。</p>
 </section>
 <section id="platforms">
 <h2>OS・SSHの対応範囲<a href="#platforms" aria-label="link">#</a></h2>

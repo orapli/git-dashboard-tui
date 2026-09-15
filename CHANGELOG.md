@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.5.2] - 2026-09-16
+
+An external-tool polish release that keeps the dashboard visible while opening
+diffs in the Hunk GUI.
+
+### Fixed
+
+- **Hunk external diffs no longer flash the terminal.** Hunk and Hunkdiff are
+  recognised by their executable basename, including absolute paths and Windows
+  `.exe` names, then launched in the background with terminal input and output
+  disconnected. Other external diff commands retain the blocking terminal handoff.
+
 ## [0.5.1] - 2026-09-16
 
 A search usability release: list filters now show what is being searched, and commit
@@ -485,7 +497,8 @@ externally; no released version was affected, as none of this had shipped.
 - Integration test suite running against real temporary Git repositories, plus CI on Linux,
   macOS, and Windows.
 
-[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/orapli/git-dashboard-tui/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.4.0...v0.4.1

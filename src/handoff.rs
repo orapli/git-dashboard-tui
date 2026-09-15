@@ -23,6 +23,21 @@ pub const PLACEHOLDERS: [&str; 5] = ["{path}", "{file}", "{line}", "{branch}", "
 /// being readable at a glance, which is the only reason the menu exists.
 pub const MAX_CUSTOM_COMMANDS: usize = 6;
 
+/// Return whether `program` names the Hunk GUI diff client.
+///
+/// Diff commands may be configured as a bare command (`hunk`), a Unix
+/// absolute path, or a Windows path. Looking only at the full string would
+/// miss the latter two, and `Path::file_name` does not treat `\\` as a
+/// separator on Unix test runners, so split both kinds explicitly. Windows
+/// executable suffixes are ignored case-insensitively for the same reason
+/// that the platform accepts `.EXE` as well as `.exe`.
+pub fn is_hunk_program(program: &str) -> bool {
+    let basename = program.rsplit(['/', '\\']).next().unwrap_or(program);
+    let basename = basename.to_ascii_lowercase();
+    let basename = basename.strip_suffix(".exe").unwrap_or(&basename);
+    basename == "hunk" || basename == "hunkdiff"
+}
+
 /// What the user is currently looking at, as far as an external tool cares.
 ///
 /// `None` means "this view has no such thing" — not "empty string". The
@@ -221,6 +236,23 @@ pub struct ToolEditor {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hunk_program_detection_accepts_bare_and_absolute_paths() {
+        for program in [
+            "hunk",
+            "hunkdiff",
+            "/opt/hunk/bin/hunk",
+            "/opt/hunk/bin/hunkdiff",
+            r"C:\Program Files\Hunk\hunk.exe",
+            r"C:\Program Files\Hunk\hunkdiff.EXE",
+        ] {
+            assert!(is_hunk_program(program), "expected Hunk: {program}");
+        }
+        for program in ["hunks", "hunk-helper", "/tmp/not-hunk", "hunk.cmd"] {
+            assert!(!is_hunk_program(program), "unexpected Hunk: {program}");
+        }
+    }
 
     fn ctx() -> ToolContext {
         ToolContext {

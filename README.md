@@ -8,14 +8,13 @@ See uncommitted changes, sync differences and failing CI together, inspect a dif
 and open your usual work tools. Includes cross-repository commit search,
 contributor analysis and a Worktree workspace.
 
-v0.5.1 makes in-list search easier to see and navigate: queries stay labelled with their
-match counts, and Commits and Branch Log keep surrounding history visible while you move
-between matches. It also includes the v0.5.0 refresh speed-up, clearer unknown states,
-JSON output, and context passed to the tool you open next.
+v0.5.2 opens Hunk without flashing away from the dashboard. Hunk runs in the background
+without taking over terminal input or output, while terminal-based diff tools retain their
+existing handoff. It also includes the v0.5.1 search improvements.
 
 ![Import → attention → diff → shell walkthrough](docs/img/quick-tour.svg)
 
-This README and the published manual describe **v0.5.1**. The installer downloads the latest release.
+This README and the published manual describe **v0.5.2**. The installer downloads the latest release.
 This includes first-run guidance, Home freshness context, the `O` tool menu, the `W` Worktree workspace,
 untracked-file diffs and cancellable background discovery. See the [changelog](CHANGELOG.md).
 
@@ -34,7 +33,7 @@ against the one published with the release, and installs to `~/.local/bin` (or
 ```bash
 # Install somewhere specific, or pin a version
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | INSTALL_DIR=~/bin sh
-curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.5.1 sh
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.5.2 sh
 ```
 
 > Piping a script into a shell means trusting it. The script is short and dependency-free —
