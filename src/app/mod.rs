@@ -1421,11 +1421,11 @@ impl App {
     fn clear_repo_filter_preserve_selection(&mut self) {
         let selected = self.selected_item_index();
         self.list_filter.clear();
-        if let Some(raw) = selected {
-            if let Some(position) = self.visible_indices().iter().position(|&i| i == raw) {
-                self.list_selected = position;
-                return;
-            }
+        if let Some(raw) = selected
+            && let Some(position) = self.visible_indices().iter().position(|&i| i == raw)
+        {
+            self.list_selected = position;
+            return;
         }
         self.list_selected = self
             .list_selected
@@ -1504,10 +1504,10 @@ impl App {
                     self.commit_filter.clear();
                 } else if matches!(kind, Some(InputKind::WorkspaceQuery)) {
                     self.clear_workspace_filter_preserve_selection();
-                } else if matches!(kind, Some(InputKind::LogFilter)) {
-                    if let Some(log) = self.log.as_mut() {
-                        log.filter.clear();
-                    }
+                } else if matches!(kind, Some(InputKind::LogFilter))
+                    && let Some(log) = self.log.as_mut()
+                {
+                    log.filter.clear();
                 }
             }
             KeyCode::Tab | KeyCode::BackTab => {
