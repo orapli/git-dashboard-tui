@@ -256,6 +256,9 @@ impl App {
 
     pub(super) fn handle_workspace(&mut self, key: KeyEvent) {
         match key.code {
+            KeyCode::Esc if !self.workspace.filter.is_empty() => {
+                self.clear_workspace_filter_preserve_selection();
+            }
             KeyCode::Esc => {
                 self.screen = Screen::Home;
             }
@@ -317,6 +320,24 @@ impl App {
             self.filtered_workspace().len(),
             delta,
         );
+    }
+
+    pub(super) fn clear_workspace_filter_preserve_selection(&mut self) {
+        let selected_path = self.selected_workspace_row().map(|row| row.path.clone());
+        self.workspace.filter.clear();
+        if let Some(path) = selected_path
+            && let Some(position) = self
+                .filtered_workspace()
+                .iter()
+                .position(|&i| self.workspace.rows[i].path == path)
+        {
+            self.workspace.selected = position;
+            return;
+        }
+        self.workspace.selected = self
+            .workspace
+            .selected
+            .min(self.filtered_workspace().len().saturating_sub(1));
     }
 }
 
@@ -391,6 +412,12 @@ mod tests {
         });
         assert!(!a.workspace.loading);
         assert_eq!(a.current_work_path(), Some(PathBuf::from("/second")));
+        a.handle_key(KeyEvent::from(KeyCode::Esc));
+        assert_eq!(a.screen, Screen::Workspace);
+        assert!(a.workspace.filter.is_empty());
+        assert_eq!(a.current_work_path(), Some(PathBuf::from("/second")));
+        a.handle_key(KeyEvent::from(KeyCode::Esc));
+        assert_eq!(a.screen, Screen::Home);
     }
 
     #[test]

@@ -1044,7 +1044,7 @@ fn expand_tilde_and_strip_ansi() {
 }
 
 #[test]
-fn commit_filter_narrows_visible_indices() {
+fn commit_find_keeps_context_and_navigates_matches() {
     let mut app = App::new();
     app.screen = Screen::Repo;
     app.repo_tab = RepoTab::Commits;
@@ -1104,7 +1104,91 @@ fn commit_filter_narrows_visible_indices() {
     app.handle_key(KeyEvent::from(KeyCode::Char('t')));
     app.handle_key(KeyEvent::from(KeyCode::Char('u')));
     app.handle_key(KeyEvent::from(KeyCode::Char('i')));
-    assert_eq!(app.visible_indices(), vec![1]);
+    assert_eq!(app.visible_indices(), vec![0, 1]);
+    assert_eq!(app.commit_match_indices(), vec![1]);
+    assert_eq!(app.list_selected, 1);
+    app.handle_key(KeyEvent::from(KeyCode::Enter));
+    assert_eq!(app.commit_filter, "tui");
+    assert!(!app.is_commit_filtering());
+
+    app.commit_filter = "i".into();
+    app.list_selected = 0;
+    app.handle_key(KeyEvent::from(KeyCode::Char('n')));
+    assert_eq!(app.list_selected, 1);
+    app.handle_key(KeyEvent::from(KeyCode::Char('n')));
+    assert_eq!(app.list_selected, 0);
+    app.handle_key(KeyEvent::from(KeyCode::Char('N')));
+    assert_eq!(app.list_selected, 1);
+
+    // Empty and no-match queries leave the current commit selected.
+    app.commit_filter.clear();
+    app.list_selected = 1;
+    app.handle_key(KeyEvent::from(KeyCode::Char('/')));
+    app.handle_key(KeyEvent::from(KeyCode::Enter));
+    assert_eq!(app.list_selected, 1);
+    app.handle_key(KeyEvent::from(KeyCode::Char('/')));
+    app.handle_key(KeyEvent::from(KeyCode::Char('z')));
+    assert_eq!(app.list_selected, 1);
+    app.handle_key(KeyEvent::from(KeyCode::Enter));
+    assert_eq!(app.list_selected, 1);
+
+    // Esc clears an active find before the next Esc leaves the repository.
+    app.handle_key(KeyEvent::from(KeyCode::Esc));
+    assert_eq!(app.screen, Screen::Repo);
+    assert!(app.commit_filter.is_empty());
+    assert_eq!(app.list_selected, 1);
+
+    // The same two-stage clear applies to the other repository tabs.
+    app.repo_tab = RepoTab::Branches;
+    app.list_filter = "branch".into();
+    app.handle_key(KeyEvent::from(KeyCode::Esc));
+    assert_eq!(app.screen, Screen::Repo);
+    assert!(app.list_filter.is_empty());
+    app.handle_key(KeyEvent::from(KeyCode::Esc));
+    assert_eq!(app.screen, Screen::Home);
+}
+
+#[test]
+fn branch_log_find_keeps_context_and_wraps_matches() {
+    let mut app = App::new();
+    app.screen = Screen::Log;
+    app.log = Some(LogView {
+        title: "branch".into(),
+        body: "one\nfix first\nthree\nfix second".into(),
+        scroll: 0,
+        filter: String::new(),
+    });
+    app.handle_key(KeyEvent::from(KeyCode::Char('/')));
+    for c in "fix".chars() {
+        app.handle_key(KeyEvent::from(KeyCode::Char(c)));
+    }
+    assert_eq!(app.log.as_ref().unwrap().scroll, 1);
+    app.handle_key(KeyEvent::from(KeyCode::Enter));
+    app.handle_key(KeyEvent::from(KeyCode::Char('n')));
+    assert_eq!(app.log.as_ref().unwrap().scroll, 3);
+    app.handle_key(KeyEvent::from(KeyCode::Char('n')));
+    assert_eq!(app.log.as_ref().unwrap().scroll, 1);
+    app.handle_key(KeyEvent::from(KeyCode::Char('N')));
+    assert_eq!(app.log.as_ref().unwrap().scroll, 3);
+    app.handle_key(KeyEvent::from(KeyCode::Char('j')));
+    assert_eq!(app.log.as_ref().unwrap().scroll, 3);
+    app.handle_key(KeyEvent::from(KeyCode::Esc));
+    assert_eq!(app.screen, Screen::Log);
+    assert!(app.log.as_ref().unwrap().filter.is_empty());
+    assert_eq!(app.log.as_ref().unwrap().scroll, 3);
+    app.handle_key(KeyEvent::from(KeyCode::Esc));
+    assert_eq!(app.screen, Screen::Repo);
+}
+
+#[test]
+fn commit_find_footer_is_scoped_to_repo_screen() {
+    let mut app = App::new();
+    app.screen = Screen::Diff;
+    app.repo_tab = RepoTab::Commits;
+    app.commit_filter = "query".into();
+    let hints = app.footer_hints();
+    assert!(hints.iter().any(|(key, _)| key == "n/p"));
+    assert!(!hints.iter().any(|(key, _)| key == "n/N"));
 }
 
 #[test]
@@ -1552,6 +1636,12 @@ fn test_global_members_navigation() {
     assert_eq!(app.global_member_pane, FocusPane::List);
 
     // Esc returns to Home
+    app.global_member_filter = "bob".into();
+    app.global_member_selected = 0;
+    app.handle_key(KeyEvent::from(KeyCode::Esc));
+    assert_eq!(app.screen, Screen::GlobalMembers);
+    assert!(app.global_member_filter.is_empty());
+    assert_eq!(app.global_member_selected, 1);
     app.handle_key(KeyEvent::from(KeyCode::Esc));
     assert_eq!(app.screen, Screen::Home);
 }

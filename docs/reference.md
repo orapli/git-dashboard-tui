@@ -17,7 +17,7 @@ Covers v0.5.0. [User manual](manual.html) · [README](../README.md)
 | `q` / `Ctrl+C` | Quit application |
 | `Esc` / `h` / `←` | Back to previous screen / Clear filter |
 | `?` | Toggle Help dialog (contextual return) |
-| `/` | Live filter of the current view |
+| `/` | Live filter of the current view; the active query and shown/total count stay labelled in list headers. Commits and Branch Log keep surrounding rows visible |
 | `j` / `k` (or `↓` / `↑`) | Move selection |
 | `g` / `G` | Jump to top / bottom of list |
 | `t` | Open `$SHELL` in the current repository<br>(except the Contributors tab, where `t` toggles member status) |
@@ -63,10 +63,15 @@ Covers v0.5.0. [User manual](manual.html) · [README](../README.md)
 | **(any tab)** | `p` / `f` | `git pull` / `git fetch` this repository |
 | | `r` | Reload repository data |
 | | `T` | Open `$SHELL` at repository root |
+| | `/` | Filter the current tab; the labelled query and shown/total count remain visible |
+| | `Esc` | Clear an active tab filter first; press again to leave the repository |
 | **Status** (`1`) | `Enter` | Open working tree file diff |
 | **Commits** (`2`) | `Space` | Select commit base/target for comparison |
 | | `Enter` | Open commit diff / comparison |
 | | `i` | Force open built-in TUI diff |
+| | `/` | Find in the commit list; the search row stays visible after Enter |
+| | `n` / `N` | Select next / previous match (wraps) |
+| | `Esc` | Clear the commit find; press again to leave the repository |
 | **Branches** (`3`) | `Enter` | View interactive oneline branch log |
 | **Tags** (`4`) | `Space` / `Enter` | Select tag range / Compare tags |
 | **Stash** (`5`) | `Enter` / `a` / `d` | Inspect stash diff / Apply stash / Drop stash |
@@ -74,6 +79,15 @@ Covers v0.5.0. [User manual](manual.html) · [README](../README.md)
 | | `Space` / `t` | Toggle active/inactive member status |
 | | `m` | Filter active members only |
 | **Worktrees** (`7`) | `Enter` | **Launch `$SHELL` inside the selected worktree**<br>(plain `t` / `T` opens the repository root instead) |
+
+#### Branch Log (from Branches `Enter`)
+
+| Key | Action |
+|---|---|
+| `/` | Find in the branch log; the labelled query remains visible |
+| `n` / `N` | Select next / previous matching line (wraps) |
+| `j` / `k` | Scroll through surrounding log lines |
+| `Esc` | Clear the find first; press again to return to the repository |
 
 ### 3. Diff view
 
@@ -139,7 +153,8 @@ repositories reached it.
 | `Space` / `t` | Toggle member active / inactive |
 | `m` | Filter to active members only |
 | `T` | Open `$SHELL` in the selected repository |
-| `/` | Search members or repositories |
+| `/` | Search members or repositories; the labelled query and shown/total count remain visible |
+| `Esc` | Clear an active search first; press again to return Home |
 
 ### 7. Repository Finder (`A` from Home)
 
@@ -162,6 +177,7 @@ repositories reached it.
 | `Enter` / `O` | Tools menu for the selected worktree |
 | `t` | Shell in the selected worktree |
 | `r` | Refresh in the background |
+| `Esc` | Clear an active search first; press again to return Home |
 | `[` / `]` | Show the previous / next problem — first the repositories whose worktree list could not be read, then the individual rows whose directory could not be inspected |
 
 A row whose directory could not be inspected reads `unknown` instead of `Dirty ?`, is

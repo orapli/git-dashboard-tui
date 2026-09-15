@@ -220,6 +220,7 @@ pub struct LogView {
     pub title: String,
     pub body: String,
     pub scroll: usize,
+    pub filter: String,
 }
 
 #[derive(Clone, Debug)]
@@ -294,6 +295,8 @@ pub enum Confirm {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InputKind {
     Filter,
+    LogFilter,
+    CommitFilter,
     AddRepo,
     AddAlias,
     Rename,

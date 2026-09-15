@@ -143,6 +143,9 @@ pub struct App {
     pub commit_target: Option<String>,
     pub commit_preview: Option<CommitPreview>,
     pub list_filter: String,
+    /// Commits-tab find query. Unlike `list_filter`, this leaves every commit
+    /// in the list so the surrounding history remains available for j/k.
+    pub commit_filter: String,
     pub log: Option<LogView>,
     pub active_only: bool,
     /// Home filter: only repos with a failing CI run, an unresolved conflict,
@@ -300,6 +303,7 @@ impl App {
             commit_target: None,
             commit_preview: None,
             list_filter: String::new(),
+            commit_filter: String::new(),
             log: None,
             active_only: false,
             attention_only: false,
@@ -446,6 +450,18 @@ impl App {
         matches!(self.input, Some(InputKind::Filter))
     }
 
+    pub fn is_commit_filtering(&self) -> bool {
+        matches!(self.input, Some(InputKind::CommitFilter))
+    }
+
+    pub fn is_workspace_querying(&self) -> bool {
+        matches!(self.input, Some(InputKind::WorkspaceQuery))
+    }
+
+    pub fn is_log_filtering(&self) -> bool {
+        matches!(self.input, Some(InputKind::LogFilter))
+    }
+
     pub fn is_adding_repo(&self) -> bool {
         matches!(
             self.input,
@@ -458,7 +474,6 @@ impl App {
                     | InputKind::AddMemberName
                     | InputKind::AddMemberAliases
                     | InputKind::EditMemberAliases
-                    | InputKind::WorkspaceQuery
                     | InputKind::WorktreeNote
                     | InputKind::EditorCommand
                     | InputKind::DiffCommand
@@ -746,6 +761,47 @@ impl App {
 
     pub fn footer_hints(&self) -> Vec<(String, String)> {
         let pair = |k: &str, en: &str, ja: &str| (k.to_string(), self.tt(en, ja));
+        if self.screen == Screen::Repo && self.is_commit_filtering() {
+            return vec![
+                pair("type", "find commits", "コミット検索"),
+                pair("enter", "finish", "確定"),
+                pair("esc", "clear", "解除"),
+            ];
+        }
+        if self.screen == Screen::Repo
+            && self.repo_tab == RepoTab::Commits
+            && !self.commit_filter.is_empty()
+        {
+            return vec![
+                pair("j/k", "move", "前後を見る"),
+                pair("n/N", "next/prev match", "次/前の一致"),
+                pair("/", "edit find", "検索を編集"),
+                pair("esc", "clear", "解除"),
+            ];
+        }
+        if self.screen == Screen::Log && self.is_log_filtering() {
+            return vec![
+                pair("type", "find log", "ログ検索"),
+                pair("enter", "finish", "確定"),
+                pair("esc", "clear", "解除"),
+            ];
+        }
+        if self.screen == Screen::Workspace && self.is_workspace_querying() {
+            return vec![
+                pair("type", "filter worktrees", "Worktree絞込"),
+                pair("enter", "finish", "確定"),
+                pair("esc", "clear", "解除"),
+            ];
+        }
+        if self.screen == Screen::Log && self.log.as_ref().is_some_and(|log| !log.filter.is_empty())
+        {
+            return vec![
+                pair("j/k", "scroll", "スクロール"),
+                pair("n/N", "next/prev match", "次/前の一致"),
+                pair("/", "edit find", "検索を編集"),
+                pair("esc", "clear", "解除"),
+            ];
+        }
         if self.is_filtering() {
             return vec![
                 pair("type", "filter", "絞込"),
@@ -814,6 +870,7 @@ impl App {
                 h.push(pair("y", "copy", "コピー"));
                 h.push(pair("t", "shell", "シェル"));
                 h.push(pair("r", "reload", "再読込"));
+                h.push(pair("/", "filter", "絞込"));
                 h.push(pair("?", "help", "ヘルプ"));
                 h.push(pair("esc", "back", "戻る"));
                 h.push(pair("q", "quit", "終了"));
@@ -872,6 +929,7 @@ impl App {
             Screen::GlobalMembers => vec![
                 pair("j/k", "move", "移動"),
                 pair("tab/h/l", "pane", "左右切替"),
+                pair("/", "filter", "絞込"),
                 pair("enter", "open repo", "開く"),
                 pair("space/t", "active", "在籍切替"),
                 pair("m", "filter active", "在籍のみ"),
@@ -925,6 +983,7 @@ impl App {
             Screen::Help => vec![pair("esc/q/?", "back", "戻る")],
             Screen::Log => vec![
                 pair("j/k", "scroll", "スクロール"),
+                pair("/", "find", "検索"),
                 pair("?", "help", "ヘルプ"),
                 pair("esc", "back", "戻る"),
                 pair("q", "quit", "終了"),
@@ -956,6 +1015,7 @@ impl App {
                 self.repo_data = None;
                 self.repo_index = None;
                 self.list_filter.clear();
+                self.commit_filter.clear();
                 self.help_return = None;
                 self.screen = Screen::Home;
             }
@@ -986,6 +1046,8 @@ impl App {
             self.log = None;
             self.repo_data = None;
             self.repo_index = None;
+            self.list_filter.clear();
+            self.commit_filter.clear();
             if self.screen == Screen::RepoFinder {
                 self.cancel_finder();
             }
@@ -1007,6 +1069,7 @@ impl App {
                 self.repo_data = None;
                 self.repo_index = None;
                 self.list_filter.clear();
+                self.commit_filter.clear();
                 self.help_return = None;
                 self.focus = FocusPane::List;
                 self.screen = Screen::Home;
@@ -1170,6 +1233,12 @@ impl App {
         let Some(data) = self.repo_data.as_ref() else {
             return Vec::new();
         };
+        // Commits uses find-in-list semantics: keep the complete history on
+        // screen and move the selection between matches instead. The other
+        // repository tabs retain their live filtering behavior below.
+        if self.repo_tab == RepoTab::Commits {
+            return (0..data.commits.len()).collect();
+        }
         let q = self.list_filter.trim().to_lowercase();
         let matches = |s: &str| q.is_empty() || s.to_lowercase().contains(&q);
         match self.repo_tab {
@@ -1180,18 +1249,7 @@ impl App {
                 .filter(|(_, f)| matches(&f.path))
                 .map(|(i, _)| i)
                 .collect(),
-            RepoTab::Commits => data
-                .commits
-                .iter()
-                .enumerate()
-                .filter(|(_, c)| {
-                    matches(&c.hash)
-                        || matches(&c.author)
-                        || matches(&c.message)
-                        || matches(&c.date)
-                })
-                .map(|(i, _)| i)
-                .collect(),
+            RepoTab::Commits => unreachable!("handled above"),
             RepoTab::Branches => data
                 .branches
                 .iter()
@@ -1239,8 +1297,158 @@ impl App {
         }
     }
 
+    /// Raw commit indices whose hash, author, date, or subject contains the
+    /// current Commits-tab find query, in display order.
+    pub fn commit_match_indices(&self) -> Vec<usize> {
+        let Some(data) = self.repo_data.as_ref() else {
+            return Vec::new();
+        };
+        let q = self.commit_filter.trim().to_lowercase();
+        if q.is_empty() {
+            return Vec::new();
+        }
+        data.commits
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| {
+                c.hash.to_lowercase().contains(&q)
+                    || c.author.to_lowercase().contains(&q)
+                    || c.message.to_lowercase().contains(&q)
+                    || c.date.to_lowercase().contains(&q)
+            })
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    fn move_commit_match(&mut self, delta: isize) {
+        let matches = self.commit_match_indices();
+        let Some(data) = self.repo_data.as_ref() else {
+            return;
+        };
+        if matches.is_empty() || data.commits.is_empty() {
+            return;
+        }
+        let current = self.list_selected.min(data.commits.len() - 1);
+        let next = if delta >= 0 {
+            matches
+                .iter()
+                .copied()
+                .find(|&i| i > current)
+                .unwrap_or(matches[0])
+        } else {
+            matches
+                .iter()
+                .rev()
+                .copied()
+                .find(|&i| i < current)
+                .unwrap_or(*matches.last().expect("matches is not empty"))
+        };
+        self.list_selected = next;
+        self.after_list_move();
+    }
+
+    /// Select the first match after a query changes. Empty and no-match
+    /// searches deliberately leave the current commit selected, and a stable
+    /// selection avoids queueing a redundant preview load while typing.
+    fn select_first_commit_match(&mut self) {
+        if let Some(first) = self.commit_match_indices().first().copied()
+            && self.list_selected != first
+        {
+            self.list_selected = first;
+            self.after_list_move();
+        }
+    }
+
+    pub fn log_match_indices(&self) -> Vec<usize> {
+        let Some(log) = self.log.as_ref() else {
+            return Vec::new();
+        };
+        let query = log.filter.trim().to_lowercase();
+        if query.is_empty() {
+            return Vec::new();
+        }
+        log.body
+            .lines()
+            .enumerate()
+            .filter(|(_, line)| line.to_lowercase().contains(&query))
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    fn select_first_log_match(&mut self) {
+        let Some(first) = self.log_match_indices().first().copied() else {
+            return;
+        };
+        if let Some(log) = self.log.as_mut()
+            && log.scroll != first
+        {
+            log.scroll = first;
+        }
+    }
+
+    fn move_log_match(&mut self, delta: isize) {
+        let matches = self.log_match_indices();
+        let Some(log) = self.log.as_ref() else {
+            return;
+        };
+        if matches.is_empty() {
+            return;
+        }
+        let current = log.scroll;
+        let next = if delta >= 0 {
+            matches
+                .iter()
+                .copied()
+                .find(|&i| i > current)
+                .unwrap_or(matches[0])
+        } else {
+            matches
+                .iter()
+                .rev()
+                .copied()
+                .find(|&i| i < current)
+                .unwrap_or(*matches.last().expect("matches is not empty"))
+        };
+        if let Some(log) = self.log.as_mut() {
+            log.scroll = next;
+        }
+    }
+
     pub fn selected_item_index(&self) -> Option<usize> {
         self.visible_indices().get(self.list_selected).copied()
+    }
+
+    fn clear_repo_filter_preserve_selection(&mut self) {
+        let selected = self.selected_item_index();
+        self.list_filter.clear();
+        if let Some(raw) = selected {
+            if let Some(position) = self.visible_indices().iter().position(|&i| i == raw) {
+                self.list_selected = position;
+                return;
+            }
+        }
+        self.list_selected = self
+            .list_selected
+            .min(self.visible_indices().len().saturating_sub(1));
+    }
+
+    fn clear_global_member_filter_preserve_selection(&mut self) {
+        let selected = self
+            .filtered_global_members()
+            .get(self.global_member_selected)
+            .copied();
+        self.global_member_filter.clear();
+        if let Some(raw) = selected {
+            self.global_member_selected = self
+                .filtered_global_members()
+                .iter()
+                .position(|&i| i == raw)
+                .unwrap_or(self.global_member_selected);
+        } else {
+            self.global_member_selected = self
+                .global_member_selected
+                .min(self.filtered_global_members().len().saturating_sub(1));
+        }
     }
 
     fn handle_confirm(&mut self, key: KeyEvent) {
@@ -1278,9 +1486,9 @@ impl App {
                         self.home_filter.clear();
                         self.home_selected = 0;
                     } else if self.screen == Screen::GlobalMembers {
-                        self.global_member_filter.clear();
-                        self.global_member_selected = 0;
-                        self.global_member_repo_selected = 0;
+                        self.clear_global_member_filter_preserve_selection();
+                    } else if self.screen == Screen::Repo {
+                        self.clear_repo_filter_preserve_selection();
                     } else {
                         self.list_filter.clear();
                         self.list_selected = 0;
@@ -1290,6 +1498,16 @@ impl App {
                 {
                     finder.filter.clear();
                     finder.selected_idx = 0;
+                } else if matches!(kind, Some(InputKind::CommitFilter)) {
+                    // Keep the two-step Esc rhythm: first clear the active
+                    // find query while staying in Repo, then leave Repo.
+                    self.commit_filter.clear();
+                } else if matches!(kind, Some(InputKind::WorkspaceQuery)) {
+                    self.clear_workspace_filter_preserve_selection();
+                } else if matches!(kind, Some(InputKind::LogFilter)) {
+                    if let Some(log) = self.log.as_mut() {
+                        log.filter.clear();
+                    }
                 }
             }
             KeyCode::Tab | KeyCode::BackTab => {
@@ -1340,6 +1558,10 @@ impl App {
                             finder.selected_idx = 0;
                         }
                     }
+                    Some(InputKind::CommitFilter) => {
+                        self.commit_filter = buf;
+                        self.select_first_commit_match();
+                    }
                     Some(InputKind::CommitSearchQuery) => {
                         self.run_commit_search(buf);
                     }
@@ -1360,6 +1582,12 @@ impl App {
                     Some(InputKind::WorkspaceQuery) => {
                         self.workspace.filter = buf;
                         self.workspace.selected = 0;
+                    }
+                    Some(InputKind::LogFilter) => {
+                        if let Some(log) = self.log.as_mut() {
+                            log.filter = buf;
+                        }
+                        self.select_first_log_match();
                     }
                     Some(InputKind::WorktreeNote) => self.finish_worktree_note(buf),
                     Some(InputKind::EditorCommand) => {
@@ -1402,6 +1630,16 @@ impl App {
                 {
                     finder.filter.clone_from(&self.input_buf);
                     finder.selected_idx = 0;
+                } else if matches!(self.input, Some(InputKind::CommitFilter)) {
+                    self.commit_filter.clone_from(&self.input_buf);
+                    self.select_first_commit_match();
+                } else if matches!(self.input, Some(InputKind::WorkspaceQuery)) {
+                    self.workspace.filter.clone_from(&self.input_buf);
+                } else if matches!(self.input, Some(InputKind::LogFilter)) {
+                    if let Some(log) = self.log.as_mut() {
+                        log.filter.clone_from(&self.input_buf);
+                    }
+                    self.select_first_log_match();
                 }
             }
             KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -1424,6 +1662,16 @@ impl App {
                 {
                     finder.filter.clone_from(&self.input_buf);
                     finder.selected_idx = 0;
+                } else if matches!(self.input, Some(InputKind::CommitFilter)) {
+                    self.commit_filter.clone_from(&self.input_buf);
+                    self.select_first_commit_match();
+                } else if matches!(self.input, Some(InputKind::WorkspaceQuery)) {
+                    self.workspace.filter.clone_from(&self.input_buf);
+                } else if matches!(self.input, Some(InputKind::LogFilter)) {
+                    if let Some(log) = self.log.as_mut() {
+                        log.filter.clone_from(&self.input_buf);
+                    }
+                    self.select_first_log_match();
                 }
             }
             _ => {}
@@ -1509,6 +1757,14 @@ impl App {
     fn handle_repo(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Esc | KeyCode::Char('h') | KeyCode::Backspace | KeyCode::Left => {
+                if self.repo_tab == RepoTab::Commits && !self.commit_filter.is_empty() {
+                    self.commit_filter.clear();
+                    return;
+                }
+                if self.repo_tab != RepoTab::Commits && !self.list_filter.is_empty() {
+                    self.clear_repo_filter_preserve_selection();
+                    return;
+                }
                 self.screen = Screen::Home;
                 self.repo_data = None;
                 self.repo_index = None;
@@ -1522,8 +1778,13 @@ impl App {
                 }
             }
             KeyCode::Char('/') => {
-                self.input = Some(InputKind::Filter);
-                self.input_buf.clone_from(&self.list_filter);
+                if self.repo_tab == RepoTab::Commits {
+                    self.input = Some(InputKind::CommitFilter);
+                    self.input_buf.clone_from(&self.commit_filter);
+                } else {
+                    self.input = Some(InputKind::Filter);
+                    self.input_buf.clone_from(&self.list_filter);
+                }
             }
             KeyCode::Char('r') => {
                 if let Some(idx) = self.repo_index {
@@ -1540,6 +1801,16 @@ impl App {
             }
             KeyCode::Down | KeyCode::Char('j') => self.move_list(1),
             KeyCode::Up | KeyCode::Char('k') => self.move_list(-1),
+            KeyCode::Char('n') => {
+                if self.repo_tab == RepoTab::Commits {
+                    self.move_commit_match(1);
+                }
+            }
+            KeyCode::Char('N') => {
+                if self.repo_tab == RepoTab::Commits {
+                    self.move_commit_match(-1);
+                }
+            }
             KeyCode::Char('p') => self.pull_current_repo(),
             KeyCode::Char('f') => self.fetch_current_repo(),
             KeyCode::Char('t') if self.repo_tab != RepoTab::Contributors => {
@@ -1701,30 +1972,65 @@ impl App {
     }
 
     fn handle_log(&mut self, key: KeyEvent) {
-        let Some(log) = self.log.as_mut() else {
+        let Some(_) = self.log.as_ref() else {
             self.screen = Screen::Repo;
             return;
         };
-        let max = log.body.lines().count().saturating_sub(1);
+        let max = self
+            .log
+            .as_ref()
+            .map(|log| log.body.lines().count().saturating_sub(1))
+            .unwrap_or(0);
         match key.code {
+            KeyCode::Esc if self.log.as_ref().is_some_and(|log| !log.filter.is_empty()) => {
+                if let Some(log) = self.log.as_mut() {
+                    log.filter.clear();
+                }
+            }
             KeyCode::Esc | KeyCode::Char('h') | KeyCode::Backspace | KeyCode::Left => {
                 self.log = None;
                 self.screen = Screen::Repo;
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                log.scroll = (log.scroll + 1).min(max);
+                if let Some(log) = self.log.as_mut() {
+                    log.scroll = (log.scroll + 1).min(max);
+                }
             }
             KeyCode::Up | KeyCode::Char('k') => {
-                log.scroll = log.scroll.saturating_sub(1);
+                if let Some(log) = self.log.as_mut() {
+                    log.scroll = log.scroll.saturating_sub(1);
+                }
             }
             KeyCode::PageDown | KeyCode::Char(' ') => {
-                log.scroll = (log.scroll + 20).min(max);
+                if let Some(log) = self.log.as_mut() {
+                    log.scroll = (log.scroll + 20).min(max);
+                }
             }
             KeyCode::PageUp => {
-                log.scroll = log.scroll.saturating_sub(20);
+                if let Some(log) = self.log.as_mut() {
+                    log.scroll = log.scroll.saturating_sub(20);
+                }
             }
-            KeyCode::Char('g') => log.scroll = 0,
-            KeyCode::Char('G') => log.scroll = max,
+            KeyCode::Char('g') => {
+                if let Some(log) = self.log.as_mut() {
+                    log.scroll = 0;
+                }
+            }
+            KeyCode::Char('G') => {
+                if let Some(log) = self.log.as_mut() {
+                    log.scroll = max;
+                }
+            }
+            KeyCode::Char('/') => {
+                self.input = Some(InputKind::LogFilter);
+                self.input_buf = self
+                    .log
+                    .as_ref()
+                    .map(|log| log.filter.clone())
+                    .unwrap_or_default();
+            }
+            KeyCode::Char('n') => self.move_log_match(1),
+            KeyCode::Char('N') => self.move_log_match(-1),
             _ => {}
         }
     }
@@ -1830,6 +2136,12 @@ impl App {
         let num_repos = cur_member.map(|m| m.contributions.len()).unwrap_or(0);
 
         match key.code {
+            KeyCode::Esc
+                if self.global_member_pane == FocusPane::List
+                    && !self.global_member_filter.is_empty() =>
+            {
+                self.clear_global_member_filter_preserve_selection();
+            }
             KeyCode::Esc | KeyCode::Char('h') | KeyCode::Backspace
                 if self.global_member_pane == FocusPane::List =>
             {
@@ -1951,6 +2263,7 @@ impl App {
         self.repo_tab = tab;
         self.list_selected = 0;
         self.list_filter.clear();
+        self.commit_filter.clear();
         self.after_list_move();
     }
 
@@ -2291,6 +2604,7 @@ impl App {
         self.repo_loading = true;
         self.list_selected = 0;
         self.list_filter.clear();
+        self.commit_filter.clear();
         self.tag_base = None;
         self.tag_target = None;
         self.commit_base = None;
@@ -4203,6 +4517,7 @@ impl App {
                             .collect::<Vec<_>>()
                             .join("\n"),
                         scroll: 0,
+                        filter: String::new(),
                     });
                     self.screen = Screen::Log;
                 }

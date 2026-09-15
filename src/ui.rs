@@ -369,7 +369,24 @@ fn draw_workspace(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             pal.yellow
         }),
     ));
-    header.push(Span::raw(format!("  / {}", app.workspace.filter)));
+    if !app.workspace.filter.is_empty() {
+        header.push(Span::styled(
+            format!(
+                "  {}: {}{}",
+                app.tt("Filter", "絞込"),
+                app.workspace.filter,
+                if indices.is_empty() {
+                    format!(
+                        "  {}",
+                        app.tt("no matches — esc to clear", "一致なし — esc で解除")
+                    )
+                } else {
+                    String::new()
+                }
+            ),
+            Style::default().fg(pal.accent),
+        ));
+    }
     frame.render_widget(Paragraph::new(Line::from(header)), parts[0]);
     let rows = indices.iter().map(|&i| {
         let r = &app.workspace.rows[i];
@@ -1388,16 +1405,35 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         app,
         split[2],
         pal,
-        format!(
-            "{} ({})",
+        repo_filter_title(
+            app,
             app.t("uncommitted_changes_working"),
-            data.working_files.len()
+            app.visible_indices().len(),
+            data.working_files.len(),
         ),
         app.tt(
             "No uncommitted files. Press 2 for commits.",
             "未コミットなし。2 でコミット履歴。",
         ),
     );
+}
+
+fn repo_filter_title(app: &App, label: String, shown: usize, total: usize) -> String {
+    let mut title = format!("{label} ({shown}/{total})");
+    if !app.list_filter.is_empty() {
+        title.push_str(&format!(
+            "  {}: {}",
+            app.tt("Filter", "絞込"),
+            app.list_filter
+        ));
+        if shown == 0 {
+            title.push_str(&format!(
+                "  {}",
+                app.tt("no matches — esc to clear", "一致なし — esc で解除")
+            ));
+        }
+    }
+    title
 }
 
 fn render_ref_badges(refs: &[CommitRef], pal: Palette) -> Vec<Span<'static>> {
@@ -1541,13 +1577,57 @@ fn render_graph_spans(graph: &str, pal: Palette) -> Vec<Span<'static>> {
     spans
 }
 
+fn highlight_commit_text(
+    text: &str,
+    query: &str,
+    base: Style,
+    matched: Style,
+) -> Vec<Span<'static>> {
+    let query = query.trim();
+    if query.is_empty() {
+        return vec![Span::styled(text.to_string(), base)];
+    }
+    let lower = text.to_lowercase();
+    let needle = query.to_lowercase();
+    let Some(start) = lower.find(&needle) else {
+        return vec![Span::styled(text.to_string(), base)];
+    };
+    let end = start.saturating_add(needle.len());
+    if !text.is_char_boundary(start) || !text.is_char_boundary(end) {
+        return vec![Span::styled(text.to_string(), base)];
+    }
+    let mut spans = Vec::with_capacity(3);
+    if start > 0 {
+        spans.push(Span::styled(text[..start].to_string(), base));
+    }
+    spans.push(Span::styled(text[start..end].to_string(), matched));
+    if end < text.len() {
+        spans.push(Span::styled(text[end..].to_string(), base));
+    }
+    spans
+}
+
 fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     let Some(data) = app.repo_data.as_ref() else {
         return;
     };
+    let query = if app.is_commit_filtering() {
+        app.input_buf()
+    } else {
+        &app.commit_filter
+    };
+    let matches = app.commit_match_indices();
+    let current_match = matches
+        .iter()
+        .position(|&i| i == app.list_selected)
+        .map_or(0, |i| i + 1);
     let split = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(58), Constraint::Percentage(42)])
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Percentage(57),
+            Constraint::Percentage(42),
+        ])
         .split(area);
     let vis = app.visible_indices();
     let items: Vec<ListItem> = vis
@@ -1569,23 +1649,87 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             };
             let mut line_spans = vec![Span::styled(format!("[{mark}] "), mark_style)];
             line_spans.extend(render_graph_spans(&c.graph, pal));
-            line_spans.push(Span::styled(
-                c.hash.clone(),
+            line_spans.extend(highlight_commit_text(
+                &c.hash,
+                query,
                 Style::default().fg(pal.accent),
+                Style::default()
+                    .fg(pal.bg)
+                    .bg(pal.yellow)
+                    .add_modifier(Modifier::BOLD),
             ));
-            line_spans.push(Span::styled(
-                format!("  {}  ", c.date),
+            line_spans.push(Span::raw("  "));
+            line_spans.extend(highlight_commit_text(
+                &c.date,
+                query,
                 Style::default().fg(pal.muted),
+                Style::default()
+                    .fg(pal.bg)
+                    .bg(pal.yellow)
+                    .add_modifier(Modifier::BOLD),
             ));
-            line_spans.push(Span::styled(
-                format!("{}  ", truncate(&c.author, 16)),
+            line_spans.push(Span::raw("  "));
+            line_spans.extend(highlight_commit_text(
+                &truncate(&c.author, 16),
+                query,
                 Style::default().fg(pal.subtext),
+                Style::default()
+                    .fg(pal.bg)
+                    .bg(pal.yellow)
+                    .add_modifier(Modifier::BOLD),
             ));
+            line_spans.push(Span::raw("  "));
             line_spans.extend(render_ref_badges(&c.refs, pal));
-            line_spans.push(Span::raw(c.message.clone()));
+            line_spans.extend(highlight_commit_text(
+                &c.message,
+                query,
+                Style::default().fg(pal.text),
+                Style::default()
+                    .fg(pal.bg)
+                    .bg(pal.yellow)
+                    .add_modifier(Modifier::BOLD),
+            ));
             ListItem::new(Line::from(line_spans))
         })
         .collect();
+    let query_display = if app.is_commit_filtering() {
+        format!("{}█", query)
+    } else if query.is_empty() {
+        app.tt("(press / to find)", "(/ で検索)")
+    } else {
+        query.to_string()
+    };
+    let match_label = if query.trim().is_empty() {
+        app.tt("no active search", "検索なし")
+    } else if matches.is_empty() {
+        app.tt("no matches", "一致なし")
+    } else if current_match == 0 {
+        app.tt(
+            &format!("{} matches", matches.len()),
+            &format!("{}件一致", matches.len()),
+        )
+    } else {
+        format!("{current_match}/{}", matches.len())
+    };
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                format!("{}: ", app.tt("Search", "検索")),
+                Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(query_display, Style::default().fg(pal.text)),
+            Span::styled(
+                format!("    {match_label}"),
+                Style::default().fg(if matches.is_empty() && !query.trim().is_empty() {
+                    pal.red
+                } else {
+                    pal.muted
+                }),
+            ),
+        ]))
+        .style(Style::default().bg(pal.surface)),
+        split[0],
+    );
     let label = app.tt("Commits", "コミット");
     let title = match (&app.commit_base, &app.commit_target) {
         (Some(b), Some(t)) => format!(
@@ -1608,7 +1752,7 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     };
     app.list_viewport.set(render_items(
         frame,
-        split[0],
+        split[1],
         pal,
         items,
         app.list_selected,
@@ -1671,7 +1815,7 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 .border_style(Style::default().fg(pal.border))
                 .title_style(Style::default().fg(pal.accent)),
         ),
-        split[1],
+        split[2],
     );
 }
 
@@ -1722,19 +1866,20 @@ fn draw_contributors(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         crate::config::Language::English => app.contributor_time_span.label_en(),
         crate::config::Language::Japanese => app.contributor_time_span.label_ja(),
     };
-    let title = format!(
-        // The active-members note is conditional, so append it rather than
-        // interpolating an empty string and leaving a space before the border.
-        "{} ({}/{}) [{period_label}]{}",
-        app.tt("Contributors", "貢献者"),
+    // The active-members note is conditional, so append it rather than
+    // interpolating an empty string and leaving a space before the border.
+    let mut title = repo_filter_title(
+        app,
+        format!("{} [{period_label}]", app.tt("Contributors", "貢献者")),
         vis.len(),
         data.contributors.len(),
-        if app.active_only {
-            format!(" {}", app.tt("[active members]", "[在籍メンバーのみ]"))
-        } else {
-            String::new()
-        }
     );
+    if app.active_only {
+        title.push_str(&format!(
+            " {}",
+            app.tt("[active members]", "[在籍メンバーのみ]")
+        ));
+    }
     app.list_viewport.set(render_items(
         frame,
         area,
@@ -1776,7 +1921,7 @@ fn draw_branches(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         pal,
         items,
         app.list_selected,
-        format!("{} ({})", app.t("tab_branches"), vis.len()),
+        repo_filter_title(app, app.t("tab_branches"), vis.len(), data.branches.len()),
         app.list_error(),
         &app.tt("No branches.", "ブランチがありません。"),
     ));
@@ -1805,21 +1950,21 @@ fn draw_tags(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         })
         .collect();
     let label = app.tt("Tags", "タグ");
-    let title = match (&app.tag_base, &app.tag_target) {
-        (Some(b), Some(t)) => format!(
-            "{label}  {b}...{t}  {}",
+    let mut title = repo_filter_title(app, label, vis.len(), data.tags.len());
+    match (&app.tag_base, &app.tag_target) {
+        (Some(b), Some(t)) => title.push_str(&format!(
+            "  {b}...{t}  {}",
             app.tt("(enter to diff)", "(enter で比較)")
-        ),
-        (Some(b), None) => format!(
-            "{label}  {}={b}  {}",
+        )),
+        (Some(b), None) => title.push_str(&format!(
+            "  {}={b}  {}",
             app.tt("base", "基準"),
             app.tt("(pick a target)", "(比較対象を選択)")
-        ),
-        _ => format!(
-            "{label} ({})  {}",
-            vis.len(),
+        )),
+        _ => title.push_str(&format!(
+            "  {}",
             app.tt("(click [ ] or space)", "([ ] クリック / space)")
-        ),
+        )),
     };
     app.list_viewport.set(render_items(
         frame,
@@ -1854,7 +1999,7 @@ fn draw_stash(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         pal,
         items,
         app.list_selected,
-        format!("Stash ({})", vis.len()),
+        repo_filter_title(app, "Stash".to_string(), vis.len(), data.stashes.len()),
         app.list_error(),
         &app.tt("No stashes.", "stash はありません。"),
     ));
@@ -1922,7 +2067,12 @@ fn draw_worktrees(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         ),
     ]);
 
-    let title = format!("{} ({})", app.tt("Worktrees", "ワークツリー"), vis.len());
+    let title = repo_filter_title(
+        app,
+        app.tt("Worktrees", "ワークツリー"),
+        vis.len(),
+        data.worktrees.len(),
+    );
     let table = Table::new(
         rows,
         [
@@ -2372,11 +2522,73 @@ fn draw_log(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     let Some(log) = app.log.as_ref() else {
         return;
     };
+    let query = if app.is_log_filtering() {
+        app.input_buf()
+    } else {
+        &log.filter
+    };
+    let matches = app.log_match_indices();
+    let current_match = matches
+        .iter()
+        .position(|&i| i == log.scroll)
+        .map_or(0, |i| i + 1);
+    let query_display = if app.is_log_filtering() {
+        format!("{}█", query)
+    } else if query.is_empty() {
+        app.tt("(press / to find)", "(/ で検索)")
+    } else {
+        query.to_string()
+    };
+    let match_label = if query.trim().is_empty() {
+        app.tt("no active search", "検索なし")
+    } else if matches.is_empty() {
+        app.tt("no matches", "一致なし")
+    } else if current_match == 0 {
+        app.tt(
+            &format!("{} matches", matches.len()),
+            &format!("{}件一致", matches.len()),
+        )
+    } else {
+        format!("{current_match}/{}", matches.len())
+    };
+    let split = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(1)])
+        .split(area);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                format!("{}: ", app.tt("Search", "検索")),
+                Style::default().fg(pal.accent).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(query_display, Style::default().fg(pal.text)),
+            Span::styled(
+                format!("    {match_label}"),
+                Style::default().fg(if matches.is_empty() && !query.trim().is_empty() {
+                    pal.red
+                } else {
+                    pal.muted
+                }),
+            ),
+        ]))
+        .style(Style::default().bg(pal.surface)),
+        split[0],
+    );
     let lines: Vec<Line> = log
         .body
         .lines()
         .skip(log.scroll)
-        .map(|l| Line::from(l.to_string()))
+        .map(|l| {
+            Line::from(highlight_commit_text(
+                l,
+                query,
+                Style::default().fg(pal.text),
+                Style::default()
+                    .fg(pal.bg)
+                    .bg(pal.yellow)
+                    .add_modifier(Modifier::BOLD),
+            ))
+        })
         .collect();
     frame.render_widget(
         Paragraph::new(lines).block(
@@ -2386,7 +2598,7 @@ fn draw_log(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
                 .border_style(Style::default().fg(pal.accent))
                 .title_style(Style::default().fg(pal.accent)),
         ),
-        area,
+        split[1],
     );
 }
 
@@ -2597,7 +2809,19 @@ fn draw_global_members(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         .collect();
 
     let filter_str = if !app.global_member_filter.is_empty() {
-        format!(" / {}", app.global_member_filter)
+        format!(
+            "  {}: {}{}",
+            app.tt("Filter", "絞込"),
+            app.global_member_filter,
+            if vis.is_empty() {
+                format!(
+                    "  {}",
+                    app.tt("no matches — esc to clear", "一致なし — esc で解除")
+                )
+            } else {
+                String::new()
+            }
+        )
     } else {
         String::new()
     };
@@ -2959,7 +3183,13 @@ fn help_global_section(app: &App) -> HelpSection {
                     "このヘルプの表示切替（元の画面に戻る）",
                 ),
             ),
-            help_row("/", app.tt("filter current list", "現在の一覧を絞り込む")),
+            help_row(
+                "/",
+                app.tt(
+                    "filter current list; the labelled query and shown/total count stay visible",
+                    "現在の一覧を絞り込む。ラベル付き検索内容と表示件数/全件数を表示",
+                ),
+            ),
             help_row(
                 "j / k",
                 app.tt("move selection (↓ / ↑ too)", "選択を移動（↓ / ↑ も可）"),
@@ -3217,6 +3447,13 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
                     app.tt(
                         "reload without leaving the tab",
                         "タブを移動せずに再読み込み",
+                    ),
+                ),
+                help_row(
+                    "/",
+                    app.tt(
+                        "filter the current tab; Esc clears it before leaving",
+                        "現在のタブを絞り込み、Escで解除してから戻る",
                     ),
                 ),
             ],
@@ -3503,6 +3740,17 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
             screens: &[Screen::Log],
             title: app.tt("Branch log", "ブランチログ"),
             rows: vec![
+                help_row(
+                    "/",
+                    app.tt(
+                        "find in the log; the labelled query and match count stay visible",
+                        "ログを検索。ラベル付き検索内容と一致件数を表示",
+                    ),
+                ),
+                help_row(
+                    "n / N",
+                    app.tt("next / previous match (wraps)", "次 / 前の一致（末尾から循環）"),
+                ),
                 help_row(
                     "space / PgDn",
                     app.tt(
@@ -4037,6 +4285,18 @@ pub(crate) mod tests {
         let area = Rect::new(0, 0, 15, 4);
         let rect = centered_rect(area, 20, 80, 5);
         assert!(rect.right() <= area.right() && rect.bottom() <= area.bottom());
+    }
+
+    #[test]
+    fn repo_filter_title_labels_query_and_empty_state() {
+        let mut app = App::new();
+        app.screen = Screen::Repo;
+        app.repo_tab = RepoTab::Branches;
+        app.list_filter = "topic".into();
+        let title = repo_filter_title(&app, "Branches".into(), 0, 4);
+        assert!(title.contains("Branches (0/4)"));
+        assert!(title.contains("Filter: topic"));
+        assert!(title.contains("no matches"));
     }
 
     /// The repository-detail overview had the same `↑0 ↓0` ambiguity as the
@@ -4665,6 +4925,27 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn renders_branch_log_find_row_and_match_count() {
+        let mut app = App::new();
+        app.screen = Screen::Log;
+        app.log = Some(crate::app::LogView {
+            title: "branch".into(),
+            body: "one\nfix first\nthree".into(),
+            scroll: 0,
+            filter: "fix".into(),
+        });
+        let text = render_to_text(&app, 100, 20);
+        assert!(text.contains("Search: fix"), "search row missing: {text}");
+        assert!(text.contains("1 matches"), "match count missing: {text}");
+        assert!(text.contains("fix first"), "matching line missing: {text}");
+
+        app.log.as_mut().unwrap().scroll = 2;
+        let text = render_to_text(&app, 100, 8);
+        assert!(!text.contains("one"), "earlier line still visible: {text}");
+        assert!(text.contains("three"), "scrolled line missing: {text}");
+    }
+
+    #[test]
     fn commit_search_heading_admits_truncation_and_screen_lists_the_filters() {
         use crate::app::{CommitSearchHit, CommitSearchState, SEARCH_HITS_PER_REPO};
 
@@ -5033,6 +5314,40 @@ mod commit_click_tests {
             worktrees_err: None,
         });
         app
+    }
+
+    #[test]
+    fn commit_find_row_keeps_query_and_surrounding_rows_visible() {
+        let mut app = app_on_commits(5);
+        app.commit_filter = "number 2".into();
+        app.list_selected = 2;
+        let text = render_to_text(&app, 120, 20);
+        assert!(
+            text.contains("Search: number 2"),
+            "search row missing: {text}"
+        );
+        assert!(
+            text.contains("commit number 1"),
+            "context row missing: {text}"
+        );
+        assert!(
+            text.contains("commit number 2"),
+            "match row missing: {text}"
+        );
+        assert!(
+            text.contains("commit number 3"),
+            "context row missing: {text}"
+        );
+        assert!(text.contains("1/1"), "match count missing: {text}");
+
+        // Moving with j/k to a surrounding row keeps the total visible even
+        // though the selected row itself is not a match.
+        app.list_selected = 1;
+        let text = render_to_text(&app, 120, 20);
+        assert!(
+            text.contains("1 matches"),
+            "total match count missing: {text}"
+        );
     }
 
     /// The marker hit region is expressed as two constants in the click
@@ -5684,8 +5999,8 @@ mod footer_and_help_tests {
         ] {
             let mut app = help_app();
             app.set_language_for_test(lang);
-            let text = render_to_text(&app, width as u16, 70);
-            let lines: Vec<String> = (0..70)
+            let text = render_to_text(&app, width as u16, 90);
+            let lines: Vec<String> = (0..90)
                 .map(|r| text.chars().skip(r * width).take(width).collect())
                 .collect();
 
@@ -5948,7 +6263,7 @@ mod polish_tests {
         });
         let text = render_to_text(&app, 100, 20);
         assert!(
-            frame_contains(&text, "[Alltime]─"),
+            frame_contains(&text, "[Alltime] (0/0)─"),
             "expected the border to follow the period label directly:\n{text}"
         );
     }
