@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.5.3] - 2026-09-16
+
+An urgent Hunk integration fix restoring the interactive terminal handoff.
+
+### Fixed
+
+- **Hunk opens interactively again.** v0.5.2 incorrectly treated Hunk as a detached
+  GUI and disconnected its terminal input and output. Hunk is a terminal UI, so it now
+  receives the terminal and runs until you exit it. The extra command banner is suppressed
+  for Hunk to reduce visible transition noise.
+
 ## [0.5.2] - 2026-09-16
 
 An external-tool polish release that keeps the dashboard visible while opening
@@ -497,7 +508,8 @@ externally; no released version was affected, as none of this had shipped.
 - Integration test suite running against real temporary Git repositories, plus CI on Linux,
   macOS, and Windows.
 
-[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/orapli/git-dashboard-tui/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/orapli/git-dashboard-tui/compare/v0.4.1...v0.5.0

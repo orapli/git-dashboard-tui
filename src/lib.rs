@@ -26,9 +26,9 @@ pub use git::TimeSpan;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ExternalLaunchMode {
-    /// Hunk is a GUI client: it owns no terminal input and normally returns
-    /// immediately after asking its existing process to open the diff.
-    HunkDetached,
+    /// Hunk is a terminal UI. It needs the blocking handoff, but suppressing
+    /// our command banner avoids an extra screen before Hunk draws.
+    HunkInteractive,
     /// Other external diff clients may be terminal UIs and must keep the
     /// existing blocking handoff and terminal reinitialisation.
     Terminal,
@@ -36,7 +36,7 @@ enum ExternalLaunchMode {
 
 fn external_launch_mode(program: &str) -> ExternalLaunchMode {
     if handoff::is_hunk_program(program) {
-        ExternalLaunchMode::HunkDetached
+        ExternalLaunchMode::HunkInteractive
     } else {
         ExternalLaunchMode::Terminal
     }
@@ -133,16 +133,12 @@ fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> io::Res
             continue;
         }
         if let Some(ext) = app.take_external() {
-            let msg = if external_launch_mode(&ext.program) == ExternalLaunchMode::HunkDetached {
-                run_hunk(&ext)
-            } else {
-                leave_tui();
-                let result = run_external(&ext);
-                enter_tui();
-                *terminal = ratatui::init();
-                drain_pending_keys();
-                result
-            };
+            let mode = external_launch_mode(&ext.program);
+            leave_tui();
+            let msg = run_external(&ext, mode == ExternalLaunchMode::Terminal);
+            enter_tui();
+            *terminal = ratatui::init();
+            drain_pending_keys();
             match msg {
                 Ok(s) => app.status = s,
                 Err(e) => app.error = Some(e),
@@ -215,7 +211,7 @@ fn drain_pending_keys() {
     }
 }
 
-fn run_external(ext: &app::ExternalDiff) -> Result<String, String> {
+fn run_external(ext: &app::ExternalDiff, announce: bool) -> Result<String, String> {
     let program = resolve_program(&ext.program)?;
     let cmdline = format!(
         "{} {}  (cwd {})",
@@ -223,8 +219,10 @@ fn run_external(ext: &app::ExternalDiff) -> Result<String, String> {
         ext.args.join(" "),
         ext.cwd.display()
     );
-    eprintln!("\n--- git-dashboard-tui: {cmdline}\n");
-    let _ = io::stderr().flush();
+    if announce {
+        eprintln!("\n--- git-dashboard-tui: {cmdline}\n");
+        let _ = io::stderr().flush();
+    }
 
     let status = Command::new(&program)
         .args(&ext.args)
@@ -244,34 +242,6 @@ fn run_external(ext: &app::ExternalDiff) -> Result<String, String> {
         let _ = io::stdin().read_line(&mut String::new());
         Err(format!("{cmdline}  →  {status}"))
     }
-}
-
-/// Launch Hunk without handing the terminal over to it. Hunk is a GUI client;
-/// its command line asks the GUI process to open the requested diff and then
-/// returns, so leaving and immediately re-entering the alternate screen only
-/// creates a visible flash. Null stdio also prevents a GUI child from
-/// inheriting raw input or writing over the dashboard. The child is reaped in
-/// the background so it does not become a zombie on Unix.
-fn run_hunk(ext: &app::ExternalDiff) -> Result<String, String> {
-    let program = resolve_program(&ext.program)?;
-    let cmdline = format!(
-        "{} {}  (cwd {})",
-        program.display(),
-        ext.args.join(" "),
-        ext.cwd.display()
-    );
-    let mut child = Command::new(&program)
-        .args(&ext.args)
-        .current_dir(&ext.cwd)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| format!("{cmdline}: {e}"))?;
-    std::thread::spawn(move || {
-        let _ = child.wait();
-    });
-    Ok(format!("Hunk launched: {cmdline}"))
 }
 
 fn run_work_tool(tool: &app::WorkTool) -> Result<(), String> {
@@ -384,18 +354,18 @@ fn executable_candidate(path: &std::path::Path, windows: bool) -> Option<PathBuf
 mod tests {
 
     #[test]
-    fn external_diff_launch_mode_routes_hunk_to_background() {
+    fn external_diff_launch_mode_routes_hunk_to_interactive_handoff() {
         assert_eq!(
             external_launch_mode("hunk"),
-            ExternalLaunchMode::HunkDetached
+            ExternalLaunchMode::HunkInteractive
         );
         assert_eq!(
             external_launch_mode("/opt/hunk/bin/hunkdiff"),
-            ExternalLaunchMode::HunkDetached
+            ExternalLaunchMode::HunkInteractive
         );
         assert_eq!(
             external_launch_mode(r"C:\\Hunk\\hunk.exe"),
-            ExternalLaunchMode::HunkDetached
+            ExternalLaunchMode::HunkInteractive
         );
         assert_eq!(
             external_launch_mode("git-difftool"),

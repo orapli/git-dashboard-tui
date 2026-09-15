@@ -146,9 +146,9 @@ footer a{color:var(--muted)}
 </section>
 <section id="versions">
 <h2>Release or development version?<a href="#versions" aria-label="link">#</a></h2>
-<p>This manual describes v0.5.2. The installer downloads the latest published release. First-run guidance, Home freshness context, the O tool menu, W workspace, untracked-file diffs and cancellable discovery are included in v0.4.0. v0.5.0 added title-bar mouse navigation; v0.5.1 improved in-list search; v0.5.2 opens Hunk in the background without flashing away from the dashboard. See the <a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">changelog</a>. For older releases, read the README at the corresponding tag. Development main may contain later unreleased changes.</p>
+<p>This manual describes v0.5.3. The installer downloads the latest published release. First-run guidance, Home freshness context, the O tool menu, W workspace, untracked-file diffs and cancellable discovery are included in v0.4.0. v0.5.0 added title-bar mouse navigation; v0.5.1 improved in-list search; v0.5.3 restores Hunk's interactive terminal handoff while suppressing the extra command banner. See the <a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">changelog</a>. For older releases, read the README at the corresponding tag. Development main may contain later unreleased changes.</p>
 <pre><code>cargo install --git https://github.com/orapli/git-dashboard-tui --branch main --locked</code></pre>
-<p>Building main requires Rust 1.88 or later and a native linker/toolchain. Pre-built release binaries do not require Rust. To pin a release with the installer, use <code>VERSION=v0.5.2 sh</code> in place of <code>sh</code>.</p>
+<p>Building main requires Rust 1.88 or later and a native linker/toolchain. Pre-built release binaries do not require Rust. To pin a release with the installer, use <code>VERSION=v0.5.3 sh</code> in place of <code>sh</code>.</p>
 </section>
 <section id="tasks">
 <h2>Task walkthroughs<a href="#tasks" aria-label="link">#</a></h2>
@@ -180,7 +180,7 @@ footer a{color:var(--muted)}
 <tr><td class="term"><span>Neovim / Vim</span></td><td><code>nvim "{path}"</code> or <code>vim "{path}"</code> — wait on, so the editor owns the terminal until it exits.</td></tr>
 <tr><td class="term"><span>Absolute path with spaces</span></td><td><code>"/opt/editor tools/editor" "{path}"</code>. On Windows use an actual executable, for example <code>"C:/Program Files/Neovim/bin/nvim.exe" "{path}"</code>, with wait on.</td></tr>
 </tbody></table>
-<p>Commands are split into a program and arguments; they are not shell scripts. Quoting is supported, but shell aliases, $HOME, ~, pipes and redirections are not expanded. Use an absolute executable path or an exact executable name on an absolute PATH entry. The repository path is appended if {path} is absent. Settings <kbd>c</kbd> configures the separate external diff command; its placeholders are documented in the reference. The Hunk GUI command is launched in the background without taking over the terminal; other diff commands keep the blocking handoff.</p>
+<p>Commands are split into a program and arguments; they are not shell scripts. Quoting is supported, but shell aliases, $HOME, ~, pipes and redirections are not expanded. Use an absolute executable path or an exact executable name on an absolute PATH entry. The repository path is appended if {path} is absent. Settings <kbd>c</kbd> configures the separate external diff command; its placeholders are documented in the reference. The Hunk terminal UI receives the interactive terminal until it exits; its extra pre-launch command banner is suppressed.</p>
 </section>
 <section id="platforms">
 <h2>Platform and SSH support<a href="#platforms" aria-label="link">#</a></h2>

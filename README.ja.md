@@ -7,13 +7,13 @@
 未コミットの変更、同期差分、CI失敗を一覧し、差分を確認して普段の作業ツールを開けます。
 横断コミット検索、貢献者分析、Worktree一覧にも対応します。
 
-v0.5.2では、ダッシュボードからHunkを開くときのターミナル画面の点滅をなくしました。
-Hunkは端末の入出力を引き継がずバックグラウンドで起動し、端末型diffツールは従来どおり
-画面を引き渡します。v0.5.1の一覧内検索の改善も含みます。
+v0.5.3ではHunkへの対話的な端末引き渡しを回復しました。Hunkを終了するまで端末を渡し、
+切り替え時の余計なコマンド案内を抑えて表示のちらつきを減らします。v0.5.1の一覧内検索の
+改善も含みます。
 
 ![登録 → 要対応 → 差分 → シェルの操作デモ](docs/img/quick-tour.ja.svg)
 
-このREADMEと公開マニュアルは **v0.5.2** の機能を説明します。インストーラは最新リリースを取得します。
+このREADMEと公開マニュアルは **v0.5.3** の機能を説明します。インストーラは最新リリースを取得します。
 初回登録ガイド、Homeの取得状態、`O` のツールメニュー、`W` の横断Worktree一覧に加え、
 未追跡ファイルの差分表示と中止できるバックグラウンド走査を利用できます。[変更履歴](CHANGELOG.md)
 
@@ -32,7 +32,7 @@ SHA-256 チェックサムと照合したうえで `~/.local/bin`（すでに `P
 ```bash
 # インストール先を指定する / バージョンを固定する
 curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | INSTALL_DIR=~/bin sh
-curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.5.2 sh
+curl -fsSL https://raw.githubusercontent.com/orapli/git-dashboard-tui/main/install.sh | VERSION=v0.5.3 sh
 ```
 
 > スクリプトをシェルにパイプするのは、そのスクリプトを信頼することを意味します。本スクリプトは
