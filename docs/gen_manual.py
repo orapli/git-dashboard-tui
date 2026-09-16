@@ -659,6 +659,11 @@ SECTIONS = [
             ("keys", [
                 (t("q / Ctrl+C", "q / Ctrl+C"), t("Quit", "終了")),
                 (t("Esc / h", "Esc / h"), t("Back one screen", "1つ前の画面に戻る")),
+                (t("v", "v"), t(
+                    "Freeze the frame and release the mouse for terminal drag-selection; "
+                    "copy with Cmd+C or Ctrl+Shift+C, then press v/Esc to resume",
+                    "画面を止めてマウスを解放し、端末上でドラッグ選択。Cmd+Cまたは"
+                    "Ctrl+Shift+Cでコピーし、v/Escで通常操作へ戻る")),
                 (t("g / G", "g / G"), t("First / last item", "先頭 / 末尾へ")),
                 (t("t / T", "t / T"), t("Open a shell in the repository directory", "リポジトリのディレクトリでシェルを開く")),
             ]),

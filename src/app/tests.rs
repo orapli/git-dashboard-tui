@@ -34,6 +34,25 @@ fn filter_matches_name_or_path() {
 }
 
 #[test]
+fn text_selection_mode_holds_the_frame_until_v_or_escape() {
+    let mut app = App::new();
+
+    app.handle_key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE));
+    assert!(app.text_selection_mode);
+    assert!(app.footer_hints().iter().any(|(key, _)| key == "drag"));
+
+    // A copy shortcut that reaches the application, or an accidental q while
+    // selecting, must not quit or mutate the screen underneath the selection.
+    app.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
+    app.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
+    assert!(!app.should_quit);
+    assert!(app.text_selection_mode);
+
+    app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!app.text_selection_mode);
+}
+
+#[test]
 fn move_index_clamps() {
     assert_eq!(move_index(0, 0, 1), 0);
     assert_eq!(move_index(0, 3, 1), 1);

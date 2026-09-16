@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Commit details can be copied as text.** Press `Y` on the Commits tab to copy the
   complete message, metadata, and changed-file list with line breaks preserved. The
-  existing `y` shortcut continues to copy the commit hash.
+  existing `y` shortcut continues to copy the commit hash. Press `v` anywhere to release
+  mouse capture and freeze the frame for native terminal drag-selection; `v` or `Esc`
+  resumes normal mouse operation.
 
 ## [0.5.4] - 2026-09-16
 

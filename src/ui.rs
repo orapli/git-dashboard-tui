@@ -1814,8 +1814,8 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             preview_scroll.saturating_add(1),
             preview_lines.len(),
             app.tt(
-                "(PgUp/PgDn · wheel · Y copy)",
-                "(PgUp/PgDn・ホイール・Y コピー)"
+                "(PgUp/PgDn · wheel · Y copy · v select)",
+                "(PgUp/PgDn・ホイール・Y コピー・v 選択)"
             )
         )
     } else {
@@ -3185,6 +3185,13 @@ fn help_global_section(app: &App) -> HelpSection {
         title: app.tt("Global", "全体"),
         rows: vec![
             help_row("q / Ctrl+C", app.tt("quit", "終了")),
+            help_row(
+                "v",
+                app.tt(
+                    "release the mouse to drag-select text; v/Esc resumes",
+                    "マウスを解放して文字をドラッグ選択。v/Escで復帰",
+                ),
+            ),
             help_row(
                 "Esc / h",
                 app.tt(

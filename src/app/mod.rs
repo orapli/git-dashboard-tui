@@ -137,6 +137,9 @@ pub struct App {
     pub status: String,
     pub error: Option<String>,
     pub should_quit: bool,
+    /// Releases terminal mouse reporting and freezes the rendered frame so
+    /// the terminal itself can drag-select arbitrary text for copying.
+    pub text_selection_mode: bool,
     pub tag_base: Option<String>,
     pub tag_target: Option<String>,
     pub commit_base: Option<String>,
@@ -303,6 +306,7 @@ impl App {
             status: String::new(),
             error: None,
             should_quit: false,
+            text_selection_mode: false,
             tag_base: None,
             tag_target: None,
             commit_base: None,
@@ -769,6 +773,13 @@ impl App {
 
     pub fn footer_hints(&self) -> Vec<(String, String)> {
         let pair = |k: &str, en: &str, ja: &str| (k.to_string(), self.tt(en, ja));
+        if self.text_selection_mode {
+            return vec![
+                pair("drag", "select text", "文字を選択"),
+                pair("Cmd+C/Ctrl+Shift+C", "copy in terminal", "端末でコピー"),
+                pair("v/Esc", "resume mouse", "マウス操作へ戻る"),
+            ];
+        }
         if self.screen == Screen::Repo && self.is_commit_filtering() {
             return vec![
                 pair("type", "find commits", "コミット検索"),
@@ -878,6 +889,7 @@ impl App {
                     RepoTab::Worktrees => vec![pair("enter/t", "shell", "シェル起動")],
                 });
                 h.push(pair("y", "copy", "コピー"));
+                h.push(pair("v", "select text", "文字選択"));
                 h.push(pair("t", "shell", "シェル"));
                 h.push(pair("r", "reload", "再読込"));
                 h.push(pair("/", "filter", "絞込"));
@@ -909,6 +921,7 @@ impl App {
                     pair("t", "shell", "シェル"),
                     pair("O", "open tools", "ツールで開く"),
                     pair("y", "copy", "コピー"),
+                    pair("v", "select text", "文字選択"),
                     pair("?", "help", "ヘルプ"),
                     pair("esc", "back", "戻る"),
                     pair("q", "quit", "終了"),
@@ -1155,6 +1168,16 @@ impl App {
             return;
         }
         if self.handle_navigation_popup(key) {
+            return;
+        }
+        if self.text_selection_mode {
+            if matches!(key.code, KeyCode::Char('v') | KeyCode::Esc) {
+                self.text_selection_mode = false;
+            }
+            return;
+        }
+        if key.code == KeyCode::Char('v') {
+            self.text_selection_mode = true;
             return;
         }
         // Copying the identifier under the cursor is a hand-off, not a

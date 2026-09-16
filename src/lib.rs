@@ -112,6 +112,8 @@ fn terminal_panic_hook(
 }
 
 fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> io::Result<()> {
+    let mut mouse_capture_enabled = true;
+    let mut selection_frame_drawn = false;
     while !app.should_quit {
         app.drain_messages();
         app.maybe_auto_refresh();
@@ -157,7 +159,22 @@ fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> io::Res
             }
             continue;
         }
-        terminal.draw(|frame| ui::draw(frame, app))?;
+        // Draw the selection-mode instructions once, then freeze the frame.
+        // Redrawing while the user drags would clear the terminal's native
+        // selection. Background results may still arrive and are shown as
+        // soon as normal mouse mode resumes.
+        if !app.text_selection_mode || !selection_frame_drawn {
+            terminal.draw(|frame| ui::draw(frame, app))?;
+            selection_frame_drawn = app.text_selection_mode;
+        }
+        if app.text_selection_mode && mouse_capture_enabled {
+            execute!(io::stdout(), DisableMouseCapture)?;
+            mouse_capture_enabled = false;
+        } else if !app.text_selection_mode && !mouse_capture_enabled {
+            execute!(io::stdout(), EnableMouseCapture)?;
+            mouse_capture_enabled = true;
+            selection_frame_drawn = false;
+        }
 
         if event::poll(Duration::from_millis(100))? {
             match event::read()? {

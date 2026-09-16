@@ -24,6 +24,7 @@ Covers v0.5.4. [User manual](manual.html) · [README](../README.md)
 | `g` / `G` | Jump to top / bottom of list |
 | `t` | Open `$SHELL` in the current repository<br>(except the Contributors tab, where `t` toggles member status) |
 | `y` | Copy the identifier for the current selection — the commit hash, branch, tag, stash ref, author e-mail, file path, worktree path or repository path, depending on where you are.<br>Home, repository details, the diff view, the worktree view and the tools menu; elsewhere it does nothing |
+| `v` | Enter terminal text-selection mode: the frame freezes and mouse capture is released so text can be selected by dragging. Copy with the terminal's shortcut (`Cmd+C` on macOS, usually `Ctrl+Shift+C` elsewhere), then press `v` or `Esc` to resume |
 | **Mouse wheel** | Scroll lists, commit logs, diff views, and the help screen |
 | **Mouse click** | Switch tabs or select items directly |
 | **Click a column header** | Sort the Home list by that column; click again to reverse |
