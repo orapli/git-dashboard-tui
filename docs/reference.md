@@ -1,14 +1,14 @@
 # Keyboard and configuration reference
 
-Version v0.5.3 restores the interactive Hunk terminal handoff and suppresses the extra
-command banner during the transition. It includes the v0.5.1 in-list search improvements,
-the command line and `--json`,
+Version v0.5.4 makes complete commit messages and changed-file lists scrollable. It includes
+the v0.5.3 interactive Hunk handoff fix, the v0.5.1 in-list search improvements, the command
+line and `--json`,
 commit-search filters, `y` to copy, user-defined work-tool commands, branch-scoped CI
 and pull-request signals, and a Home row that distinguishes unknown from fine.
 The title bar provides buttons for Back, Home, and Navigate. Navigate opens Settings,
 Worktrees, Global Members, or Commit Search; `Esc` closes its menu.
 
-Covers v0.5.3. [User manual](manual.html) · [README](../README.md)
+Covers v0.5.4. [User manual](manual.html) · [README](../README.md)
 
 ## Keybindings
 
@@ -321,7 +321,7 @@ fields later. `schema_version` is bumped only for a breaking change: adding a fi
 {
   "schema": "git-dashboard-tui.status-snapshot",
   "schema_version": 1,
-  "tool_version": "0.5.3",
+  "tool_version": "0.5.4",
   "generated_at": "2026-09-12T09:15:04Z",
   "generated_at_unix": 1789204504,
   "repository_count": 1,

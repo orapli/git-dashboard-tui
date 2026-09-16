@@ -5,13 +5,13 @@ def sections(t):
     return [
         ("versions", t("Release or development version?", "リリース版と開発版"), [
             ("p", t(
-                'This manual describes v0.5.3. The installer downloads the latest published release. First-run guidance, Home freshness context, the O tool menu, W workspace, untracked-file diffs and cancellable discovery are included in v0.4.0. v0.5.0 added title-bar mouse navigation; v0.5.1 improved in-list search; v0.5.3 restores Hunk\'s interactive terminal handoff while suppressing the extra command banner. See the <a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">changelog</a>. For older releases, read the README at the corresponding tag. Development main may contain later unreleased changes.',
-                'このマニュアルはv0.5.3を説明します。インストーラは最新の公開リリースを取得します。初回ガイド、Homeの取得状態、Oメニュー、W一覧、未追跡ファイルの差分、中止できる走査はv0.4.0に含まれます。v0.5.0ではタイトルバーのマウス移動、v0.5.1では一覧内検索を改善し、v0.5.3ではHunkへの対話的な端末引き渡しを回復しつつ余計なコマンド案内を抑止しました。<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴</a>を参照してください。過去版は対応タグのREADMEで確認できます。開発用mainにはその後の未リリース変更が含まれる場合があります。')),
+                'This manual describes v0.5.4. The installer downloads the latest published release. First-run guidance, Home freshness context, the O tool menu, W workspace, untracked-file diffs and cancellable discovery are included in v0.4.0. v0.5.1 improved in-list search; v0.5.3 restored Hunk\'s interactive terminal handoff; v0.5.4 makes complete commit messages and changed-file lists scrollable. See the <a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">changelog</a>. For older releases, read the README at the corresponding tag. Development main may contain later unreleased changes.',
+                'このマニュアルはv0.5.4を説明します。インストーラは最新の公開リリースを取得します。初回ガイド、Homeの取得状態、Oメニュー、W一覧、未追跡ファイルの差分、中止できる走査はv0.4.0に含まれます。v0.5.1では一覧内検索を改善し、v0.5.3ではHunkへの対話的な端末引き渡しを回復し、v0.5.4ではコミットメッセージ全文と変更ファイル一覧をスクロールできるようにしました。<a href="https://github.com/orapli/git-dashboard-tui/blob/main/CHANGELOG.md">変更履歴</a>を参照してください。過去版は対応タグのREADMEで確認できます。開発用mainにはその後の未リリース変更が含まれる場合があります。')),
             ("code", t(
                 'cargo install --git https://github.com/orapli/git-dashboard-tui --branch main --locked',
                 'cargo install --git https://github.com/orapli/git-dashboard-tui --branch main --locked')),
-            ("p", t('Building main requires Rust 1.88 or later and a native linker/toolchain. Pre-built release binaries do not require Rust. To pin a release with the installer, use <code>VERSION=v0.5.3 sh</code> in place of <code>sh</code>.',
-                    'mainのビルドにはRust 1.88以上とネイティブのリンカ・ビルド環境が必要です。配布バイナリにはRustは不要です。インストーラでバージョンを固定する場合は <code>sh</code> を <code>VERSION=v0.5.3 sh</code> に置き換えます。')),
+            ("p", t('Building main requires Rust 1.88 or later and a native linker/toolchain. Pre-built release binaries do not require Rust. To pin a release with the installer, use <code>VERSION=v0.5.4 sh</code> in place of <code>sh</code>.',
+                    'mainのビルドにはRust 1.88以上とネイティブのリンカ・ビルド環境が必要です。配布バイナリにはRustは不要です。インストーラでバージョンを固定する場合は <code>sh</code> を <code>VERSION=v0.5.4 sh</code> に置き換えます。')),
         ]),
         ("tasks", t("Task walkthroughs", "目的別の操作手順"), [
             ("cols", [
