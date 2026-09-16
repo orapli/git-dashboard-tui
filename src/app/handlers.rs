@@ -7,10 +7,10 @@ impl App {
     pub fn handle_mouse(&mut self, mouse: MouseEvent) {
         match mouse.kind {
             MouseEventKind::ScrollDown => {
-                self.handle_mouse_scroll(1);
+                self.handle_mouse_scroll_at(1, Some((mouse.column, mouse.row)));
             }
             MouseEventKind::ScrollUp => {
-                self.handle_mouse_scroll(-1);
+                self.handle_mouse_scroll_at(-1, Some((mouse.column, mouse.row)));
             }
             MouseEventKind::Down(MouseButton::Left) => {
                 self.handle_mouse_click(mouse.column, mouse.row);
@@ -20,6 +20,10 @@ impl App {
     }
 
     pub fn handle_mouse_scroll(&mut self, delta: isize) {
+        self.handle_mouse_scroll_at(delta, None);
+    }
+
+    fn handle_mouse_scroll_at(&mut self, delta: isize, position: Option<(u16, u16)>) {
         if self.confirm.is_some()
             || self.input.is_some()
             || self.tool_menu.is_some()
@@ -37,9 +41,21 @@ impl App {
                 }
             }
             Screen::Repo => {
+                if self.repo_tab == RepoTab::Commits
+                    && position.is_some_and(|(col, row)| {
+                        let rect = self.commit_preview_viewport.get();
+                        col >= rect.x
+                            && col < rect.x.saturating_add(rect.width)
+                            && row >= rect.y
+                            && row < rect.y.saturating_add(rect.height)
+                    })
+                {
+                    self.scroll_commit_preview_by(delta.signum() * 3);
+                    return;
+                }
                 let len = self.visible_indices().len();
                 if len > 0 {
-                    self.list_selected = move_index(self.list_selected, len, delta.signum());
+                    self.move_list(delta.signum());
                 }
             }
             Screen::Diff => {

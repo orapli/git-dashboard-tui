@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- **Commit details can be scrolled.** The Commits preview now keeps the complete commit
+  message and changed-file list instead of truncating them. Use `PageUp` / `PageDown`, or
+  the mouse wheel while pointing at the Commit pane; changing the selected commit returns
+  the preview to its first line.
 
 ## [0.5.3] - 2026-09-16
 

@@ -1782,7 +1782,7 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
     }
     if let Some(p) = &app.commit_preview {
         preview_lines.push(Line::from(""));
-        for row in p.header.lines().take(8) {
+        for row in p.header.lines() {
             preview_lines.push(Line::styled(
                 row.to_string(),
                 Style::default().fg(pal.subtext),
@@ -1790,14 +1790,8 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
         }
         if !p.files.is_empty() {
             preview_lines.push(Line::from(""));
-            for f in p.files.iter().take(12) {
+            for f in &p.files {
                 preview_lines.push(file_status_line(f, pal));
-            }
-            if p.files.len() > 12 {
-                preview_lines.push(Line::styled(
-                    format!("… {} more", p.files.len() - 12),
-                    Style::default().fg(pal.muted),
-                ));
             }
         }
     }
@@ -1807,14 +1801,33 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             Style::default().fg(pal.muted),
         ));
     }
+    app.commit_preview_viewport.set(split[2]);
+    let visible_lines = split[2].height.saturating_sub(2) as usize;
+    let max_scroll = preview_lines.len().saturating_sub(visible_lines);
+    let preview_scroll = app.commit_preview_scroll.get().min(max_scroll);
+    app.commit_preview_scroll.set(preview_scroll);
+    let preview_title = if max_scroll > 0 {
+        format!(
+            "{}  {} {}/{}  {}",
+            app.tt("Commit", "コミット内容"),
+            app.tt("line", "行"),
+            preview_scroll.saturating_add(1),
+            preview_lines.len(),
+            app.tt("(PgUp/PgDn · wheel)", "(PgUp/PgDn・ホイール)")
+        )
+    } else {
+        app.tt("Commit", "コミット内容")
+    };
     frame.render_widget(
-        Paragraph::new(preview_lines).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(app.tt("Commit", "コミット内容"))
-                .border_style(Style::default().fg(pal.border))
-                .title_style(Style::default().fg(pal.accent)),
-        ),
+        Paragraph::new(preview_lines)
+            .scroll((preview_scroll.min(u16::MAX as usize) as u16, 0))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(preview_title)
+                    .border_style(Style::default().fg(pal.border))
+                    .title_style(Style::default().fg(pal.accent)),
+            ),
         split[2],
     );
 }
@@ -5251,8 +5264,9 @@ mod sort_tests {
 mod commit_click_tests {
     use super::tests::render_to_text;
     use super::*;
-    use crate::app::RepoSnapshot;
-    use crate::git::{CommitSummary, Summary, TagInfo};
+    use crate::app::{CommitPreview, RepoSnapshot};
+    use crate::git::{ChangedFile, CommitSummary, Summary, TagInfo};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 
     /// Screen column (not byte offset) where `needle` starts in `line`.
     ///
@@ -5348,6 +5362,63 @@ mod commit_click_tests {
             text.contains("1 matches"),
             "total match count missing: {text}"
         );
+    }
+
+    #[test]
+    fn commit_preview_scroll_reaches_the_full_message_and_file_list() {
+        let mut app = app_on_commits(2);
+        app.commit_preview = Some(CommitPreview {
+            hash: "c000000".into(),
+            header: (0..16)
+                .map(|i| format!("message line {i}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            files: (0..20)
+                .map(|i| ChangedFile {
+                    status: "M".into(),
+                    path: format!("src/file-{i:02}.rs"),
+                    old_path: None,
+                    additions: i,
+                    deletions: 0,
+                })
+                .collect(),
+        });
+
+        let first = render_to_text(&app, 120, 30);
+        assert!(
+            first.contains("message line 0"),
+            "first page missing: {first}"
+        );
+        assert!(!first.contains("src/file-19.rs"));
+        assert!(first.contains("PgUp/PgDn"));
+
+        app.commit_preview_scroll.set(usize::MAX);
+        let last = render_to_text(&app, 120, 30);
+        assert!(last.contains("src/file-19.rs"), "last file missing: {last}");
+    }
+
+    #[test]
+    fn preview_keys_and_wheel_scroll_without_moving_the_commit() {
+        let mut app = app_on_commits(3);
+        render_to_text(&app, 120, 20);
+        let preview = app.commit_preview_viewport.get();
+
+        app.handle_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
+        assert_eq!(app.commit_preview_scroll.get(), 10);
+        assert_eq!(app.list_selected, 0);
+
+        app.handle_mouse(MouseEvent {
+            kind: MouseEventKind::ScrollDown,
+            column: preview.x.saturating_add(1),
+            row: preview.y.saturating_add(1),
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(app.commit_preview_scroll.get(), 13);
+        assert_eq!(app.list_selected, 0);
+
+        app.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        assert_eq!(app.list_selected, 1);
+        assert_eq!(app.commit_preview_scroll.get(), 0);
     }
 
     /// The marker hit region is expressed as two constants in the click

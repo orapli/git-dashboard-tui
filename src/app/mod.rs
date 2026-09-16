@@ -142,6 +142,12 @@ pub struct App {
     pub commit_base: Option<String>,
     pub commit_target: Option<String>,
     pub commit_preview: Option<CommitPreview>,
+    /// First line shown in the Commit preview pane. The renderer clamps this
+    /// against the pane height and full message/file count each frame.
+    pub commit_preview_scroll: std::cell::Cell<usize>,
+    /// Commit preview hit box recorded by the renderer so the mouse wheel can
+    /// scroll the preview without moving the commit selection.
+    pub commit_preview_viewport: std::cell::Cell<ratatui::layout::Rect>,
     pub list_filter: String,
     /// Commits-tab find query. Unlike `list_filter`, this leaves every commit
     /// in the list so the surrounding history remains available for j/k.
@@ -302,6 +308,8 @@ impl App {
             commit_base: None,
             commit_target: None,
             commit_preview: None,
+            commit_preview_scroll: std::cell::Cell::new(0),
+            commit_preview_viewport: std::cell::Cell::new(ratatui::layout::Rect::default()),
             list_filter: String::new(),
             commit_filter: String::new(),
             log: None,
@@ -850,6 +858,7 @@ impl App {
                         pair("space", "mark", "選択"),
                         pair("enter", "diff", "diff"),
                         pair("i", "builtin", "内蔵"),
+                        pair("PgUp/Dn", "preview", "詳細スクロール"),
                     ],
                     RepoTab::Branches => vec![pair("enter", "log", "ログ")],
                     RepoTab::Tags => vec![
@@ -1801,6 +1810,12 @@ impl App {
             }
             KeyCode::Down | KeyCode::Char('j') => self.move_list(1),
             KeyCode::Up | KeyCode::Char('k') => self.move_list(-1),
+            KeyCode::PageDown if self.repo_tab == RepoTab::Commits => {
+                self.scroll_commit_preview_by(10)
+            }
+            KeyCode::PageUp if self.repo_tab == RepoTab::Commits => {
+                self.scroll_commit_preview_by(-10)
+            }
             KeyCode::Char('n') => {
                 if self.repo_tab == RepoTab::Commits {
                     self.move_commit_match(1);
@@ -2255,8 +2270,18 @@ impl App {
 
     fn after_list_move(&mut self) {
         if self.repo_tab == RepoTab::Commits {
+            self.commit_preview_scroll.set(0);
             self.request_commit_preview();
         }
+    }
+
+    pub(super) fn scroll_commit_preview_by(&self, delta: isize) {
+        let current = self.commit_preview_scroll.get();
+        self.commit_preview_scroll.set(if delta >= 0 {
+            current.saturating_add(delta as usize)
+        } else {
+            current.saturating_sub(delta.unsigned_abs())
+        });
     }
 
     fn switch_tab(&mut self, tab: RepoTab) {
@@ -2610,6 +2635,7 @@ impl App {
         self.commit_base = None;
         self.commit_target = None;
         self.commit_preview = None;
+        self.commit_preview_scroll.set(0);
         self.screen = Screen::Repo;
         let cached = load_tui_cache(&repo.path);
         // Land where the reason for opening this repository is visible.
