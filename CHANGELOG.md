@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- **Commit details can be copied as text.** Press `Y` on the Commits tab to copy the
+  complete message, metadata, and changed-file list with line breaks preserved. The
+  existing `y` shortcut continues to copy the commit hash.
 
 ## [0.5.4] - 2026-09-16
 

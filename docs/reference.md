@@ -74,6 +74,7 @@ Covers v0.5.4. [User manual](manual.html) · [README](../README.md)
 | | `/` | Find in the commit list; the search row stays visible after Enter |
 | | `n` / `N` | Select next / previous match (wraps) |
 | | `PageUp` / `PageDown` | Scroll the selected commit's full message and changed-file list. The mouse wheel does the same while the pointer is over the Commit pane |
+| | `Y` | Copy the complete Commit pane as multiline text (message, metadata, and changed-file list). Lowercase `y` still copies only the commit hash |
 | | `Esc` | Clear the commit find; press again to leave the repository |
 | **Branches** (`3`) | `Enter` | View interactive oneline branch log |
 | **Tags** (`4`) | `Space` / `Enter` | Select tag range / Compare tags |

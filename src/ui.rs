@@ -1813,7 +1813,10 @@ fn draw_commits(frame: &mut Frame, app: &App, area: Rect, pal: Palette) {
             app.tt("line", "行"),
             preview_scroll.saturating_add(1),
             preview_lines.len(),
-            app.tt("(PgUp/PgDn · wheel)", "(PgUp/PgDn・ホイール)")
+            app.tt(
+                "(PgUp/PgDn · wheel · Y copy)",
+                "(PgUp/PgDn・ホイール・Y コピー)"
+            )
         )
     } else {
         app.tt("Commit", "コミット内容")
@@ -3453,6 +3456,13 @@ fn help_sections(app: &App) -> Vec<HelpSection> {
                     app.tt(
                         "copy the selected commit/branch/tag/stash/author/file",
                         "選択中のコミット/ブランチ/タグ/stash/作者/ファイルをコピー",
+                    ),
+                ),
+                help_row(
+                    "Y",
+                    app.tt(
+                        "copy the complete Commit pane (Commits tab)",
+                        "コミット内容ペイン全文をコピー（Commitsタブ）",
                     ),
                 ),
                 help_row(

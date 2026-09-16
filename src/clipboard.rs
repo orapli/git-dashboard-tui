@@ -22,11 +22,10 @@
 //! which is why the caller's confirmation message says what *was sent* rather
 //! than claiming success.
 
-/// Longest identifier we will copy. Everything the yank key offers — a hash, a
-/// ref, a path — is far shorter; a refusal past this is a sign the value is
-/// not what we think it is, and silently truncating a path is worse than not
-/// copying it.
-pub const MAX_CLIPBOARD_BYTES: usize = 4096;
+/// Largest payload sent through OSC 52. This also covers the multiline commit
+/// details offered by `Y`; silently truncating copied text would be worse than
+/// refusing it.
+pub const MAX_CLIPBOARD_BYTES: usize = 64 * 1024;
 
 /// Characters `char::is_control` does not cover — it knows only C0, C1 and
 /// DEL — but which change how the copied text *reads* once it is pasted.
@@ -86,6 +85,24 @@ pub fn sanitize(text: &str) -> Result<String, ClipboardError> {
     Ok(cleaned)
 }
 
+/// Sanitise prose while preserving its line breaks. Commit messages are
+/// deliberately multiline, so the identifier sanitiser used by `y` would
+/// flatten the very text the user asked `Y` to copy.
+pub fn sanitize_multiline(text: &str) -> Result<String, ClipboardError> {
+    let cleaned: String = text
+        .chars()
+        .filter(|c| *c == '\n' || (!c.is_control() && !is_invisible_or_bidi(*c)))
+        .collect();
+    let cleaned = cleaned.trim().to_string();
+    if cleaned.is_empty() {
+        return Err(ClipboardError::Empty);
+    }
+    if cleaned.len() > MAX_CLIPBOARD_BYTES {
+        return Err(ClipboardError::TooLong(cleaned.len()));
+    }
+    Ok(cleaned)
+}
+
 /// The OSC 52 sequence that sets the clipboard (`c`) to `text`.
 ///
 /// BEL terminates it rather than ST: both are legal, BEL is understood by
@@ -98,6 +115,13 @@ pub fn osc52_sequence(text: &str) -> String {
 /// actually sent so the caller can show it.
 pub fn copy(text: &str) -> Result<String, ClipboardError> {
     let clean = sanitize(text)?;
+    emit(&osc52_sequence(&clean));
+    Ok(clean)
+}
+
+/// Copy prose without discarding its line breaks.
+pub fn copy_multiline(text: &str) -> Result<String, ClipboardError> {
+    let clean = sanitize_multiline(text)?;
     emit(&osc52_sequence(&clean));
     Ok(clean)
 }
@@ -239,6 +263,14 @@ mod tests {
             Err(ClipboardError::TooLong(MAX_CLIPBOARD_BYTES + 1))
         );
         assert!(sanitize(&"a".repeat(MAX_CLIPBOARD_BYTES)).is_ok());
+    }
+
+    #[test]
+    fn multiline_copy_preserves_lines_but_removes_unsafe_controls() {
+        take_emitted();
+        let copied = copy_multiline(" subject\n\nbody\ttext\u{202e}\n ").unwrap();
+        assert_eq!(copied, "subject\n\nbodytext");
+        assert_eq!(take_emitted(), Some(osc52_sequence("subject\n\nbodytext")));
     }
 
     #[test]

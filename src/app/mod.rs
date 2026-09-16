@@ -859,6 +859,7 @@ impl App {
                         pair("enter", "diff", "diff"),
                         pair("i", "builtin", "内蔵"),
                         pair("PgUp/Dn", "preview", "詳細スクロール"),
+                        pair("Y", "copy details", "詳細コピー"),
                     ],
                     RepoTab::Branches => vec![pair("enter", "log", "ログ")],
                     RepoTab::Tags => vec![
@@ -1166,6 +1167,13 @@ impl App {
             )
         {
             self.yank_current();
+            return;
+        }
+        if key.code == KeyCode::Char('Y')
+            && self.screen == Screen::Repo
+            && self.repo_tab == RepoTab::Commits
+        {
+            self.yank_commit_details();
             return;
         }
         if key.code == KeyCode::Char('O')

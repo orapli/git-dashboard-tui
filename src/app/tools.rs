@@ -687,6 +687,70 @@ impl App {
         self.yank(&label, &value);
     }
 
+    /// Copy the complete text shown in the Commit pane. `y` remains the fast
+    /// path for the hash; uppercase `Y` is intentionally scoped to this pane
+    /// so it cannot unexpectedly copy a large payload elsewhere.
+    pub(super) fn yank_commit_details(&mut self) {
+        let selected_hash = self.selected_item_index().and_then(|item| {
+            self.repo_data
+                .as_ref()?
+                .commits
+                .get(item)
+                .map(|commit| commit.hash.as_str())
+        });
+        let Some(preview) = self
+            .commit_preview
+            .as_ref()
+            .filter(|preview| Some(preview.hash.as_str()) == selected_hash)
+        else {
+            let message = self.tt(
+                "Commit details are still loading",
+                "コミット詳細を読み込み中です",
+            );
+            self.post_status(message);
+            return;
+        };
+
+        let mut text = preview.header.trim().to_string();
+        if !preview.files.is_empty() {
+            text.push_str("\n\n");
+            for (index, file) in preview.files.iter().enumerate() {
+                if index > 0 {
+                    text.push('\n');
+                }
+                text.push_str(&format!(
+                    "[{}] +{}/-{}  {}",
+                    file.status, file.additions, file.deletions, file.path
+                ));
+            }
+        }
+
+        match clipboard::copy_multiline(&text) {
+            Ok(_) => {
+                let message = format!(
+                    "{} {} {}",
+                    self.tt("Copied", "コピー送信"),
+                    self.tt("commit details", "コミット詳細"),
+                    self.tt(
+                        "(OSC 52 — your terminal may ignore it)",
+                        "（OSC 52・無視する端末もあります）"
+                    )
+                );
+                self.post_status(message);
+            }
+            Err(ClipboardError::Empty) => {
+                self.error = Some(self.tt("Nothing to copy", "コピーできる文字列がありません"));
+            }
+            Err(ClipboardError::TooLong(n)) => {
+                self.error = Some(format!(
+                    "{} ({n} > {})",
+                    self.tt("Too long to copy", "長すぎるためコピーしません"),
+                    clipboard::MAX_CLIPBOARD_BYTES
+                ));
+            }
+        }
+    }
+
     fn yank(&mut self, label: &str, value: &str) {
         match clipboard::copy(value) {
             Ok(copied) => {

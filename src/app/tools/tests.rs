@@ -482,6 +482,36 @@ fn yank_copies_the_identifier_for_the_selection() {
 }
 
 #[test]
+fn uppercase_y_copies_complete_commit_details_with_line_breaks() {
+    let dir = temp_repo_dir("yank-details");
+    let mut app = app_on_repo(&dir);
+    app.commit_preview = Some(CommitPreview {
+        hash: "abc1234def".into(),
+        header: "commit abc1234def\nAuthor: A\n\n    subject\n\n    body".into(),
+        files: vec![ChangedFile {
+            status: "M".into(),
+            path: "src/main.rs".into(),
+            old_path: None,
+            additions: 3,
+            deletions: 1,
+        }],
+    });
+    crate::clipboard::take_emitted();
+
+    app.handle_key(KeyEvent::from(KeyCode::Char('Y')));
+
+    let expected = concat!(
+        "commit abc1234def\nAuthor: A\n\n    subject\n\n    body",
+        "\n\n[M] +3/-1  src/main.rs"
+    );
+    assert_eq!(
+        crate::clipboard::take_emitted(),
+        Some(crate::clipboard::osc52_sequence(expected))
+    );
+    assert!(app.status.contains("commit details"), "{}", app.status);
+}
+
+#[test]
 fn yank_sanitises_repository_controlled_text_before_emitting() {
     let dir = temp_repo_dir("yank2");
     let mut app = app_on_repo(&dir);

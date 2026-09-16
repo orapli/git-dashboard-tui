@@ -272,10 +272,14 @@ SECTIONS = [
             ("shot", "repo-commits", t(
                 "Commits — the graph keeps git's own per-lane colours, so concurrent branches "
                 "stay visually distinct. Refs are shown as badges: <b class='green'>(main)</b> "
-                "for the current branch, <b class='blue'>[hotfix/timeout]</b> for others.",
+                "for the current branch, <b class='blue'>[hotfix/timeout]</b> for others. "
+                "<kbd>Y</kbd> copies the complete Commit pane with line breaks; lowercase "
+                "<kbd>y</kbd> copies only the hash.",
                 "Commits — グラフは git 自身のレーン色をそのまま使うため、"
                 "並行するブランチが視覚的に区別できます。ref はバッジ表示で、"
-                "現在のブランチが <b class='green'>(main)</b>、それ以外が <b class='blue'>[hotfix/timeout]</b> です。")),
+                "現在のブランチが <b class='green'>(main)</b>、それ以外が <b class='blue'>[hotfix/timeout]</b> です。"
+                "<kbd>Y</kbd> でコミット内容ペイン全文を改行付きでコピーし、小文字の "
+                "<kbd>y</kbd> ではハッシュのみをコピーします。")),
             ("shot", "repo-compare", t(
                 "Pick any two commits to compare: click the <code>[ ]</code> at the start of a "
                 "row, or press <kbd>space</kbd>. The first becomes the base <b class='green'>[B]</b>, "
